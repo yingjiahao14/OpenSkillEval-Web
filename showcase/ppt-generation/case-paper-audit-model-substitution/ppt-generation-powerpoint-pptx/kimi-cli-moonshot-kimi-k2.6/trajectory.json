@@ -1,0 +1,856 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "unknown",
+  "agent": {
+    "name": "kimi-cli",
+    "version": "unknown",
+    "model_name": "moonshot/kimi-k2.6"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "ReadFile:0",
+          "function_name": "ReadFile",
+          "arguments": {
+            "path": "/app/benchmark/source_brief.md"
+          }
+        },
+        {
+          "tool_call_id": "ReadFile:1",
+          "function_name": "ReadFile",
+          "arguments": {
+            "raw": "{\"path\": \"/app/benchmark/task_input.json"
+          }
+        },
+        {
+          "tool_call_id": "ReadFile:2",
+          "function_name": "ReadFile",
+          "arguments": {
+            "raw": "{\"path\": \"/root/.kimi/skills/powerpoint-pptx/SKILL.md"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "ReadFile:0",
+            "content": "     1\t# Auditing Model Substitution in LLM APIs\n     2\t\n     3\t## Source\n     4\thttps://arxiv.org/abs/2504.04715\n     5\t\n     6\t## The Model Substitution Problem\n     7\t\n     8\tCommercial LLM API providers charge users for access to specific models (e.g., Llama-3-70B, Qwen2-72B), but the black-box nature of APIs means users have no guarantee the advertised model is actually being served. Providers face strong economic incentives to covertly substitute cheaper alternatives \u2014 quantized versions, smaller models, or entirely different architectures \u2014 to reduce GPU costs while maintaining pricing.\n     9\t\n    10\tThe paper formalizes this as a hypothesis testing problem: given samples from the API, can an auditor distinguish the specified model's distribution P_spec(y|x) from an alternative P_actual(y|x)? Substitution types include: (1) smaller models (e.g., 8B instead of 70B), (2) quantized variants (FP8/INT8 instead of FP16), (3) fine-tuned or updated versions, and (4) entirely different model families.\n    11\t\n    12\t## Quantization Substitution: Benchmark Impact Is Minimal\n    13\t\n    14\tThe authors evaluated five model families comparing original precision against FP8 quantization across four benchmarks. The small performance differences make detection extremely challenging.\n    15\t\n    16\t| Model | MMLU | GSM8K | MATH | GPQA Diamond |\n    17\t|---|---|---|---|---|\n    18\t| Llama-3-8B-Instruct | 62.69 \u00b1 0.18 | 61.14 \u00b1 3.47 | 20.65 \u00b1 3.43 | 22.62 \u00b1 0.22 |\n    19\t| Llama-3-8B-Instruct-FP8 | 62.43 \u00b1 0.26 | 60.90 \u00b1 4.10 | 14.91 \u00b1 2.49 | 20.14 \u00b1 0.24 |\n    20\t| Llama-3-70B-Instruct | 78.05 \u00b1 0.08 | 88.06 \u00b1 1.44 | 35.69 \u00b1 1.33 | 29.60 \u00b1 0.51 |\n    21\t| Llama-3-70B-Instruct-FP8 | 77.88 \u00b1 0.13 | 87.35 \u00b1 1.24 | 35.75 \u00b1 1.16 | 33.12 \u00b1 0.30 |\n    22\t| Gemma-2-9b-it | 71.86 \u00b1 0.08 | 81.80 \u00b1 1.35 | 33.41 \u00b1 0.28 | 28.64 \u00b1 2.97 |\n    23\t| Gemma-2-9b-it-FP8 | 71.92 \u00b1 0.11 | 79.41 \u00b1 1.14 | 32.53 \u00b1 0.34 | 27.81 \u00b1 3.22 |\n    24\t| Qwen2-72B-Instruct | 82.18 \u00b1 0.08 | 86.72 \u00b1 1.00 | 37.39 \u00b1 1.41 | 29.93 \u00b1 2.71 |\n    25\t| Qwen2-72B-Instruct-FP8 | 81.98 \u00b1 0.08 | 86.82 \u00b1 0.97 | 37.67 \u00b1 1.39 | 31.08 \u00b1 1.96 |\n    26\t| Mistral-7B-Instruct-v0.3 | 59.15 \u00b1 0.10 | 35.90 \u00b1 4.54 | 8.94 \u00b1 1.24 | 21.60 \u00b1 0.17 |\n    27\t| Mistral-7B-Instruct-v0.3-FP8 | 58.77 \u00b1 0.13 | 32.20 \u00b1 4.02 | 7.68 \u00b1 1.23 | 22.72 \u00b1 0.19 |\n    28\t\n    29\tFor most models, FP8 scores fall within the error bars of the original, especially on MMLU and GSM8K. Temperature scaling experiments (temperatures 0.2, 0.5, 1.0, 2.0) show that higher temperatures degrade all models' performance, further obscuring the substitution signal.\n    30\t\n    31\t![Benchmark accuracy vs temperature for five models across four tasks](./assets/figure_1.jpg)\n    32\t\n    33\t## Log Probability Fingerprinting Defeated by Nondeterminism\n    34\t\n    35\tA promising detection approach compares token-level log probabilities between a local reference model and the API. However, the authors demonstrate that production inference environments introduce significant nondeterminism. The same Llama-3-8B model produces different log probabilities depending on the software framework (transformers 4.40 vs 4.50, vLLM 0.6.2 vs 0.8.2) and GPU hardware (A100 vs H100).\n    36\t\n    37\t![Log probability variation across inference frameworks and hardware for Llama-3-8B](./assets/figure_5.jpg)\n    38\t\n    39\tThis inherent variation means an auditor cannot distinguish between a legitimate model served on different infrastructure and an actual substitution, rendering log-probability fingerprinting unreliable in practice.\n    40\t\n    41\t## Adversarial Countermeasures\n    42\t\n    43\tBeyond passive detection challenges, providers can actively evade audits through: (1) **Randomized substitution** \u2014 routing only a fraction p of queries to the cheaper model, making the mixed distribution approach the specified model's distribution as p decreases; (2) **Benchmark evasion** \u2014 detecting known benchmark prompts and routing them to the genuine model while serving substitutes for regular traffic. These adversarial strategies make software-only detection fundamentally query-prohibitive.\n    44\t\n    45\t## TEEs as the Solution\n    46\t\n    47\tThe paper proposes Trusted Execution Environments (TEEs) \u2014 hardware-secured enclaves that provide cryptographic attestation of the code and data being executed. With TEEs (e.g., NVIDIA confidential computing on H100 GPUs), the provider can prove that specific model weights are loaded and that the correct inference code is running, with only modest performance overhead. Unlike ZKPs which are computationally prohibitive for large models, TEEs are practical and deployable today.\n    48\t\n    49\t## Key Findings\n    50\t\n    51\t- FP8 quantization reduces costs significantly while barely affecting benchmark scores, making it an attractive but nearly undetectable substitution.\n    52\t- Statistical tests on text outputs (e.g., MMD) require impractically large query budgets and fail against subtle or randomized substitutions.\n    53\t- Log-probability fingerprinting is defeated by production-level inference nondeterminism across software versions and GPU hardware.\n    54\t- Adversarial countermeasures (randomized routing, benchmark evasion) further undermine all software-only detection approaches.\n    55\t- Trusted Execution Environments provide provable, efficient, and robust model integrity guarantees, representing the most actionable solution available today."
+          },
+          {
+            "source_call_id": "ReadFile:1",
+            "content": "     1\t{\n     2\t  \"application\": \"ppt-generation\",\n     3\t  \"case_id\": \"case-paper-audit-model-substitution\",\n     4\t  \"language\": \"en\",\n     5\t  \"deck\": {\n     6\t    \"aspect_ratio\": \"16:9\",\n     7\t    \"slide_count\": 9,\n     8\t    \"audience\": \"ML researchers, AI security practitioners, and cloud infrastructure engineers evaluating LLM API integrity\",\n     9\t    \"tone\": \"analytical, technical, evidence-driven\"\n    10\t  },\n    11\t  \"brief\": {\n    12\t    \"title\": \"Auditing Model Substitution in LLM APIs: Why Software Tests Fail and Hardware Attestation Wins\",\n    13\t    \"one_liner\": \"Commercial LLM API providers may covertly substitute cheaper models; this work shows software-based detection is unreliable and proposes TEEs as a provably secure alternative.\",\n    14\t    \"goal\": \"Understand the model substitution threat in LLM APIs, see empirical evidence that statistical and log-probability detection methods fail under realistic conditions, and recognize Trusted Execution Environments as the actionable path to verifiable inference.\"\n    15\t  },\n    16\t  \"slides\": [\n    17\t    {\n    18\t      \"id\": \"title-slide\",\n    19\t      \"title\": \"Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs\",\n    20\t      \"objective\": \"Cover slide with paper title (referencing arxiv.org/abs/2504.04715) and a concise tagline about the trust gap in commercial LLM APIs.\"\n    21\t    },\n    22\t    {\n    23\t      \"id\": \"substitution-threat\",\n    24\t      \"title\": \"The Model Substitution Problem: Economic Incentives Drive Covert Swaps\",\n    25\t      \"objective\": \"Explain the core problem: providers may replace advertised models with quantized, smaller, or different models to cut costs. Show the four substitution types (smaller model, quantized variant, fine-tuned version, different family) in a structured diagram or list. Reference the formal hypothesis testing framework (H0 vs H1).\"\n    26\t    },\n    27\t    {\n    28\t      \"id\": \"quantization-benchmark-drop\",\n    29\t      \"title\": \"FP8 Quantization Preserves Most Accuracy \u2014 Making Substitution Hard to Detect\",\n    30\t      \"objective\": \"Present the table comparing original vs FP8-quantized model scores across MMLU, GSM8K, MATH, and GPQA Diamond for five model families. Highlight that performance drops are small (often within error bars), motivating why detection is difficult. Use the benchmark data table.\"\n    31\t    },\n    32\t    {\n    33\t      \"id\": \"temperature-scaling-degradation\",\n    34\t      \"title\": \"Higher Temperature Amplifies Performance Gaps but Increases Noise\",\n    35\t      \"objective\": \"Show the four-panel chart (figure_1.jpg) of benchmark accuracy vs temperature for all five models. Explain that at temperature 2.0 performance degrades across the board, and the gap between original and substitute narrows or becomes noisy, complicating statistical detection.\"\n    36\t    },\n    37\t    {\n    38\t      \"id\": \"log-prob-nondeterminism\",\n    39\t      \"title\": \"Log Probability Fingerprinting Fails Due to Inference Nondeterminism\",\n    40\t      \"objective\": \"Display the log-probability scatter plot (figure_5.jpg) showing that the same Llama-3-8B model produces varying log probabilities across different software versions (transformers, vLLM) and hardware (A100, H100). Explain that this production-level nondeterminism defeats metadata-based detection methods.\"\n    41\t    },\n    42\t    {\n    43\t      \"id\": \"randomized-substitution\",\n    44\t      \"title\": \"Randomized Routing at Low Rates Makes Statistical Detection Query-Prohibitive\",\n    45\t      \"objective\": \"Explain the randomized substitution attack where the provider mixes substitute responses with probability p. Show that as p approaches 0, the mixed distribution converges to the specified model's distribution, requiring exponentially more queries for detection. Use a conceptual diagram or formula visualization.\"\n    46\t    },\n    47\t    {\n    48\t      \"id\": \"software-methods-summary\",\n    49\t      \"title\": \"Software-Only Auditing Methods Are Fundamentally Unreliable\",\n    50\t      \"objective\": \"Summarize the three failure modes: (1) text-based statistical tests (e.g., MMD) need too many queries and fail against subtle substitutions, (2) log-probability methods are defeated by nondeterminism, (3) adversarial countermeasures like benchmark evasion and randomized routing further undermine detection. Present as a structured comparison or matrix.\"\n    51\t    },\n    52\t    {\n    53\t      \"id\": \"tee-solution\",\n    54\t      \"title\": \"Trusted Execution Environments Provide Provable Cryptographic Model Integrity\",\n    55\t      \"objective\": \"Introduce TEEs as the proposed solution. Explain how hardware-level attestation guarantees that the correct model weights are loaded and executed, with only modest performance overhead. Contrast TEE properties (provable, efficient, robust) against software methods. Mention NVIDIA confidential computing as a practical deployment path.\"\n    56\t    },\n    57\t    {\n    58\t      \"id\": \"takeaways\",\n    59\t      \"title\": \"Key Takeaways: Close the Verification Gap with Hardware Attestation\",\n    60\t      \"objective\": \"Summarize 4-5 key findings: (1) model substitution is economically motivated and practically undetectable via software, (2) FP8 quantization barely affects benchmarks, (3) inference nondeterminism kills log-prob fingerprinting, (4) randomized substitution defeats statistical tests, (5) TEEs are the only currently viable path to verifiable LLM APIs. End with a call to action for the community.\"\n    61\t    }\n    62\t  ]\n    63\t}"
+          },
+          {
+            "source_call_id": "ReadFile:2",
+            "content": "     1\t---\n     2\tname: powerpoint-pptx\n     3\tslug: powerpoint-pptx\n     4\tversion: 1.0.1\n     5\thomepage: https://clawic.com/skills/powerpoint-pptx\n     6\tdescription: \"Create, inspect, and edit Microsoft PowerPoint presentations and PPTX decks with reliable layouts, templates, placeholders, notes, charts, and visual QA. Use when (1) the task is about PowerPoint or `.pptx`; (2) layouts, placeholders, notes, charts, comments, or template fidelity matter; (3) the deck must render cleanly after edits.\"\n     7\tchangelog: Rebalanced the skill toward template inventory, layout mapping, and higher-signal QA after a stricter external audit.\n     8\tmetadata: {\"clawdbot\":{\"emoji\":\"\ud83d\udcca\",\"requires\":{\"bins\":[]},\"os\":[\"linux\",\"darwin\",\"win32\"]}}\n     9\t---\n    10\t\n    11\t## When to Use\n    12\t\n    13\tUse when the main artifact is a Microsoft PowerPoint presentation or `.pptx` deck, especially when layouts, templates, placeholders, notes, comments, charts, extraction, editing, or final visual quality matter.\n    14\t\n    15\t## Core Rules\n    16\t\n    17\t### 1. Choose the workflow before touching the deck\n    18\t\n    19\t- Reading text, editing an existing deck, rebuilding from a template, and creating from scratch are different jobs with different failure modes.\n    20\t- For text extraction or inspection, read the deck before editing it.\n    21\t- Text extraction plus thumbnail-style visual inspection is safer than editing from shape assumptions alone.\n    22\t- For template-driven work, inventory the deck before replacing content.\n    23\t- For deep edits, remember a `.pptx` file is OOXML with separate parts for slides, layouts, masters, media, notes, and comments.\n    24\t- If a template exists, template fidelity beats generic slide-design instincts.\n    25\t- Reusing or duplicating a good existing slide is often safer than rebuilding it and hoping the theme still matches.\n    26\t\n    27\t### 2. Inventory the deck before replacing content\n    28\t\n    29\t- Count the reusable layouts, real placeholders, notes, comments, media, and recurring typography or color patterns first.\n    30\t- Placeholder indexes and layout indexes are not portable assumptions.\n    31\t- Inspect the actual slide or template before targeting title, body, chart, or image shapes.\n    32\t- Speaker notes, comments, and linked assets can live outside the visible slide surface.\n    33\t- A missing or wrong placeholder target can silently land content in the wrong box or wrong layer.\n    34\t- Master and layout settings can override local slide edits, so the visible problem is not always on the slide you are editing.\n    35\t\n    36\t### 3. Match content to the actual placeholders\n    37\t\n    38\t- Count the actual content pieces before choosing a layout.\n    39\t- Pick layouts based on the real number of ideas, columns, images, or charts the slide needs.\n    40\t- Do not force two ideas into a three-column slide or cram dense text under a chart.\n    41\t- Category counts and data series lengths must match or charts will break in ugly ways.\n    42\t- Explicit sizing beats wishful thinking: text boxes, images, and charts need real space, not \"it should fit\".\n    43\t- Do not choose a layout with more placeholders than the content can meaningfully fill.\n    44\t- Quote layouts are for real quotes, and image-led layouts are for slides that actually have images.\n    45\t- For chart-, table-, or image-heavy slides, full-slide or two-column layouts are usually safer than stacking dense text above the visual.\n    46\t\n    47\t### 4. Preserve the deck's visual language\n    48\t\n    49\t- Theme, master, and layout files usually decide fonts, colors, and hierarchy more than any one slide does.\n    50\t- Start from the deck's actual theme, fonts, spacing, and aspect ratio instead of improvising a new style.\n    51\t- Reuse the deck's own alignment and spacing system instead of inventing a second visual language.\n    52\t- Use common fonts for portability and strong contrast for readability.\n    53\t- Preserve the template's visual logic first; originality matters less than not breaking the deck's existing language.\n    54\t- Combining slides from multiple sources requires normalizing themes, masters, and alignment afterward.\n    55\t\n    56\t### 5. Run content QA and visual QA separately\n    57\t\n    58\t- Text overflow, bad alignment, clipped shapes, weak contrast, and placeholder leftovers are normal first-pass failures.\n    59\t- Run both content QA and visual QA; missing text and broken layout are different failure classes.\n    60\t- Render or inspect the actual deck output before delivery when layout matters.\n    61\t- Search for leftover template junk, sample labels, and placeholder text before calling the deck finished.\n    62\t- Check notes, comments, labels, legends, and chart/table semantics separately from the visual pass.\n    63\t- A deck can pass text extraction and still fail on overlap, clipping, wrong theme inheritance, or broken notes.\n    64\t- Thumbnail grids and rendered slides usually reveal layout bugs faster than code or text inspection.\n    65\t- Assume the first render is wrong and do at least one fix-and-verify cycle before calling the deck finished.\n    66\t- Re-check affected slides after each fix because one spacing change often creates another issue.\n    67\t\n    68\t### 6. Keep decks portable and review-safe\n    69\t\n    70\t- Template masters can override direct edits in surprising ways.\n    71\t- Complex effects may degrade across PowerPoint, LibreOffice, and conversion pipelines, so keep important content robust without them.\n    72\t- Image sizing, font substitution, and placeholder mismatch are common reasons a deck looks good in code and bad on screen.\n    73\t- Notes, comments, linked media, and merged decks can stay broken even when the visible slide looks fine.\n    74\t\n    75\t## Common Traps\n    76\t\n    77\t- Placeholder text and sample charts often survive template reuse if not explicitly replaced.\n    78\t- Directly editing one slide can fail if the real issue lives in the master or layout.\n    79\t- Charts, icons, and text boxes need enough space; near-collisions are usually visible only after rendering.\n    80\t- Layout indexes vary by template, so built-in assumptions from one deck often break in another.\n    81\t- A missing placeholder or wrong shape target can silently put content in the wrong place.\n    82\t- Counting the text ideas after choosing the layout usually leads to empty placeholders, weak hierarchy, or leftover template junk.\n    83\t- Font substitution can move line breaks and wreck careful spacing.\n    84\t- Speaker notes, comments, and linked media can stay broken even when the visible slide looks fine.\n    85\t- A deck can pass text inspection and still fail visually because of overlap, contrast, or edge clipping.\n    86\t- Editing from one slide alone can miss the real source of truth in the theme, master, or layout definitions.\n    87\t- Choosing a quote, comparison, or multi-column layout without matching content usually makes the deck look templated rather than intentional.\n    88\t- Combining or duplicating slides without checking masters and themes can create subtle inconsistency slide by slide.\n    89\t- Aspect-ratio mismatches like `16:9` versus `4:3` can shift every placement decision even when each slide looks locally reasonable.\n    90\t\n    91\t## Related Skills\n    92\tInstall with `clawhub install <slug>` if user confirms:\n    93\t- `documents` \u2014 Document workflows that often feed presentation content.\n    94\t- `design` \u2014 Visual direction and layout decisions.\n    95\t- `brief` \u2014 Concise business messaging for slide narratives.\n    96\t\n    97\t## Feedback\n    98\t\n    99\t- If useful: `clawhub star powerpoint-pptx`\n   100\t- Stay updated: `clawhub sync`\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10973,
+        "completion_tokens": 70,
+        "cached_tokens": 8960
+      }
+    },
+    {
+      "step_id": 2,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:3",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "ls -la /app/benchmark/assets/"
+          }
+        },
+        {
+          "tool_call_id": "Shell:4",
+          "function_name": "Shell",
+          "arguments": {
+            "raw": "{\"command\":"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:3",
+            "content": "total 116\ndrwxr-xr-x 2 root root  4096 Apr 29 08:03 .\ndrwxr-xr-x 3 root root  4096 Apr 29 08:04 ..\n-rw-r--r-- 1 root root 71048 Apr 29 08:03 figure_1.jpg\n-rw-r--r-- 1 root root 35886 Apr 29 08:03 figure_5.jpg\n"
+          },
+          {
+            "source_call_id": "Shell:4",
+            "content": "1.0.2\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15902,
+        "completion_tokens": 71,
+        "cached_tokens": 10752
+      }
+    },
+    {
+      "step_id": 3,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "SetTodoList:5",
+          "function_name": "SetTodoList",
+          "arguments": {
+            "todos": [
+              {
+                "title": "Read SKILL.md and understand pptx workflow",
+                "status": "done"
+              },
+              {
+                "title": "Read source_brief.md and task_input.json",
+                "status": "done"
+              },
+              {
+                "title": "Create 9-slide analytical presentation with python-pptx",
+                "status": "in_progress"
+              },
+              {
+                "title": "Run visual QA and verify output",
+                "status": "pending"
+              },
+              {
+                "title": "Save final deck to /app/output/final_deck.pptx",
+                "status": "pending"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "SetTodoList:5",
+            "content": "Todo list updated"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16125,
+        "completion_tokens": 103,
+        "cached_tokens": 15872
+      }
+    },
+    {
+      "step_id": 4,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:6",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "mkdir -p /app/output"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:6",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16258,
+        "completion_tokens": 23,
+        "cached_tokens": 15872
+      }
+    },
+    {
+      "step_id": 5,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "WriteFile:7",
+          "function_name": "WriteFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "content": "#!/usr/bin/env python3\n\"\"\"\nBuild a 9-slide, 16:9 analytical presentation on model substitution in LLM APIs.\nFollows the powerpoint-pptx skill guidelines: structured layouts, evidence-driven,\nvisual QA, and clean theme inheritance.\n\"\"\"\n\nfrom pptx import Presentation\nfrom pptx.util import Inches, Pt\nfrom pptx.dml.color import RgbColor\nfrom pptx.enum.text import PP_ALIGN, MSO_ANCHOR\nfrom pptx.enum.shapes import MSO_SHAPE\nfrom pptx.oxml.ns import nsmap\nfrom pptx.oxml import parse_xml\nimport os\n\n# ---------------------------------------------------------------------------\n# Constants\n# ---------------------------------------------------------------------------\nSLIDE_WIDTH = Inches(13.333)\nSLIDE_HEIGHT = Inches(7.5)\n\n# Color palette \u2014 dark analytical theme\nBG_DARK = RgbColor(0x12, 0x18, 0x24)       # #121824 deep navy\nBG_CARD = RgbColor(0x1E, 0x29, 0x3B)       # #1E293B card surface\nACCENT = RgbColor(0x38, 0xBD, 0xD1)        # #38BDD1 cyan accent\nTEXT_PRIMARY = RgbColor(0xF1, 0xF5, 0xF9)  # #F1F5F9 off-white\nTEXT_SECONDARY = RgbColor(0x94, 0xA3, 0xB8) # #94A3B8 muted slate\nTEXT_EMPHASIS = RgbColor(0xFB, 0x71, 0x85)  # #FB7185 rose emphasis\n\nFONT_HEADING = \"Calibri Light\"\nFONT_BODY = \"Calibri\"\n\nASSETS_DIR = \"/app/benchmark/assets\"\nOUTPUT_PATH = \"/app/output/final_deck.pptx\"\n\n# ---------------------------------------------------------------------------\n# Helpers\n# ---------------------------------------------------------------------------\ndef set_slide_bg(slide, color):\n    \"\"\"Set solid background color for a slide.\"\"\"\n    background = slide.background\n    fill = background.fill\n    fill.solid()\n    fill.fore_color.rgb = color\n\n\ndef add_textbox(slide, left, top, width, height, text, font_size, font_color,\n                font_name=FONT_BODY, bold=False, align=PP_ALIGN.LEFT,\n                word_wrap=True):\n    \"\"\"Add a text box with specified formatting.\"\"\"\n    shape = slide.shapes.add_textbox(left, top, width, height)\n    tf = shape.text_frame\n    tf.word_wrap = word_wrap\n    p = tf.paragraphs[0]\n    p.text = text\n    p.font.size = font_size\n    p.font.color.rgb = font_color\n    p.font.name = font_name\n    p.font.bold = bold\n    p.alignment = align\n    return shape\n\n\ndef add_bullet_textbox(slide, left, top, width, height, bullets, font_size,\n                       font_color, font_name=FONT_BODY, line_spacing=1.2):\n    \"\"\"Add a text box with bullet paragraphs.\"\"\"\n    shape = slide.shapes.add_textbox(left, top, width, height)\n    tf = shape.text_frame\n    tf.word_wrap = True\n    for i, bullet in enumerate(bullets):\n        if i == 0:\n            p = tf.paragraphs[0]\n        else:\n            p = tf.add_paragraph()\n        p.text = bullet\n        p.font.size = font_size\n        p.font.color.rgb = font_color\n        p.font.name = font_name\n        p.space_after = Pt(font_size * (line_spacing - 1))\n        p.level = 0\n    return shape\n\n\ndef add_card_shape(slide, left, top, width, height, fill_color=BG_CARD):\n    \"\"\"Add a rounded rectangle card background.\"\"\"\n    shape = slide.shapes.add_shape(\n        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height\n    )\n    shape.fill.solid()\n    shape.fill.fore_color.rgb = fill_color\n    shape.line.fill.background()\n    # Send to back so text sits on top\n    spTree = slide.shapes._spTree\n    sp = shape._element\n    spTree.remove(sp)\n    spTree.insert(2, sp)\n    return shape\n\n\n# ---------------------------------------------------------------------------\n# Slide builders\n# ---------------------------------------------------------------------------\ndef build_title_slide(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank\n    set_slide_bg(slide, BG_DARK)\n\n    # Accent bar at top\n    bar = slide.shapes.add_shape(\n        MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), SLIDE_WIDTH, Inches(0.08)\n    )\n    bar.fill.solid()\n    bar.fill.fore_color.rgb = ACCENT\n    bar.line.fill.background()\n\n    # Title\n    add_textbox(slide, Inches(0.8), Inches(2.2), Inches(11.7), Inches(1.6),\n                \"Are You Getting What You Pay For?\\nAuditing Model Substitution in LLM APIs\",\n                Pt(40), TEXT_PRIMARY, FONT_HEADING, bold=True, align=PP_ALIGN.LEFT)\n\n    # Subtitle / tagline\n    add_textbox(slide, Inches(0.8), Inches(4.0), Inches(11.7), Inches(1.0),\n                \"Software-based detection is fundamentally unreliable. Hardware attestation is the only viable path to verifiable inference.\",\n                Pt(20), TEXT_SECONDARY, FONT_BODY, bold=False, align=PP_ALIGN.LEFT)\n\n    # Source line\n    add_textbox(slide, Inches(0.8), Inches(5.2), Inches(11.7), Inches(0.5),\n                \"arXiv:2504.04715  \u2022  ML Research / AI Security / Cloud Infrastructure\",\n                Pt(14), ACCENT, FONT_BODY, bold=False, align=PP_ALIGN.LEFT)\n\n    return slide\n\n\ndef build_substitution_threat(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    # Header bar\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    # Title\n    add_textbox(slide, Inches(0.6), Inches(0.35), Inches(12), Inches(0.7),\n                \"The Model Substitution Problem: Economic Incentives Drive Covert Swaps\",\n                Pt(28), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Left column: problem statement\n    left_x = Inches(0.6)\n    top_y = Inches(1.2)\n    col_w = Inches(5.8)\n    add_card_shape(slide, left_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"Core Threat\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets = [\n        \"\u2022 API providers charge for specific models (e.g., Llama-3-70B, Qwen2-72B).\",\n        \"\u2022 Black-box APIs give users no guarantee the advertised model is actually served.\",\n        \"\u2022 Strong economic incentives exist to swap in cheaper alternatives\u2014quantized, smaller, or different architectures\u2014while maintaining pricing.\"\n    ]\n    add_bullet_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets, Pt(15), TEXT_SECONDARY)\n\n    # Right column: substitution types + hypothesis testing\n    right_x = Inches(6.8)\n    add_card_shape(slide, right_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"Substitution Types & Formal Framework\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets2 = [\n        \"1. Smaller models (e.g., 8B instead of 70B)\",\n        \"2. Quantized variants (FP8/INT8 instead of FP16)\",\n        \"3. Fine-tuned or updated versions\",\n        \"4. Entirely different model families\",\n        \"\",\n        \"Formalized as hypothesis testing:\",\n        \"H\u2080: API outputs ~ P_spec(y|x)   vs   H\u2081: API outputs ~ P_actual(y|x)\"\n    ]\n    add_bullet_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets2, Pt(15), TEXT_SECONDARY)\n\n    return slide\n\n\ndef build_quantization_benchmark(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"FP8 Quantization Preserves Most Accuracy \u2014 Making Substitution Hard to Detect\",\n                Pt(26), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Table data\n    rows = 11\n    cols = 5\n    left = Inches(0.5)\n    top = Inches(1.15)\n    width = Inches(12.3)\n    height = Inches(5.5)\n\n    table = slide.shapes.add_table(rows, cols, left, top, width, height).table\n\n    # Column widths\n    col_widths = [Inches(4.0), Inches(2.2), Inches(2.2), Inches(2.2), Inches(2.2)]\n    for i, w in enumerate(col_widths):\n        table.columns[i].width = w\n\n    headers = [\"Model\", \"MMLU\", \"GSM8K\", \"MATH\", \"GPQA Diamond\"]\n    for i, h in enumerate(headers):\n        cell = table.cell(0, i)\n        cell.text = h\n        cell.fill.solid()\n        cell.fill.fore_color.rgb = ACCENT\n        paragraph = cell.text_frame.paragraphs[0]\n        paragraph.font.size = Pt(13)\n        paragraph.font.bold = True\n        paragraph.font.color.rgb = BG_DARK\n        paragraph.font.name = FONT_HEADING\n        paragraph.alignment = PP_ALIGN.CENTER\n\n    data = [\n        [\"Llama-3-8B-Instruct\", \"62.69 \u00b1 0.18\", \"61.14 \u00b1 3.47\", \"20.65 \u00b1 3.43\", \"22.62 \u00b1 0.22\"],\n        [\"Llama-3-8B-Instruct-FP8\", \"62.43 \u00b1 0.26\", \"60.90 \u00b1 4.10\", \"14.91 \u00b1 2.49\", \"20.14 \u00b1 0.24\"],\n        [\"Llama-3-70B-Instruct\", \"78.05 \u00b1 0.08\", \"88.06 \u00b1 1.44\", \"35.69 \u00b1 1.33\", \"29.60 \u00b1 0.51\"],\n        [\"Llama-3-70B-Instruct-FP8\", \"77.88 \u00b1 0.13\", \"87.35 \u00b1 1.24\", \"35.75 \u00b1 1.16\", \"33.12 \u00b1 0.30\"],\n        [\"Gemma-2-9b-it\", \"71.86 \u00b1 0.08\", \"81.80 \u00b1 1.35\", \"33.41 \u00b1 0.28\", \"28.64 \u00b1 2.97\"],\n        [\"Gemma-2-9b-it-FP8\", \"71.92 \u00b1 0.11\", \"79.41 \u00b1 1.14\", \"32.53 \u00b1 0.34\", \"27.81 \u00b1 3.22\"],\n        [\"Qwen2-72B-Instruct\", \"82.18 \u00b1 0.08\", \"86.72 \u00b1 1.00\", \"37.39 \u00b1 1.41\", \"29.93 \u00b1 2.71\"],\n        [\"Qwen2-72B-Instruct-FP8\", \"81.98 \u00b1 0.08\", \"86.82 \u00b1 0.97\", \"37.67 \u00b1 1.39\", \"31.08 \u00b1 1.96\"],\n        [\"Mistral-7B-Instruct-v0.3\", \"59.15 \u00b1 0.10\", \"35.90 \u00b1 4.54\", \"8.94 \u00b1 1.24\", \"21.60 \u00b1 0.17\"],\n        [\"Mistral-7B-Instruct-v0.3-FP8\", \"58.77 \u00b1 0.13\", \"32.20 \u00b1 4.02\", \"7.68 \u00b1 1.23\", \"22.72 \u00b1 0.19\"],\n    ]\n\n    for r_idx, row in enumerate(data, start=1):\n        for c_idx, val in enumerate(row):\n            cell = table.cell(r_idx, c_idx)\n            cell.text = val\n            paragraph = cell.text_frame.paragraphs[0]\n            paragraph.font.size = Pt(11.5)\n            paragraph.font.color.rgb = TEXT_PRIMARY if c_idx == 0 else TEXT_SECONDARY\n            paragraph.font.name = FONT_BODY\n            paragraph.alignment = PP_ALIGN.CENTER if c_idx > 0 else PP_ALIGN.LEFT\n            # Alternate row shading\n            if r_idx % 2 == 0:\n                cell.fill.solid()\n                cell.fill.fore_color.rgb = BG_CARD\n            else:\n                cell.fill.solid()\n                cell.fill.fore_color.rgb = BG_DARK\n\n    # Footnote\n    add_textbox(slide, Inches(0.5), Inches(6.75), Inches(12.3), Inches(0.4),\n                \"Observation: For most models, FP8 scores fall within the error bars of the original, especially on MMLU and GSM8K.\",\n                Pt(12), TEXT_EMPHASIS, FONT_BODY, bold=False, align=PP_ALIGN.LEFT)\n\n    return slide\n\n\ndef build_temperature_scaling(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Higher Temperature Amplifies Performance Gaps but Increases Noise\",\n                Pt(28), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Insert figure_1.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_1.jpg\")\n    if os.path.exists(img_path):\n        slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_1.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"At temperature 2.0, performance degrades across all models. The gap between original and substitute narrows or becomes noisy, complicating statistical detection.\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)\n\n    return slide\n\n\ndef build_log_prob_nondeterminism(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Log Probability Fingerprinting Fails Due to Inference Nondeterminism\",\n                Pt(28), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Insert figure_5.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_5.jpg\")\n    if os.path.exists(img_path):\n        slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_5.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"The same Llama-3-8B model produces different log probabilities across software versions (transformers 4.40 vs 4.50, vLLM 0.6.2 vs 0.8.2) and hardware (A100 vs H100).\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)\n\n    return slide\n\n\ndef build_randomized_substitution(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Randomized Routing at Low Rates Makes Statistical Detection Query-Prohibitive\",\n                Pt(26), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Left: conceptual explanation\n    left_x = Inches(0.6)\n    top_y = Inches(1.2)\n    col_w = Inches(5.8)\n    add_card_shape(slide, left_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"Attack Model\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets = [\n        \"\u2022 Provider routes only a fraction p of queries to the cheaper substitute.\",\n        \"\u2022 Mixed output distribution:  (1\u2212p)\u00b7P_spec  +  p\u00b7P_sub\",\n        \"\u2022 As p \u2192 0, the mixed distribution converges to P_spec.\",\n        \"\u2022 Auditor must distinguish an ever-smaller signal from noise.\",\n        \"\u2022 Query budget grows super-linearly (often exponentially) as p decreases.\"\n    ]\n    add_bullet_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets, Pt(15), TEXT_SECONDARY)\n\n    # Right: formula / conceptual diagram\n    right_x = Inches(6.8)\n    add_card_shape(slide, right_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"Implication\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets2 = [\n        \"\u2022 Low-rate substitution is economically attractive (small savings per query, massive aggregate gain).\",\n        \"\u2022 Statistical tests (e.g., MMD) require impractically large sample sizes.\",\n        \"\u2022 Benchmark evasion: detect known evaluation prompts and route them to the genuine model.\",\n        \"\u2022 Result: software-only auditing is query-prohibitive and easily gamed.\"\n    ]\n    add_bullet_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets2, Pt(15), TEXT_SECONDARY)\n\n    return slide\n\n\ndef build_software_methods_summary(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Software-Only Auditing Methods Are Fundamentally Unreliable\",\n                Pt(28), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Comparison matrix as a table\n    rows = 4\n    cols = 3\n    left = Inches(0.5)\n    top = Inches(1.2)\n    width = Inches(12.3)\n    height = Inches(5.0)\n\n    table = slide.shapes.add_table(rows, cols, left, top, width, height).table\n    col_widths = [Inches(3.5), Inches(4.5), Inches(4.3)]\n    for i, w in enumerate(col_widths):\n        table.columns[i].width = w\n\n    headers = [\"Method Type\", \"Weakness\", \"Practical Limitation\"]\n    for i, h in enumerate(headers):\n        cell = table.cell(0, i)\n        cell.text = h\n        cell.fill.solid()\n        cell.fill.fore_color.rgb = ACCENT\n        paragraph = cell.text_frame.paragraphs[0]\n        paragraph.font.size = Pt(14)\n        paragraph.font.bold = True\n        paragraph.font.color.rgb = BG_DARK\n        paragraph.font.name = FONT_HEADING\n        paragraph.alignment = PP_ALIGN.CENTER\n\n    matrix_data = [\n        [\n            \"Text-based statistical tests\\n(e.g., MMD)\",\n            \"Require impractically large query budgets; fail against subtle or randomized substitutions.\",\n            \"Query-prohibitive at low substitution rates; cannot distinguish within error-bar performance gaps.\"\n        ],\n        [\n            \"Log-probability fingerprinting\",\n            \"Production inference environments introduce significant nondeterminism across software versions and GPU hardware.\",\n            \"Same model on different infrastructure produces divergent log-prob signatures; false positives dominate.\"\n        ],\n        [\n            \"Adversarial countermeasures\",\n            \"Providers can actively evade: randomized routing + benchmark evasion.\",\n            \"Benchmark prompts routed to genuine model; regular traffic substituted. Mixed distribution approaches target.\"\n        ],\n    ]\n\n    for r_idx, row in enumerate(matrix_data, start=1):\n        for c_idx, val in enumerate(row):\n            cell = table.cell(r_idx, c_idx)\n            cell.text = val\n            paragraph = cell.text_frame.paragraphs[0]\n            paragraph.font.size = Pt(13)\n            paragraph.font.color.rgb = TEXT_PRIMARY if c_idx == 0 else TEXT_SECONDARY\n            paragraph.font.name = FONT_BODY\n            paragraph.alignment = PP_ALIGN.LEFT\n            cell.fill.solid()\n            cell.fill.fore_color.rgb = BG_CARD if r_idx % 2 == 1 else BG_DARK\n\n    return slide\n\n\ndef build_tee_solution(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Trusted Execution Environments Provide Provable Cryptographic Model Integrity\",\n                Pt(26), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    left_x = Inches(0.6)\n    top_y = Inches(1.2)\n    col_w = Inches(5.8)\n    add_card_shape(slide, left_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"What TEEs Guarantee\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets = [\n        \"\u2022 Hardware-secured enclaves with cryptographic attestation of code and data.\",\n        \"\u2022 Provider proves specific model weights are loaded and correct inference code is running.\",\n        \"\u2022 Attestation is tamper-evident and verifiable by the client.\",\n        \"\u2022 Only modest performance overhead vs. standard inference.\"\n    ]\n    add_bullet_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets, Pt(15), TEXT_SECONDARY)\n\n    right_x = Inches(6.8)\n    add_card_shape(slide, right_x, top_y, col_w, Inches(5.0))\n    add_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.2), col_w - Inches(0.4), Inches(0.5),\n                \"Why TEEs Win vs. Software-Only\", Pt(18), ACCENT, FONT_HEADING, bold=True)\n    bullets2 = [\n        \"\u2022 Provable: cryptographic proof, not statistical inference.\",\n        \"\u2022 Efficient: modest overhead, practical for large models today.\",\n        \"\u2022 Robust: immune to randomized routing and benchmark evasion.\",\n        \"\u2022 Deployable: NVIDIA Confidential Computing on H100 GPUs is production-ready.\",\n        \"\u2022 Contrast with ZKPs: computationally prohibitive for LLM-scale inference.\"\n    ]\n    add_bullet_textbox(slide, right_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n                       bullets2, Pt(15), TEXT_SECONDARY)\n\n    return slide\n\n\ndef build_takeaways(prs):\n    slide = prs.slides.add_slide(prs.slide_layouts[6])\n    set_slide_bg(slide, BG_DARK)\n\n    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0),\n                                 SLIDE_WIDTH, Inches(0.08))\n    bar.fill.solid(); bar.fill.fore_color.rgb = ACCENT; bar.line.fill.background()\n\n    add_textbox(slide, Inches(0.5), Inches(0.35), Inches(12.3), Inches(0.7),\n                \"Key Takeaways: Close the Verification Gap with Hardware Attestation\",\n                Pt(28), TEXT_PRIMARY, FONT_HEADING, bold=True)\n\n    # Large card spanning most of slide\n    card = add_card_shape(slide, Inches(0.6), Inches(1.2), Inches(12.1), Inches(5.0))\n\n    bullets = [\n        \"1. Model substitution is economically motivated and practically undetectable via software-only means.\",\n        \"2. FP8 quantization barely affects benchmark scores (often within error bars), making it a nearly invisible substitute.\",\n        \"3. Inference nondeterminism across software versions and GPU hardware defeats log-probability fingerprinting.\",\n        \"4. Randomized substitution at low rates converges to the target distribution, rendering statistical tests query-prohibitive.\",\n        \"5. Trusted Execution Environments are the only currently viable path to verifiable LLM APIs \u2014 provable, efficient, and deployable today.\"\n    ]\n    add_bullet_textbox(slide, Inches(0.9), Inches(1.5), Inches(11.5), Inches(4.2),\n                       bullets, Pt(17), TEXT_PRIMARY)\n\n    # Call to action\n    add_textbox(slide, Inches(0.9), Inches(6.0), Inches(11.5), Inches(0.5),\n                \"Call to action: Integrate TEE-based attestation into API trust frameworks and procurement requirements.\",\n                Pt(15), TEXT_EMPHASIS, FONT_BODY, bold=True, align=PP_ALIGN.LEFT)\n\n    return slide\n\n\n# ---------------------------------------------------------------------------\n# Main\n# ---------------------------------------------------------------------------\ndef main():\n    prs = Presentation()\n    prs.slide_width = SLIDE_WIDTH\n    prs.slide_height = SLIDE_HEIGHT\n\n    build_title_slide(prs)\n    build_substitution_threat(prs)\n    build_quantization_benchmark(prs)\n    build_temperature_scaling(prs)\n    build_log_prob_nondeterminism(prs)\n    build_randomized_substitution(prs)\n    build_software_methods_summary(prs)\n    build_tee_solution(prs)\n    build_takeaways(prs)\n\n    prs.save(OUTPUT_PATH)\n    print(f\"Saved presentation to {OUTPUT_PATH}\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "WriteFile:7",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16307,
+        "completion_tokens": 7219,
+        "cached_tokens": 16128
+      }
+    },
+    {
+      "step_id": 6,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:8",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 build_deck.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:8",
+            "content": "Traceback (most recent call last):\n  File \"/app/build_deck.py\", line 10, in <module>\n    from pptx.dml.color import RgbColor\nImportError: cannot import name 'RgbColor' from 'pptx.dml.color' (/usr/local/lib/python3.12/dist-packages/pptx/dml/color.py). Did you mean: 'RGBColor'?\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23560,
+        "completion_tokens": 27,
+        "cached_tokens": 22272
+      }
+    },
+    {
+      "step_id": 7,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "StrReplaceFile:9",
+          "function_name": "StrReplaceFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "edit": {
+              "old": "from pptx.dml.color import RgbColor",
+              "new": "from pptx.dml.color import RGBColor"
+            }
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "StrReplaceFile:9",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23702,
+        "completion_tokens": 52,
+        "cached_tokens": 23552
+      }
+    },
+    {
+      "step_id": 8,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:10",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && sed -i 's/RgbColor/RGBColor/g' build_deck.py && python3 build_deck.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:10",
+            "content": "Traceback (most recent call last):\n  File \"/app/build_deck.py\", line 532, in <module>\n    main()\n  File \"/app/build_deck.py\", line 518, in main\n    build_substitution_threat(prs)\n  File \"/app/build_deck.py\", line 160, in build_substitution_threat\n    add_bullet_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n  File \"/app/build_deck.py\", line 80, in add_bullet_textbox\n    p.space_after = Pt(font_size * (line_spacing - 1))\n    ^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/text/text.py\", line 572, in space_after\n    pPr.space_after = value\n    ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/text.py\", line 552, in space_after\n    self._add_spcAft().set_spcPts(value)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/text.py\", line 602, in set_spcPts\n    spcPts.val = value\n    ^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/xmlchemy.py\", line 271, in set_attr_value\n    str_value = self._simple_type.to_xml(value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 26, in to_xml\n    cls.validate(value)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 708, in validate\n    cls.validate_int_in_range(value, 0, 20116800)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 54, in validate_int_in_range\n    raise ValueError(\nValueError: value must be in range 0 to 20116800 inclusive, got 483869999\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23794,
+        "completion_tokens": 45,
+        "cached_tokens": 23552
+      }
+    },
+    {
+      "step_id": 9,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "StrReplaceFile:11",
+          "function_name": "StrReplaceFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "edit": {
+              "old": "        p.space_after = Pt(font_size * (line_spacing - 1))",
+              "new": "        p.space_after = Pt(int(font_size * (line_spacing - 1)))"
+            }
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "StrReplaceFile:11",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24351,
+        "completion_tokens": 66,
+        "cached_tokens": 23552
+      }
+    },
+    {
+      "step_id": 10,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:12",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 build_deck.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:12",
+            "content": "Traceback (most recent call last):\n  File \"/app/build_deck.py\", line 532, in <module>\n    main()\n  File \"/app/build_deck.py\", line 518, in main\n    build_substitution_threat(prs)\n  File \"/app/build_deck.py\", line 160, in build_substitution_threat\n    add_bullet_textbox(slide, left_x + Inches(0.2), top_y + Inches(0.7), col_w - Inches(0.4), Inches(3.8),\n  File \"/app/build_deck.py\", line 80, in add_bullet_textbox\n    p.space_after = Pt(int(font_size * (line_spacing - 1)))\n    ^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/text/text.py\", line 572, in space_after\n    pPr.space_after = value\n    ^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/text.py\", line 552, in space_after\n    self._add_spcAft().set_spcPts(value)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/text.py\", line 602, in set_spcPts\n    spcPts.val = value\n    ^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/xmlchemy.py\", line 271, in set_attr_value\n    str_value = self._simple_type.to_xml(value)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 26, in to_xml\n    cls.validate(value)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 708, in validate\n    cls.validate_int_in_range(value, 0, 20116800)\n  File \"/usr/local/lib/python3.12/dist-packages/pptx/oxml/simpletypes.py\", line 54, in validate_int_in_range\n    raise ValueError(\nValueError: value must be in range 0 to 20116800 inclusive, got 483857300\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24457,
+        "completion_tokens": 27,
+        "cached_tokens": 24320
+      }
+    },
+    {
+      "step_id": 11,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "ReadFile:13",
+          "function_name": "ReadFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "line_offset": 70,
+            "n_lines": 20
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "ReadFile:13",
+            "content": "    70\t    tf.word_wrap = True\n    71\t    for i, bullet in enumerate(bullets):\n    72\t        if i == 0:\n    73\t            p = tf.paragraphs[0]\n    74\t        else:\n    75\t            p = tf.add_paragraph()\n    76\t        p.text = bullet\n    77\t        p.font.size = font_size\n    78\t        p.font.color.rgb = font_color\n    79\t        p.font.name = font_name\n    80\t        p.space_after = Pt(int(font_size * (line_spacing - 1)))\n    81\t        p.level = 0\n    82\t    return shape\n    83\t\n    84\t\n    85\tdef add_card_shape(slide, left, top, width, height, fill_color=BG_CARD):\n    86\t    \"\"\"Add a rounded rectangle card background.\"\"\"\n    87\t    shape = slide.shapes.add_shape(\n    88\t        MSO_SHAPE.ROUNDED_RECTANGLE, left, top, width, height\n    89\t    )\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24997,
+        "completion_tokens": 36,
+        "cached_tokens": 24320
+      }
+    },
+    {
+      "step_id": 12,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:14",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"from pptx.util import Pt; print(type(Pt(10)))\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:14",
+            "content": "<class 'pptx.util.Pt'>\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25300,
+        "completion_tokens": 42,
+        "cached_tokens": 24832
+      }
+    },
+    {
+      "step_id": 13,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:15",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"from pptx.util import Pt; p=Pt(10); print(p)\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:15",
+            "content": "127000\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25376,
+        "completion_tokens": 43,
+        "cached_tokens": 25088
+      }
+    },
+    {
+      "step_id": 14,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "StrReplaceFile:16",
+          "function_name": "StrReplaceFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "edit": {
+              "old": "        p.space_after = Pt(int(font_size * (line_spacing - 1)))",
+              "new": "        p.space_after = int(font_size * (line_spacing - 1))"
+            }
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "StrReplaceFile:16",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25448,
+        "completion_tokens": 66,
+        "cached_tokens": 25344
+      }
+    },
+    {
+      "step_id": 15,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:17",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 build_deck.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:17",
+            "content": "Saved presentation to /app/output/final_deck.pptx\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25554,
+        "completion_tokens": 27,
+        "cached_tokens": 25344
+      }
+    },
+    {
+      "step_id": 16,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:18",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nprint('Slide count:', len(prs.slides))\nprint('Dimensions:', prs.slide_width.inches, 'x', prs.slide_height.inches)\nfor i, slide in enumerate(prs.slides):\n    print(f'Slide {i+1}: shapes={len(slide.shapes)}')\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:18",
+            "content": "Slide count: 9\nDimensions: 13.33299978127734 x 7.5\nSlide 1: shapes=4\nSlide 2: shapes=8\nSlide 3: shapes=4\nSlide 4: shapes=4\nSlide 5: shapes=4\nSlide 6: shapes=8\nSlide 7: shapes=3\nSlide 8: shapes=8\nSlide 9: shapes=5\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25621,
+        "completion_tokens": 116,
+        "cached_tokens": 25344
+      }
+    },
+    {
+      "step_id": 17,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:19",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nfor i, slide in enumerate(prs.slides):\n    texts = []\n    for shape in slide.shapes:\n        if shape.has_text_frame:\n            texts.append(shape.text_frame.text[:120].replace('\\n',' '))\n        elif shape.has_table:\n            t = shape.table\n            texts.append(f'[table {len(t.rows)}x{len(t.columns)}]')\n    print(f'Slide {i+1}: ' + ' | '.join(texts[:3]))\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:19",
+            "content": "Slide 1:  | Are You Getting What You Pay For?\u000bAuditing Model Substitution in LLM APIs | Software-based detection is fundamentally unreliable. Hardware attestation is the only viable path to verifiable inferen\nSlide 2:  |  | \nSlide 3:  | FP8 Quantization Preserves Most Accuracy \u2014 Making Substitution Hard to Detect | [table 11x5]\nSlide 4:  | Higher Temperature Amplifies Performance Gaps but Increases Noise | At temperature 2.0, performance degrades across all models. The gap between original and substitute narrows or becomes n\nSlide 5:  | Log Probability Fingerprinting Fails Due to Inference Nondeterminism | The same Llama-3-8B model produces different log probabilities across software versions (transformers 4.40 vs 4.50, vLLM\nSlide 6:  |  | \nSlide 7:  | Software-Only Auditing Methods Are Fundamentally Unreliable | [table 4x3]\nSlide 8:  |  | \nSlide 9:  |  | Key Takeaways: Close the Verification Gap with Hardware Attestation\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25857,
+        "completion_tokens": 158,
+        "cached_tokens": 25600
+      }
+    },
+    {
+      "step_id": 18,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:20",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nfor i, slide in enumerate(prs.slides):\n    for shape in slide.shapes:\n        if shape.shape_type == 13:  # picture\n            print(f'Slide {i+1}: picture {shape.width.inches}\\\"x{shape.height.inches}\\\"')\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:20",
+            "content": "Slide 4: picture 11.3\"x8.939235564304463\"\nSlide 5: picture 11.3\"x3.9963418635170602\"\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26289,
+        "completion_tokens": 112,
+        "cached_tokens": 25856
+      }
+    },
+    {
+      "step_id": 19,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:21",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nfrom pptx.util import Inches\nprs = Presentation('/app/output/final_deck.pptx')\n# Check slide 4 picture position\nslide = prs.slides[3]\nfor shape in slide.shapes:\n    if shape.shape_type == 13:\n        print('Slide 4 pic top:', shape.top.inches, 'height:', shape.height.inches)\n        print('Slide 4 pic bottom:', (shape.top + shape.height).inches)\n# Check slide 5 picture position\nslide = prs.slides[4]\nfor shape in slide.shapes:\n    if shape.shape_type == 13:\n        print('Slide 5 pic top:', shape.top.inches, 'height:', shape.height.inches)\n        print('Slide 5 pic bottom:', (shape.top + shape.height).inches)\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:21",
+            "content": "Slide 4 pic top: 1.2 height: 8.939235564304463\nTraceback (most recent call last):\n  File \"<string>\", line 10, in <module>\nAttributeError: 'int' object has no attribute 'inches'\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26464,
+        "completion_tokens": 216,
+        "cached_tokens": 26112
+      }
+    },
+    {
+      "step_id": 20,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:22",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\n# Check slide 4 picture position\nslide = prs.slides[3]\nfor shape in slide.shapes:\n    if shape.shape_type == 13:\n        print('Slide 4 pic top:', shape.top.inches, 'height:', shape.height.inches)\n        print('Slide 4 pic bottom:', (shape.top + shape.height).inches)\n# Check slide 5 picture position\nslide = prs.slides[4]\nfor shape in slide.shapes:\n    if shape.shape_type == 13:\n        print('Slide 5 pic top:', shape.top.inches, 'height:', shape.height.inches)\n        print('Slide 5 pic bottom:', (shape.top + shape.height).inches)\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:22",
+            "content": "Slide 4 pic top: 1.2 height: 8.939235564304463\nTraceback (most recent call last):\n  File \"<string>\", line 9, in <module>\nAttributeError: 'int' object has no attribute 'inches'\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26769,
+        "completion_tokens": 208,
+        "cached_tokens": 26368
+      }
+    },
+    {
+      "step_id": 21,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:23",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nfor i, slide in enumerate(prs.slides):\n    for shape in slide.shapes:\n        if shape.shape_type == 13:\n            h = shape.height\n            t = shape.top\n            print(f'Slide {i+1} pic: top={t/914400:.2f}in height={h/914400:.2f}in bottom={(t+h)/914400:.2f}in')\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:23",
+            "content": "Slide 4 pic: top=1.20in height=8.94in bottom=10.14in\nSlide 5 pic: top=1.20in height=4.00in bottom=5.20in\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27066,
+        "completion_tokens": 141,
+        "cached_tokens": 26624
+      }
+    },
+    {
+      "step_id": 22,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "StrReplaceFile:24",
+          "function_name": "StrReplaceFile",
+          "arguments": {
+            "path": "/app/build_deck.py",
+            "edit": [
+              {
+                "old": "    # Insert figure_1.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_1.jpg\")\n    if os.path.exists(img_path):\n        slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_1.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"At temperature 2.0, performance degrades across all models. The gap between original and substitute narrows or becomes noisy, complicating statistical detection.\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)",
+                "new": "    # Insert figure_1.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_1.jpg\")\n    if os.path.exists(img_path):\n        pic = slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n        # Constrain height to fit within slide with caption\n        max_height = Inches(5.2)\n        if pic.height > max_height:\n            pic.height = max_height\n            pic.width = int(pic.width * (max_height / pic.height))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_1.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"At temperature 2.0, performance degrades across all models. The gap between original and substitute narrows or becomes noisy, complicating statistical detection.\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)"
+              },
+              {
+                "old": "    # Insert figure_5.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_5.jpg\")\n    if os.path.exists(img_path):\n        slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_5.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"The same Llama-3-8B model produces different log probabilities across software versions (transformers 4.40 vs 4.50, vLLM 0.6.2 vs 0.8.2) and hardware (A100 vs H100).\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)",
+                "new": "    # Insert figure_5.jpg\n    img_path = os.path.join(ASSETS_DIR, \"figure_5.jpg\")\n    if os.path.exists(img_path):\n        pic = slide.shapes.add_picture(img_path, Inches(1.0), Inches(1.2), width=Inches(11.3))\n        max_height = Inches(5.2)\n        if pic.height > max_height:\n            pic.height = max_height\n            pic.width = int(pic.width * (max_height / pic.height))\n    else:\n        add_textbox(slide, Inches(1.0), Inches(1.2), Inches(11.3), Inches(4.0),\n                    \"[figure_5.jpg not found]\", Pt(18), TEXT_SECONDARY)\n\n    add_textbox(slide, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6),\n                \"The same Llama-3-8B model produces different log probabilities across software versions (transformers 4.40 vs 4.50, vLLM 0.6.2 vs 0.8.2) and hardware (A100 vs H100).\",\n                Pt(14), TEXT_SECONDARY, FONT_BODY, align=PP_ALIGN.LEFT)"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "StrReplaceFile:24",
+            "content": ""
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27281,
+        "completion_tokens": 1063,
+        "cached_tokens": 26880
+      }
+    },
+    {
+      "step_id": 23,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:25",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 build_deck.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:25",
+            "content": "Saved presentation to /app/output/final_deck.pptx\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28384,
+        "completion_tokens": 27,
+        "cached_tokens": 27136
+      }
+    },
+    {
+      "step_id": 24,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:26",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nprint('Slide count:', len(prs.slides))\nprint('Dimensions:', prs.slide_width.inches, 'x', prs.slide_height.inches)\nfor i, slide in enumerate(prs.slides):\n    for shape in slide.shapes:\n        if shape.shape_type == 13:\n            h = shape.height\n            t = shape.top\n            print(f'Slide {i+1} pic: top={t/914400:.2f}in height={h/914400:.2f}in bottom={(t+h)/914400:.2f}in')\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:26",
+            "content": "Slide count: 9\nDimensions: 13.33299978127734 x 7.5\nSlide 4 pic: top=1.20in height=5.20in bottom=6.40in\nSlide 5 pic: top=1.20in height=4.00in bottom=5.20in\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28451,
+        "completion_tokens": 175,
+        "cached_tokens": 28160
+      }
+    },
+    {
+      "step_id": 25,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "Shell:27",
+          "function_name": "Shell",
+          "arguments": {
+            "command": "cd /app && python3 -c \"\nfrom pptx import Presentation\nprs = Presentation('/app/output/final_deck.pptx')\nfor i, slide in enumerate(prs.slides):\n    texts = []\n    for shape in slide.shapes:\n        if shape.has_text_frame:\n            t = shape.text_frame.text.strip().replace('\\n',' ')[:140]\n            if t:\n                texts.append(t)\n        elif shape.has_table:\n            t = shape.table\n            texts.append(f'[table {len(t.rows)}x{len(t.columns)}]')\n    print(f'Slide {i+1}: ' + ' | '.join(texts[:4]))\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "Shell:27",
+            "content": "Slide 1: Are You Getting What You Pay For?\u000bAuditing Model Substitution in LLM APIs | Software-based detection is fundamentally unreliable. Hardware attestation is the only viable path to verifiable inference. | arXiv:2504.04715  \u2022  ML Research / AI Security / Cloud Infrastructure\nSlide 2: The Model Substitution Problem: Economic Incentives Drive Covert Swaps | Core Threat | \u2022 API providers charge for specific models (e.g., Llama-3-70B, Qwen2-72B). \u2022 Black-box APIs give users no guarantee the advertised model is  | Substitution Types & Formal Framework\nSlide 3: FP8 Quantization Preserves Most Accuracy \u2014 Making Substitution Hard to Detect | [table 11x5] | Observation: For most models, FP8 scores fall within the error bars of the original, especially on MMLU and GSM8K.\nSlide 4: Higher Temperature Amplifies Performance Gaps but Increases Noise | At temperature 2.0, performance degrades across all models. The gap between original and substitute narrows or becomes noisy, complicating s\nSlide 5: Log Probability Fingerprinting Fails Due to Inference Nondeterminism | The same Llama-3-8B model produces different log probabilities across software versions (transformers 4.40 vs 4.50, vLLM 0.6.2 vs 0.8.2) and\nSlide 6: Randomized Routing at Low Rates Makes Statistical Detection Query-Prohibitive | Attack Model | \u2022 Provider routes only a fraction p of queries to the cheaper substitute. \u2022 Mixed output distribution:  (1\u2212p)\u00b7P_spec  +  p\u00b7P_sub \u2022 As p \u2192 0, | Implication\nSlide 7: Software-Only Auditing Methods Are Fundamentally Unreliable | [table 4x3]\nSlide 8: Trusted Execution Environments Provide Provable Cryptographic Model Integrity | What TEEs Guarantee | \u2022 Hardware-secured enclaves with cryptographic attestation of code and data. \u2022 Provider proves specific model weights are loaded and correct | Why TEEs Win vs. Software-Only\nSlide 9: Key Takeaways: Close the Verification Gap with Hardware Attestation | 1. Model substitution is economically motivated and practically undetectable via software-only means. 2. FP8 quantization barely affects ben | Call to action: Integrate TEE-based attestation into API trust frameworks and procurement requirements.\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28722,
+        "completion_tokens": 170,
+        "cached_tokens": 28416
+      }
+    },
+    {
+      "step_id": 26,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "(tool use)",
+      "tool_calls": [
+        {
+          "tool_call_id": "SetTodoList:28",
+          "function_name": "SetTodoList",
+          "arguments": {
+            "todos": [
+              {
+                "title": "Read SKILL.md and understand pptx workflow",
+                "status": "done"
+              },
+              {
+                "title": "Read source_brief.md and task_input.json",
+                "status": "done"
+              },
+              {
+                "title": "Create 9-slide analytical presentation with python-pptx",
+                "status": "done"
+              },
+              {
+                "title": "Run visual QA and verify output",
+                "status": "done"
+              },
+              {
+                "title": "Save final deck to /app/output/final_deck.pptx",
+                "status": "done"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "SetTodoList:28",
+            "content": "Todo list updated"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 29435,
+        "completion_tokens": 102,
+        "cached_tokens": 28672
+      }
+    },
+    {
+      "step_id": 27,
+      "source": "agent",
+      "model_name": "moonshot/kimi-k2.6",
+      "message": "The 9-slide, 16:9 analytical presentation has been built and saved to `/app/output/final_deck.pptx`. \n\nDeck summary:\n- **Slide 1 (Title):** \"Are You Getting What You Pay For? Auditing Model Substitution in LLM APIs\" with tagline and arXiv reference.\n- **Slide 2 (Substitution Threat):** Economic incentives, four substitution types, and the formal hypothesis-testing framework.\n- **Slide 3 (Quantization Benchmark Drop):** Full 11\u00d75 data table comparing original vs. FP8 scores across MMLU, GSM8K, MATH, and GPQA Diamond for all five model families, sourced directly from `source_brief.md`.\n- **Slide 4 (Temperature Scaling):** `figure_1.jpg` displayed with caption explaining how high temperature degrades performance and obscures substitution signals.\n- **Slide 5 (Log-Probability Nondeterminism):** `figure_5.jpg` displayed with caption on inference nondeterminism defeating fingerprinting.\n- **Slide 6 (Randomized Substitution):** Conceptual explanation of mixed distributions and why low-rate substitution is query-prohibitive.\n- **Slide 7 (Software-Only Methods Summary):** 4\u00d73 comparison matrix covering text-based statistical tests, log-probability methods, and adversarial countermeasures with weaknesses and practical limitations.\n- **Slide 8 (TEE Solution):** Two-column layout on TEE guarantees and why they outperform software-only approaches, including NVIDIA confidential computing.\n- **Slide 9 (Takeaways):** Five key findings and a call to action for TEE-based attestation.\n\nAll data is drawn from `source_brief.md`, the structure follows `task_input.json`, and the tone is analytical, technical, and evidence-driven.",
+      "metrics": {
+        "prompt_tokens": 29567,
+        "completion_tokens": 376,
+        "cached_tokens": 29184
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 652010,
+    "total_completion_tokens": 10781,
+    "total_cached_tokens": 634112,
+    "total_steps": 27
+  }
+}
