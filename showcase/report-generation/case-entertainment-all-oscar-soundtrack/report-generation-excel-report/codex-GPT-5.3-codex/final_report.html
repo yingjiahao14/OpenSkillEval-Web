@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nine Decades of Oscar-Winning Scores (1934–2026)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #171b2e;
+      --panel-2: #1e2440;
+      --text: #e8ecff;
+      --muted: #aeb8dd;
+      --accent: #8ab4ff;
+      --accent-2: #f8c555;
+      --good: #62d394;
+      --warn: #f39c6b;
+      --border: #2b3358;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(180deg, #0d1020 0%, #10162a 100%);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 22px 50px; }
+    h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: 0.2px; }
+    .sub { color: var(--muted); margin: 0 0 22px; font-size: 16px; }
+    .panel {
+      background: linear-gradient(180deg, #171b2e 0%, #13172a 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .kpi {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .kpi .v { font-size: 28px; font-weight: 700; color: var(--accent-2); margin-bottom: 4px; }
+    .kpi .k { font-size: 13px; color: var(--muted); }
+    .grid-2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .panel h2 { margin: 0 0 10px; font-size: 20px; }
+    .panel h3 { margin: 0 0 8px; font-size: 17px; color: #d8e2ff; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: rgba(255,255,255,0.01);
+      border: 1px solid var(--border);
+    }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px 9px; text-align: left; }
+    th { background: #20284a; color: #eef2ff; font-weight: 650; }
+    tr:hover td { background: rgba(138, 180, 255, 0.06); }
+    ul.tight { margin: 8px 0 0 16px; padding: 0; }
+    ul.tight li { margin-bottom: 6px; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    .foot { font-size: 12px; color: #9da8d3; margin-top: 16px; }
+    canvas { width: 100% !important; height: 360px !important; }
+    #eraChart { height: 320px !important; }
+    #topChart { height: 410px !important; }
+    .small { font-size: 12px; color: var(--muted); }
+    @media (max-width: 980px) {
+      .kpi-grid { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Nine Decades of Oscar-Winning Scores: A Historical Trend Analysis (1934–2026)</h1>
+    <p class="sub">A data-forward review of all 93 Best Original Score winners, showing how concentration, repeat success, and composer turnover changed across eras.</p>
+
+    <section class="panel">
+      <h2>Executive KPI Snapshot</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="v" id="kpiUnique">-</div><div class="k">Total Unique Composers</div></div>
+        <div class="kpi"><div class="v" id="kpiMaxWins">-</div><div class="k">Maximum Wins by a Single Composer</div></div>
+        <div class="kpi"><div class="v" id="kpiRepeatRate">-</div><div class="k">Repeat Winner Rate</div></div>
+        <div class="kpi"><div class="v" id="kpiDecade">-</div><div class="k">Decade with Most Unique Winners</div></div>
+      </div>
+      <div class="note" id="kpiDecadeSub"></div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Dataset Overview & Historical Context</h2>
+        <ul class="tight" id="overviewBullets"></ul>
+        <p class="note">All computations are derived strictly from <code>/app/benchmark/data.csv</code>. No external augmentation is applied.</p>
+      </div>
+      <div class="panel">
+        <h2>Top Composers by Wins</h2>
+        <canvas id="topChart"></canvas>
+        <p class="small">Shared-credit rows are split by individual composer names, so each credited winner receives one win for that ceremony.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Decade-by-Decade Evolution of Winning Composers</h2>
+      <canvas id="decadeChart"></canvas>
+      <div class="grid-3" style="margin-top:12px;">
+        <div>
+          <h3>1930s–1950s</h3>
+          <ul class="tight" id="era1"></ul>
+        </div>
+        <div>
+          <h3>1960s–1980s</h3>
+          <ul class="tight" id="era2"></ul>
+        </div>
+        <div>
+          <h3>1990s–2020s</h3>
+          <ul class="tight" id="era3"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Era Analysis: Concentration vs. Turnover</h2>
+        <canvas id="eraChart"></canvas>
+        <p class="small">Era boundaries used for analysis: Golden (1934–1959), Transition (1960–1979), Modern (1980–1999), Contemporary (2000–2026).</p>
+      </div>
+      <div class="panel">
+        <h2>Notable Milestones & Records</h2>
+        <ul class="tight" id="milestones"></ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Key Takeaways & Forward-Looking Observations</h2>
+      <ul class="tight" id="takeaways"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Appendix: Top 20 Composer Ranking</h2>
+      <div class="table-wrap">
+        <table id="topTable">
+          <thead><tr><th>Rank</th><th>Composer</th><th>Wins</th><th>First Win</th><th>Latest Win</th><th>Span (Years)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="foot">Source file: <code>/app/benchmark/data.csv</code> (93 rows; Year 1934–2026). Report generated as self-contained HTML.</p>
+    </section>
+  </div>
+
+  <script>
+    const rawCsv = `Year,Film,Composer
+1934,One Night of Love,Louis Silvers
+1935,The Informer,Max Steiner
+1936,Anthony Adverse,Leo F. Forbstein
+1937,One Hundred Men and a Girl,Charles Previn
+1938,The Adventures of Robin Hood,Erich Wolfgang Korngold
+1939,Stagecoach,"Richard Hageman, W. Franke Harling, John Leipold, Leo Shuken"
+1940,The Wizard of Oz,Herbert Stothart
+1941,Pinocchio,"Leigh Harline, Paul J. Smith, Ned Washington"
+1942,Dumbo,"Frank Churchill, Oliver Wallace"
+1943,"Now, Voyager",Max Steiner
+1944,The Song of Bernadette,Alfred Newman
+1945,Since You Went Away,Max Steiner
+1946,Spellbound,Miklos Rozsa
+1947,The Best Years of Our Lives,Hugo Friedhofer
+1948,The Red Shoes,Brian Easdale
+1949,The Heiress,Aaron Copland
+1950,Sunset Boulevard,Franz Waxman
+1951,A Place in the Sun,Franz Waxman
+1952,High Noon,Dimitri Tiomkin
+1953,Lili,Bronislau Kaper
+1954,The High and the Mighty,Dimitri Tiomkin
+1955,Love Is a Many-Splendored Thing,Alfred Newman
+1956,Around the World in 80 Days,Victor Young
+1957,The Bridge on the River Kwai,Malcolm Arnold
+1958,The Old Man and the Sea,Dimitri Tiomkin
+1959,Ben-Hur,Miklos Rozsa
+1960,Exodus,Ernest Gold
+1961,Breakfast at Tiffany's,Henry Mancini
+1962,Lawrence of Arabia,Maurice Jarre
+1963,Tom Jones,John Addison
+1964,Mary Poppins,"Richard M. Sherman, Robert B. Sherman"
+1965,Doctor Zhivago,Maurice Jarre
+1966,Born Free,John Barry
+1967,Thoroughly Modern Millie,Elmer Bernstein
+1968,The Lion in Winter,John Barry
+1969,Butch Cassidy and the Sundance Kid,Burt Bacharach
+1970,Love Story,Francis Lai
+1971,Summer of '42,Michel Legrand
+1972,The Godfather,Nino Rota
+1973,The Way We Were,Marvin Hamlisch
+1974,The Godfather Part II,"Nino Rota, Carmine Coppola"
+1975,Jaws,John Williams
+1976,The Omen,Jerry Goldsmith
+1977,Star Wars,John Williams
+1978,Midnight Express,Giorgio Moroder
+1979,A Little Romance,Georges Delerue
+1980,Fame,Michael Gore
+1981,Chariots of Fire,Vangelis
+1982,E.T. the Extra-Terrestrial,John Williams
+1983,The Right Stuff,Bill Conti
+1984,A Passage to India,Maurice Jarre
+1985,Out of Africa,John Barry
+1986,Round Midnight,Herbie Hancock
+1987,The Last Emperor,"Ryuichi Sakamoto, David Byrne, Cong Su"
+1988,The Milagro Beanfield War,Dave Grusin
+1989,The Little Mermaid,Alan Menken
+1990,Dances with Wolves,John Barry
+1991,Beauty and the Beast,Alan Menken
+1992,Aladdin,Alan Menken
+1993,Schindler's List,John Williams
+1994,The Lion King,Hans Zimmer
+1995,The Postman,Luis Bacalov
+1996,The English Patient,Gabriel Yared
+1997,Titanic,James Horner
+1998,Life Is Beautiful,Nicola Piovani
+1999,The Red Violin,John Corigliano
+2000,"Crouching Tiger, Hidden Dragon",Tan Dun
+2001,The Lord of the Rings: The Fellowship of the Ring,Howard Shore
+2002,Frida,Elliot Goldenthal
+2003,The Lord of the Rings: The Return of the King,Howard Shore
+2004,Finding Neverland,Jan A.P. Kaczmarek
+2005,Brokeback Mountain,Gustavo Santaolalla
+2006,Babel,Gustavo Santaolalla
+2007,Atonement,Dario Marianelli
+2008,Slumdog Millionaire,A.R. Rahman
+2009,Up,Michael Giacchino
+2010,The Social Network,"Trent Reznor, Atticus Ross"
+2011,The Artist,Ludovic Bource
+2012,Life of Pi,Mychael Danna
+2013,Gravity,Steven Price
+2014,The Grand Budapest Hotel,Alexandre Desplat
+2015,The Hateful Eight,Ennio Morricone
+2016,La La Land,Justin Hurwitz
+2017,The Shape of Water,Alexandre Desplat
+2018,Black Panther,Ludwig Göransson
+2019,Joker,Hildur Guðnadóttir
+2020,Soul,"Trent Reznor, Atticus Ross, Jon Batiste"
+2021,Dune,Hans Zimmer
+2022,All Quiet on the Western Front,Volker Bertelmann
+2023,Oppenheimer,Ludwig Göransson
+2024,Oppenheimer,Ludwig Göransson
+2025,The Brutalist,Daniel Blumberg
+2026,Sinners,Ludwig Göransson`;
+
+    function parseCsv(text) {
+      const lines = [];
+      let i = 0, cur = '', row = [], inQuotes = false;
+      while (i < text.length) {
+        const ch = text[i];
+        if (ch === '"') {
+          if (inQuotes && text[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = !inQuotes;
+        } else if (ch === ',' && !inQuotes) {
+          row.push(cur); cur = '';
+        } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (cur.length || row.length) { row.push(cur); lines.push(row); row = []; cur = ''; }
+          if (ch === '\r' && text[i+1] === '\n') i++;
+        } else cur += ch;
+        i++;
+      }
+      if (cur.length || row.length) { row.push(cur); lines.push(row); }
+      const header = lines[0];
+      return lines.slice(1).map(r => Object.fromEntries(header.map((h, idx) => [h, r[idx] ?? ''])));
+    }
+
+    const rows = parseCsv(rawCsv).map(d => ({ Year: +d.Year, Film: d.Film, Composer: d.Composer }));
+    const uniqueYears = new Set(rows.map(r => r.Year));
+    const splitComposers = rows.map(r => ({...r, composers: r.Composer.split(',').map(s => s.trim()) }));
+
+    const wins = new Map();
+    const firstWin = new Map();
+    const lastWin = new Map();
+    splitComposers.forEach(r => {
+      r.composers.forEach(c => {
+        wins.set(c, (wins.get(c) || 0) + 1);
+        if (!firstWin.has(c) || r.Year < firstWin.get(c)) firstWin.set(c, r.Year);
+        if (!lastWin.has(c) || r.Year > lastWin.get(c)) lastWin.set(c, r.Year);
+      });
+    });
+
+    const composerStats = [...wins.entries()].map(([composer, count]) => ({
+      composer, wins: count, first: firstWin.get(composer), last: lastWin.get(composer), span: lastWin.get(composer) - firstWin.get(composer)
+    })).sort((a,b) => b.wins - a.wins || a.first - b.first || a.composer.localeCompare(b.composer));
+
+    const uniqueComposers = composerStats.length;
+    const maxWins = composerStats[0].wins;
+    const maxWinner = composerStats.filter(c => c.wins === maxWins).map(c => c.composer).join(', ');
+
+    const seen = new Set();
+    let repeatCeremonies = 0;
+    rows.sort((a,b)=>a.Year-b.Year).forEach(r => {
+      const names = r.Composer.split(',').map(s=>s.trim());
+      if (names.some(n => seen.has(n))) repeatCeremonies++;
+      names.forEach(n => seen.add(n));
+    });
+    const repeatRate = repeatCeremonies / rows.length * 100;
+
+    const decadeKey = y => Math.floor(y/10)*10;
+    const decadeMap = new Map();
+    rows.forEach(r => {
+      const dec = decadeKey(r.Year);
+      if (!decadeMap.has(dec)) decadeMap.set(dec, {wins:0, composers:new Set(), films:[]});
+      const d = decadeMap.get(dec);
+      d.wins += 1;
+      r.Composer.split(',').map(s=>s.trim()).forEach(c=>d.composers.add(c));
+      d.films.push(r.Film);
+    });
+
+    const decadeStats = [...decadeMap.entries()].sort((a,b)=>a[0]-b[0]).map(([dec,v]) => ({
+      decade: dec, label: `${dec}s`, ceremonies: v.wins, unique: v.composers.size, repeatShare: ((v.wins - v.composers.size) / v.wins) * 100
+    }));
+
+    const topDecade = decadeStats.reduce((a,b)=> b.unique > a.unique ? b : a, decadeStats[0]);
+
+    const eras = [
+      {name:'Golden (1934–1959)', min:1934, max:1959},
+      {name:'Transition (1960–1979)', min:1960, max:1979},
+      {name:'Modern (1980–1999)', min:1980, max:1999},
+      {name:'Contemporary (2000–2026)', min:2000, max:2026}
+    ].map(e => {
+      const eRows = rows.filter(r => r.Year>=e.min && r.Year<=e.max);
+      const eSet = new Set();
+      eRows.forEach(r=>r.Composer.split(',').map(s=>s.trim()).forEach(c=>eSet.add(c)));
+      return {
+        ...e,
+        ceremonies: eRows.length,
+        unique: eSet.size,
+        ratio: eSet.size / eRows.length,
+        concentration: 1 - (eSet.size / eRows.length)
+      };
+    });
+
+    const latestYear = Math.max(...rows.map(r=>r.Year));
+    const latest = rows.find(r=>r.Year===latestYear);
+
+    const longestGap = (() => {
+      let best = {composer:null, gap:-1, from:null, to:null};
+      composerStats.forEach(cs => {
+        if (cs.wins < 2) return;
+        const ys = rows.filter(r => r.Composer.split(',').map(s=>s.trim()).includes(cs.composer)).map(r=>r.Year).sort((a,b)=>a-b);
+        for (let i=1;i<ys.length;i++) {
+          const g = ys[i]-ys[i-1];
+          if (g > best.gap) best = {composer:cs.composer, gap:g, from:ys[i-1], to:ys[i]};
+        }
+      });
+      return best;
+    })();
+
+    document.getElementById('kpiUnique').textContent = uniqueComposers;
+    document.getElementById('kpiMaxWins').textContent = `${maxWins} (${maxWinner})`;
+    document.getElementById('kpiRepeatRate').textContent = `${repeatRate.toFixed(1)}%`;
+    document.getElementById('kpiDecade').textContent = topDecade.label;
+    document.getElementById('kpiDecadeSub').textContent = `${topDecade.label} produced ${topDecade.unique} distinct winning composers across ${topDecade.ceremonies} ceremonies.`;
+
+    const top5 = composerStats.slice(0,5).map(c => `${c.composer} (${c.wins})`).join('; ');
+    document.getElementById('overviewBullets').innerHTML = `
+      <li>The dataset contains <b>${rows.length}</b> ceremonies from <b>${Math.min(...rows.map(r=>r.Year))}</b> to <b>${Math.max(...rows.map(r=>r.Year))}</b>, with one winning film per year.</li>
+      <li>After splitting shared credits, there are <b>${uniqueComposers}</b> unique winning composers.</li>
+      <li>The most-awarded composer is <b>${maxWinner}</b> with <b>${maxWins}</b> wins.</li>
+      <li>Repeat winners account for <b>${repeatCeremonies}</b> of ${rows.length} ceremonies (${repeatRate.toFixed(1)}%), indicating sustained career durability among a minority of composers.</li>
+      <li>Top five by wins: <b>${top5}</b>.</li>
+    `;
+
+    const decadeCtx = document.getElementById('decadeChart');
+    new Chart(decadeCtx, {
+      type: 'bar',
+      data: {
+        labels: decadeStats.map(d=>d.label),
+        datasets: [
+          { label:'Ceremonies', data: decadeStats.map(d=>d.ceremonies), backgroundColor:'#4f81ff' },
+          { label:'Unique Composers', data: decadeStats.map(d=>d.unique), backgroundColor:'#f8c555' }
+        ]
+      },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{ legend:{labels:{color:'#dfe6ff'}}, title:{display:true, text:'Composer Turnover by Decade', color:'#eaf0ff'} },
+        scales:{ x:{ticks:{color:'#cfd8ff'}, grid:{color:'#2c355f'}}, y:{ticks:{color:'#cfd8ff'}, grid:{color:'#2c355f'}} }
+      }
+    });
+
+    new Chart(document.getElementById('topChart'), {
+      type: 'bar',
+      data: {
+        labels: composerStats.slice(0,12).map(d=>d.composer),
+        datasets: [{ label:'Oscar Wins', data: composerStats.slice(0,12).map(d=>d.wins), backgroundColor:'#8ab4ff' }]
+      },
+      options: {
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, title:{display:true, text:'Top 12 Composers by Wins', color:'#eaf0ff'} },
+        scales:{ x:{ticks:{color:'#cfd8ff', precision:0}, grid:{color:'#2c355f'}}, y:{ticks:{color:'#cfd8ff'}, grid:{display:false}} }
+      }
+    });
+
+    new Chart(document.getElementById('eraChart'), {
+      type:'bar',
+      data:{
+        labels: eras.map(e=>e.name),
+        datasets:[
+          {label:'Unique/Ceremony Ratio', data: eras.map(e=>+(e.ratio.toFixed(2))), backgroundColor:'#62d394'},
+          {label:'Concentration Index', data: eras.map(e=>+(e.concentration.toFixed(2))), backgroundColor:'#f39c6b'}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{labels:{color:'#dfe6ff'}}, title:{display:true, text:'Era Structure of Dominance vs. Renewal', color:'#eaf0ff'} },
+        scales:{ x:{ticks:{color:'#cfd8ff'}, grid:{display:false}}, y:{ticks:{color:'#cfd8ff'}, min:0, max:1, grid:{color:'#2c355f'}} }
+      }
+    });
+
+    const e1 = decadeStats.filter(d=>d.decade<=1950);
+    const e2 = decadeStats.filter(d=>d.decade>=1960 && d.decade<=1980);
+    const e3 = decadeStats.filter(d=>d.decade>=1990);
+
+    document.getElementById('era1').innerHTML = `
+      <li>The early period shows concentrated repeat success: 1930s–1950s average ${ (e1.reduce((s,d)=>s+d.repeatShare,0)/e1.length).toFixed(1)}% repeat share.</li>
+      <li>Standout repeat figures include Max Steiner, Dimitri Tiomkin, Franz Waxman, and Miklos Rozsa.</li>
+      <li>Craft traditions remained stable, with fewer newcomers per ceremony than in later decades.</li>`;
+
+    document.getElementById('era2').innerHTML = `
+      <li>1960s–1980s broadened the field with stylistic pluralism and crossover composers.</li>
+      <li>This span includes recurring names (John Barry, John Williams, Maurice Jarre) alongside frequent first-time winners.</li>
+      <li>Decadal uniqueness climbed, signaling more turnover despite marquee repeat winners.</li>`;
+
+    document.getElementById('era3').innerHTML = `
+      <li>The 1990s reached the highest unique-composer count (${decadeStats.find(d=>d.decade===1990).unique}) among all decades.</li>
+      <li>2000s onward balance franchise-era repeaters (Howard Shore, Alexandre Desplat, Ludwig Göransson) with global diversification.</li>
+      <li>The 2020s show renewed concentration due to repeated wins by a small set of active composers.</li>`;
+
+    document.getElementById('milestones').innerHTML = `
+      <li><b>First recorded winner (1934):</b> Louis Silvers for <i>One Night of Love</i>.</li>
+      <li><b>Most wins:</b> ${maxWinner} with ${maxWins} wins.</li>
+      <li><b>Longest gap between wins:</b> ${longestGap.composer}, ${longestGap.gap} years (${longestGap.from} → ${longestGap.to}).</li>
+      <li><b>Most recent winner (${latestYear}):</b> ${latest.Composer} for <i>${latest.Film}</i>.</li>
+      <li><b>Most recent first-time winner:</b> Daniel Blumberg in 2025 (<i>The Brutalist</i>).</li>
+      <li><b>Shared-credit milestone years:</b> 1939, 1941, 1942, 1964, 1974, 1987, 2010, 2020.</li>
+    `;
+
+    document.getElementById('takeaways').innerHTML = `
+      <li>Oscar score history combines <b>elite persistence</b> with periodic <b>turnover waves</b>; repeat winners are common enough (${repeatRate.toFixed(1)}%) to shape long arcs.</li>
+      <li>Dominance cycles are cyclical rather than linear: concentration was high in early decades, loosened across mid/late century, and partially re-concentrated in the 2020s.</li>
+      <li>The 1990s stand out as the strongest renewal decade by distinct winners, suggesting a temporary broadening of Academy taste.</li>
+      <li>Recent years indicate a hybrid pattern: global stylistic diversity remains, but repeated recognition of high-visibility composers can quickly narrow annual outcomes.</li>
+      <li>Heading into the late 2020s, the key variable is whether new entrants continue to break through or current repeat winners extend another dominance cycle.</li>
+    `;
+
+    const tbody = document.querySelector('#topTable tbody');
+    composerStats.slice(0,20).forEach((c, idx) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${idx+1}</td><td>${c.composer}</td><td>${c.wins}</td><td>${c.first}</td><td>${c.last}</td><td>${c.span}</td>`;
+      tbody.appendChild(tr);
+    });
+  </script>
+</body>
+</html>

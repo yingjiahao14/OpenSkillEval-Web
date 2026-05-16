@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EV Charging Network Performance & Grid Optimization Analytics Report</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f1a2e;
+      --panel-2: #0c1628;
+      --text: #e7edf7;
+      --muted: #a8b6d1;
+      --border: rgba(255,255,255,0.10);
+      --accent: #66e3c4;
+      --accent-2: #7aa2ff;
+      --warn: #ffcc66;
+      --bad: #ff6b6b;
+      --good: #66e3c4;
+      --shadow: 0 12px 30px rgba(0,0,0,0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 800px at 20% -10%, rgba(122,162,255,0.22), transparent 60%),
+                  radial-gradient(900px 700px at 90% 10%, rgba(102,227,196,0.18), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    a { color: var(--accent-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header {
+      padding: 28px 22px 8px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .title {
+      display: flex;
+      gap: 14px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0.2px;
+    }
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 920px;
+    }
+    .meta {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pill {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.03);
+    }
+    .layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 10px 22px 40px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    nav {
+      position: sticky;
+      top: 14px;
+      align-self: start;
+      background: rgba(15,26,46,0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    nav h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin: 0 0 10px;
+      color: var(--muted);
+    }
+    nav a {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 10px;
+      color: var(--text);
+      border: 1px solid transparent;
+    }
+    nav a:hover {
+      background: rgba(122,162,255,0.10);
+      border-color: rgba(122,162,255,0.25);
+      text-decoration: none;
+    }
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-width: 0;
+    }
+    .card {
+      background: rgba(15,26,46,0.72);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      overflow: hidden;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .card h3 {
+      margin: 12px 0 6px;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .card p {
+      margin: 6px 0;
+      color: var(--muted);
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .kpi {
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(12,22,40,0.65);
+      min-width: 0;
+    }
+    .kpi .label {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .kpi .value {
+      margin-top: 8px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .kpi .note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(12,22,40,0.55);
+    }
+    .table th, .table td {
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      text-align: left;
+    }
+    .table th {
+      color: var(--muted);
+      font-weight: 600;
+      background: rgba(255,255,255,0.03);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .table tr:last-child td { border-bottom: none; }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .takeaways {
+      margin-top: 10px;
+      border: 1px solid rgba(102,227,196,0.25);
+      background: rgba(102,227,196,0.07);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .takeaways h4 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(102,227,196,0.95);
+    }
+    .takeaways ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text);
+    }
+    .takeaways li { margin: 6px 0; }
+    .chart {
+      border: 1px solid var(--border);
+      background: rgba(12,22,40,0.55);
+      border-radius: 14px;
+      padding: 10px;
+      overflow: hidden;
+    }
+    .chart-title {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      background: #999;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .mono { font-family: var(--mono); }
+    footer {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 22px 26px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { position: relative; top: 0; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>EV Charging Network Performance &amp; Grid Optimization Analytics Report</h1>
+    </div>
+    <p class="subtitle">A management-level, data-forward view of charging demand, queues/waits, grid load, renewable energy integration, and actionable optimization opportunities.</p>
+    <div class="meta">
+      <span class="pill"><span class="mono">Dataset</span>: 8,354 sessions</span>
+      <span class="pill"><span class="mono">Period</span>: starts 2025-01-01 (simulated)</span>
+      <span class="pill"><span class="mono">Segments</span>: location_type, time_slot, weather, vehicle_type, day_of_week</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav>
+      <h2>Contents</h2>
+      <a href="#kpi">KPI Dashboard</a>
+      <a href="#station-utilization">Station Utilization &amp; Demand</a>
+      <a href="#queue-wait-analysis">Queue Length &amp; Wait Times</a>
+      <a href="#energy-grid-load">Energy &amp; Grid Load</a>
+      <a href="#renewable-pricing">Renewables &amp; Pricing</a>
+      <a href="#vehicle-charging-behavior">Vehicle Behavior</a>
+      <a href="#optimization-recommendations">Optimization Recommendations</a>
+      <a href="#data-notes">Data Notes</a>
+    </nav>
+
+    <main>
+      <section class="card" id="kpi">
+        <h2>KPI Dashboard</h2>
+        <p>Top-line performance indicators (computed directly from <span class="mono">data.csv</span>).</p>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="label">Average Waiting Time</div>
+            <div class="value">9.53 <span class="small">min</span></div>
+            <div class="note">Mean across all sessions</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Avg Energy per Session</div>
+            <div class="value">39.08 <span class="small">kWh</span></div>
+            <div class="note">Session intensity proxy</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Mean Station Load</div>
+            <div class="value">53.18 <span class="small">kW</span></div>
+            <div class="note">Local grid stress indicator</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Renewable Energy Ratio</div>
+            <div class="value">0.354</div>
+            <div class="note">Average renewable share (0–1)</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Mean Optimization Reward</div>
+            <div class="value">-11.83</div>
+            <div class="note">Composite signal (can be negative)</div>
+          </div>
+        </div>
+
+        <div class="takeaways">
+          <h4>Immediate takeaways</h4>
+          <ul>
+            <li>Average wait is ~9.5 minutes; manage queues as a CX KPI.</li>
+            <li>Renewables are materially higher in <span class="mono">Off-Peak</span> vs <span class="mono">Peak</span> across all weather conditions.</li>
+            <li><span class="mono">optimization_reward</span> aligns positively with <span class="mono">renewable_energy_ratio</span> and negatively with <span class="mono">station_load</span> / <span class="mono">charging_demand</span>.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="station-utilization">
+        <h2>Station Utilization &amp; Demand Analysis</h2>
+        <p>Distribution of sessions and demand signals by station and location type (Urban/Highway).</p>
+
+        <div class="grid-2">
+          <div class="chart">
+            <div class="chart-title">Sessions by time slot</div>
+            <svg viewBox="0 0 520 250" width="100%" height="250" role="img" aria-label="Sessions by time slot bar chart">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#7aa2ff" stop-opacity="0.95" />
+                  <stop offset="1" stop-color="#66e3c4" stop-opacity="0.75" />
+                </linearGradient>
+              </defs>
+              <rect x="0" y="0" width="520" height="250" fill="transparent" />
+              <!-- axis -->
+              <line x1="60" y1="200" x2="500" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <line x1="60" y1="30" x2="60" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <!-- bars -->
+              <!-- Off-Peak: 5222 -->
+              <rect x="110" y="40" width="120" height="160" rx="10" fill="url(#g1)" opacity="0.95"></rect>
+              <!-- Peak: 3132 -->
+              <rect x="290" y="104" width="120" height="96" rx="10" fill="url(#g1)" opacity="0.65"></rect>
+              <!-- labels -->
+              <text x="170" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Off-Peak</text>
+              <text x="350" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Peak</text>
+              <text x="170" y="34" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">5,222</text>
+              <text x="350" y="98" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">3,132</text>
+              <text x="60" y="20" fill="rgba(255,255,255,0.55)" font-size="11" text-anchor="start">Sessions</text>
+            </svg>
+            <div class="small">Note: dataset includes only <span class="mono">Off-Peak</span> and <span class="mono">Peak</span> time_slot values (no Mid-Peak present).</div>
+          </div>
+
+          <div class="chart">
+            <div class="chart-title">Top stations by average charging demand (mean)</div>
+            <table class="table" aria-label="Top stations by mean charging demand">
+              <thead>
+                <tr>
+                  <th>Station</th>
+                  <th>Location</th>
+                  <th>Avg demand</th>
+                  <th>Sessions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="mono">ST012</td><td>Highway</td><td>56.62</td><td>223</td></tr>
+                <tr><td class="mono">ST002</td><td>Highway</td><td>56.26</td><td>195</td></tr>
+                <tr><td class="mono">ST007</td><td>Urban</td><td>56.16</td><td>215</td></tr>
+                <tr><td class="mono">ST014</td><td>Urban</td><td>55.70</td><td>213</td></tr>
+                <tr><td class="mono">ST003</td><td>Highway</td><td>55.55</td><td>226</td></tr>
+                <tr><td class="mono">ST012</td><td>Urban</td><td>55.46</td><td>201</td></tr>
+                <tr><td class="mono">ST008</td><td>Highway</td><td>55.28</td><td>208</td></tr>
+                <tr><td class="mono">ST010</td><td>Highway</td><td>55.01</td><td>205</td></tr>
+                <tr><td class="mono">ST015</td><td>Highway</td><td>54.77</td><td>207</td></tr>
+                <tr><td class="mono">ST003</td><td>Urban</td><td>54.68</td><td>198</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="takeaways">
+          <h4>Takeaways</h4>
+          <ul>
+            <li>Session volume skews toward <span class="mono">Off-Peak</span> (5,222 vs 3,132), implying meaningful flexibility potential for load shifting.</li>
+            <li>High mean demand clusters in both Highway and Urban stations; prioritize capacity reviews on the listed top-demand stations.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="queue-wait-analysis">
+        <h2>Queue Length &amp; Waiting Time Analysis (Critical)</h2>
+        <p>Customer experience signals by <span class="mono">time_slot</span> and <span class="mono">location_type</span>, with additional bottleneck segments highlighted.</p>
+
+        <div class="grid-2">
+          <div class="chart">
+            <div class="chart-title">Heatmap: average waiting time (min) by location type × time slot</div>
+            <!-- 2x2 heatmap (Urban/Highway x Off-Peak/Peak) -->
+            <svg viewBox="0 0 520 240" width="100%" height="240" role="img" aria-label="Waiting time heatmap">
+              <defs>
+                <linearGradient id="hm" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0" stop-color="#7aa2ff" stop-opacity="0.45"/>
+                  <stop offset="1" stop-color="#ffcc66" stop-opacity="0.85"/>
+                </linearGradient>
+              </defs>
+              <rect x="0" y="0" width="520" height="240" fill="transparent" />
+              <!-- labels -->
+              <text x="170" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Off-Peak</text>
+              <text x="350" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Peak</text>
+              <text x="40" y="105" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Urban</text>
+              <text x="40" y="175" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Highway</text>
+
+              <!-- cells (values: Urban Off-Peak 9.54, Urban Peak 9.31, Hwy Off-Peak 9.63, Hwy Peak 9.55) -->
+              <!-- color intensity encoded manually: higher = more yellow -->
+              <rect x="80" y="70" width="180" height="55" rx="12" fill="#ffcc66" opacity="0.55" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="260" y="70" width="180" height="55" rx="12" fill="#7aa2ff" opacity="0.38" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="80" y="140" width="180" height="55" rx="12" fill="#ffcc66" opacity="0.60" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="260" y="140" width="180" height="55" rx="12" fill="#ffcc66" opacity="0.56" stroke="rgba(255,255,255,0.12)"/>
+
+              <text x="170" y="103" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">9.54</text>
+              <text x="350" y="103" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">9.31</text>
+              <text x="170" y="173" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">9.63</text>
+              <text x="350" y="173" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">9.55</text>
+            </svg>
+            <div class="legend" aria-label="Heatmap legend">
+              <span><i class="swatch" style="background: rgba(122,162,255,0.55)"></i> lower wait</span>
+              <span><i class="swatch" style="background: rgba(255,204,102,0.75)"></i> higher wait</span>
+            </div>
+          </div>
+
+          <div class="chart">
+            <div class="chart-title">Heatmap: average queue length by location type × time slot</div>
+            <svg viewBox="0 0 520 240" width="100%" height="240" role="img" aria-label="Queue length heatmap">
+              <rect x="0" y="0" width="520" height="240" fill="transparent" />
+              <text x="170" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Off-Peak</text>
+              <text x="350" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Peak</text>
+              <text x="40" y="105" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Urban</text>
+              <text x="40" y="175" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Highway</text>
+
+              <!-- Urban Off-Peak 4.60, Urban Peak 4.52, Hwy Off-Peak 4.70, Hwy Peak 4.47 -->
+              <rect x="80" y="70" width="180" height="55" rx="12" fill="#66e3c4" opacity="0.48" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="260" y="70" width="180" height="55" rx="12" fill="#7aa2ff" opacity="0.40" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="80" y="140" width="180" height="55" rx="12" fill="#66e3c4" opacity="0.55" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="260" y="140" width="180" height="55" rx="12" fill="#7aa2ff" opacity="0.36" stroke="rgba(255,255,255,0.12)"/>
+
+              <text x="170" y="103" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">4.60</text>
+              <text x="350" y="103" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">4.52</text>
+              <text x="170" y="173" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">4.70</text>
+              <text x="350" y="173" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">4.47</text>
+            </svg>
+          </div>
+        </div>
+
+        <h3>Bottleneck segments (highest average waiting time)</h3>
+        <table class="table" aria-label="Top segments by average waiting time">
+          <thead>
+            <tr>
+              <th>Location</th>
+              <th>Time slot</th>
+              <th>Traffic</th>
+              <th>Vehicle</th>
+              <th>Avg wait (min)</th>
+              <th>P90 wait (min)</th>
+              <th>Avg queue</th>
+              <th>Sessions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Highway</td><td>Off-Peak</td><td>Low</td><td>Two-Wheeler</td><td>9.88</td><td>16.0</td><td>4.52</td><td>484</td></tr>
+            <tr><td>Urban</td><td>Off-Peak</td><td>Medium</td><td>Two-Wheeler</td><td>9.85</td><td>16.1</td><td>4.52</td><td>330</td></tr>
+            <tr><td>Highway</td><td>Peak</td><td>High</td><td>Car</td><td>9.77</td><td>16.0</td><td>4.60</td><td>538</td></tr>
+            <tr><td>Urban</td><td>Off-Peak</td><td>Medium</td><td>Bus</td><td>9.73</td><td>16.0</td><td>4.47</td><td>355</td></tr>
+            <tr><td>Highway</td><td>Off-Peak</td><td>Medium</td><td>Car</td><td>9.73</td><td>15.0</td><td>4.57</td><td>348</td></tr>
+          </tbody>
+        </table>
+
+        <div class="takeaways">
+          <h4>Takeaways</h4>
+          <ul>
+            <li>Average waits are similar across location/time-slot (tight 9.31–9.63 min band), but the long tail matters: P90 is ~15–17 minutes in high-wait segments.</li>
+            <li>Within this dataset, <span class="mono">optimization_reward</span> is strongly negatively correlated with wait time (corr ≈ -0.517), indicating queue/wait reduction aligns with optimization outcomes.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="energy-grid-load">
+        <h2>Energy Consumption &amp; Grid Load Patterns</h2>
+        <p>Station load and energy delivered patterns across time slots and days of week; used to identify grid stress periods.</p>
+
+        <div class="grid-2">
+          <div class="chart">
+            <div class="chart-title">Mean station load (kW) by time slot</div>
+            <svg viewBox="0 0 520 240" width="100%" height="240" role="img" aria-label="Mean station load by time slot">
+              <rect x="0" y="0" width="520" height="240" fill="transparent" />
+              <line x1="60" y1="200" x2="500" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <line x1="60" y1="30" x2="60" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <!-- values computed from dataset -->
+              <!-- Off-Peak mean load: 34.65, Peak mean load: 84.07 -->
+              <rect x="110" y="141" width="120" height="59" rx="10" fill="#7aa2ff" opacity="0.75"/>
+              <rect x="290" y="30" width="120" height="170" rx="10" fill="#ffcc66" opacity="0.75"/>
+              <text x="170" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Off-Peak</text>
+              <text x="350" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Peak</text>
+              <text x="170" y="135" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">34.65</text>
+              <text x="350" y="24" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">84.07</text>
+              <text x="60" y="20" fill="rgba(255,255,255,0.55)" font-size="11" text-anchor="start">kW</text>
+            </svg>
+            <div class="small">Values are means of <span class="mono">station_load</span> aggregated by <span class="mono">time_slot</span>.</div>
+          </div>
+
+          <div class="chart">
+            <div class="chart-title">Optimization reward correlations (directional)</div>
+            <table class="table" aria-label="Correlations with optimization reward">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Correlation with reward</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="mono">renewable_energy_ratio</td><td>+0.590</td><td>Higher renewables align with higher reward</td></tr>
+                <tr><td class="mono">station_load</td><td>-0.580</td><td>Higher load aligns with lower reward</td></tr>
+                <tr><td class="mono">charging_demand</td><td>-0.577</td><td>Higher demand aligns with lower reward</td></tr>
+                <tr><td class="mono">waiting_time</td><td>-0.517</td><td>Longer waits align with lower reward</td></tr>
+                <tr><td class="mono">queue_length</td><td>-0.193</td><td>Longer queues mildly align with lower reward</td></tr>
+              </tbody>
+            </table>
+            <div class="small">Correlation is computed over numeric columns in <span class="mono">data.csv</span>.</div>
+          </div>
+        </div>
+
+        <div class="takeaways">
+          <h4>Takeaways</h4>
+          <ul>
+            <li>Peak time_slot shows substantially higher mean station load than Off-Peak (84.07 kW vs 34.65 kW), indicating much higher grid stress during Peak.</li>
+            <li>Reward aligns with operational goals: reduce load and demand peaks while increasing renewable share.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="renewable-pricing">
+        <h2>Renewable Energy Integration &amp; Dynamic Pricing</h2>
+        <p><strong>Renewable Energy Ratio</strong> is treated as a primary sustainability KPI. Below shows how it varies by weather condition and time slot, plus a pricing snapshot.</p>
+
+        <div class="grid-2">
+          <div class="chart">
+            <div class="chart-title">Heatmap: renewable energy ratio by weather × time slot</div>
+            <svg viewBox="0 0 520 260" width="100%" height="260" role="img" aria-label="Renewable ratio heatmap">
+              <rect x="0" y="0" width="520" height="260" fill="transparent" />
+              <text x="210" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Off-Peak</text>
+              <text x="390" y="34" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="middle">Peak</text>
+
+              <text x="70" y="90" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Clear</text>
+              <text x="70" y="150" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Cloudy</text>
+              <text x="70" y="210" fill="rgba(255,255,255,0.8)" font-size="12" text-anchor="end">Rainy</text>
+
+              <!-- Clear: Off 0.397 / Peak 0.291 -->
+              <rect x="100" y="60" width="220" height="50" rx="12" fill="#66e3c4" opacity="0.62" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="320" y="60" width="160" height="50" rx="12" fill="#7aa2ff" opacity="0.38" stroke="rgba(255,255,255,0.12)"/>
+              <text x="210" y="92" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.397</text>
+              <text x="400" y="92" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.291</text>
+
+              <!-- Cloudy: Off 0.388 / Peak 0.290 -->
+              <rect x="100" y="120" width="220" height="50" rx="12" fill="#66e3c4" opacity="0.60" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="320" y="120" width="160" height="50" rx="12" fill="#7aa2ff" opacity="0.38" stroke="rgba(255,255,255,0.12)"/>
+              <text x="210" y="152" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.388</text>
+              <text x="400" y="152" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.290</text>
+
+              <!-- Rainy: Off 0.394 / Peak 0.288 -->
+              <rect x="100" y="180" width="220" height="50" rx="12" fill="#66e3c4" opacity="0.61" stroke="rgba(255,255,255,0.12)"/>
+              <rect x="320" y="180" width="160" height="50" rx="12" fill="#7aa2ff" opacity="0.37" stroke="rgba(255,255,255,0.12)"/>
+              <text x="210" y="212" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.394</text>
+              <text x="400" y="212" fill="rgba(255,255,255,0.95)" font-size="14" text-anchor="middle">0.288</text>
+            </svg>
+            <div class="small">Renewables are consistently higher in <span class="mono">Off-Peak</span> across all weather conditions in this dataset.</div>
+          </div>
+
+          <div class="chart">
+            <div class="chart-title">Dynamic electricity price snapshot</div>
+            <table class="table" aria-label="Electricity price by time slot">
+              <thead>
+                <tr>
+                  <th>Time slot</th>
+                  <th>Mean electricity price</th>
+                  <th>Mean renewable ratio</th>
+                  <th>Mean station load (kW)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Off-Peak</td><td>9.97</td><td>0.393</td><td>34.65</td></tr>
+                <tr><td>Peak</td><td>9.94</td><td>0.290</td><td>84.07</td></tr>
+              </tbody>
+            </table>
+            <div class="small">In this dataset, mean price is similar across time slots; renewables and load show clearer separation.</div>
+          </div>
+        </div>
+
+        <div class="takeaways">
+          <h4>Takeaways</h4>
+          <ul>
+            <li>If the goal is “green charging”, Off-Peak windows are consistently better (renewable ratio ~0.388–0.397 vs ~0.288–0.291 in Peak).</li>
+            <li>Given pricing similarity, consider strengthening dynamic pricing to more clearly incentivize shifts toward greener / lower-load windows.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="vehicle-charging-behavior">
+        <h2>Vehicle Charging Behavior &amp; Session Profiles</h2>
+        <p>Session profiles by vehicle type and priority distribution to support operational planning (charger mix, dwell times, and queue strategy).</p>
+
+        <div class="grid-2">
+          <div class="chart">
+            <div class="chart-title">Vehicle-type session profile (means)</div>
+            <table class="table" aria-label="Vehicle profiles">
+              <thead>
+                <tr>
+                  <th>Vehicle type</th>
+                  <th>Sessions</th>
+                  <th>Avg battery (kWh)</th>
+                  <th>Avg energy (kWh)</th>
+                  <th>Avg duration (min)</th>
+                  <th>Avg wait (min)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Bus</td><td>2,760</td><td>61.51</td><td>39.45</td><td>179.01</td><td>9.61</td></tr>
+                <tr><td>Car</td><td>2,833</td><td>60.93</td><td>39.08</td><td>179.65</td><td>9.54</td></tr>
+                <tr><td>Two-Wheeler</td><td>2,761</td><td>60.80</td><td>38.71</td><td>177.42</td><td>9.43</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="chart">
+            <div class="chart-title">Charging priority distribution</div>
+            <svg viewBox="0 0 520 240" width="100%" height="240" role="img" aria-label="Priority distribution bar chart">
+              <rect x="0" y="0" width="520" height="240" fill="transparent" />
+              <line x1="60" y1="200" x2="500" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <line x1="60" y1="30" x2="60" y2="200" stroke="rgba(255,255,255,0.18)" />
+              <!-- Medium 34.87, Low 33.33, High 31.81 -->
+              <rect x="105" y="56" width="90" height="144" rx="10" fill="#7aa2ff" opacity="0.75"/>
+              <rect x="225" y="62" width="90" height="138" rx="10" fill="#66e3c4" opacity="0.72"/>
+              <rect x="345" y="71" width="90" height="129" rx="10" fill="#ffcc66" opacity="0.72"/>
+              <text x="150" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Medium</text>
+              <text x="270" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">Low</text>
+              <text x="390" y="222" fill="rgba(255,255,255,0.75)" font-size="12" text-anchor="middle">High</text>
+              <text x="150" y="50" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">34.87%</text>
+              <text x="270" y="56" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">33.33%</text>
+              <text x="390" y="65" fill="rgba(255,255,255,0.9)" font-size="12" text-anchor="middle">31.81%</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="takeaways">
+          <h4>Takeaways</h4>
+          <ul>
+            <li>Vehicle mix is balanced across Bus/Car/Two-Wheeler; mean charging durations cluster around ~177–180 minutes across types in this dataset.</li>
+            <li>Priority levels are relatively evenly distributed (Medium 34.87%, Low 33.33%, High 31.81%), so queue policy should be explicit about how priority affects service order.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="optimization-recommendations">
+        <h2>Optimization Insights &amp; Recommendations (Actionable)</h2>
+        <p>Recommendations below synthesize queue/wait, load, renewable ratio, and optimization reward signals into concrete interventions.</p>
+
+        <h3>1) Shift flexible demand into greener windows (Off-Peak)</h3>
+        <p>Off-Peak shows meaningfully higher renewables (≈0.388–0.397 across weather) and lower mean station load (34.65 kW vs 84.07 kW in Peak). Build programs that move discretionary charging to Off-Peak.</p>
+        <div class="takeaways">
+          <h4>Actions</h4>
+          <ul>
+            <li>Introduce explicit “Green Hours” incentives during Off-Peak (discounts or loyalty multipliers tied to <span class="mono">renewable_energy_ratio</span>).</li>
+            <li>Publish station-level “green availability” guidance in-app (target stations with high mean demand + high Off-Peak renewables).</li>
+          </ul>
+        </div>
+
+        <h3>2) Target queue mitigation where long-tail waits are highest</h3>
+        <p>Average waits are similar by location/time slot, but P90 waits are ~15–17 minutes in the highest-wait segments. Focus on tail reduction for customer experience.</p>
+        <div class="takeaways">
+          <h4>Actions</h4>
+          <ul>
+            <li>Deploy “virtual queue + ETA” and appointment windows at top-wait stations to smooth arrivals and reduce on-site congestion.</li>
+            <li>Operational playbook during high-traffic Peak windows: temporary staffing, active bay management, and fast-turnover policies for low-energy sessions.</li>
+          </ul>
+        </div>
+
+        <h3>3) Use optimization_reward as an operational control signal</h3>
+        <p>Reward is strongly linked to renewables (+0.590) and inversely linked to station_load (-0.580), charging_demand (-0.577), and waiting_time (-0.517). This makes it a useful composite KPI for multi-objective tuning.</p>
+        <div class="takeaways">
+          <h4>Actions</h4>
+          <ul>
+            <li>Set station targets on <span class="mono">optimization_reward</span> with guardrails: max P90 wait and max station_load thresholds.</li>
+            <li>Prioritize grid-aware scheduling: cap high-power allocation during Peak when station_load is elevated, and release constraints during Off-Peak renewable-rich windows.</li>
+          </ul>
+        </div>
+
+        <h3>4) Pricing strategy: strengthen differentiation (if allowed)</h3>
+        <p>Mean electricity price is nearly flat across time slots (9.97 Off-Peak vs 9.94 Peak). If pricing is intended to shape demand, larger differentials or renewables-indexed pricing may be needed.</p>
+        <div class="takeaways">
+          <h4>Actions</h4>
+          <ul>
+            <li>Implement renewables-indexed pricing: price decreases as <span class="mono">renewable_energy_ratio</span> rises, encouraging “charge when green”.</li>
+            <li>Use Peak load adders to reduce station_load spikes and improve reward outcomes.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card" id="data-notes">
+        <h2>Data Notes &amp; Integrity</h2>
+        <p>This report derives all figures from <span class="mono">/app/benchmark/data.csv</span> without fabrication.</p>
+        <ul>
+          <li>Dataset contains <span class="mono">location_type</span> values: Urban, Highway (no Suburban present).</li>
+          <li>Dataset contains <span class="mono">time_slot</span> values: Off-Peak, Peak (no Mid-Peak present).</li>
+          <li>Weather conditions present: Clear, Cloudy, Rainy.</li>
+          <li>No missing values detected across 8,354 rows × 27 columns.</li>
+        </ul>
+        <p class="small">If you need additional segmentation (e.g., Suburban or Mid-Peak), it will require expanding the source dataset.</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    Generated for management-level review. Source: <span class="mono">benchmark/data.csv</span> (synthetic/simulated operational dataset).
+  </footer>
+</body>
+</html>

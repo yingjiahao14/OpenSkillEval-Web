@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>American Express (AXP) Historical Stock Performance Report: 1972–2026</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #5a5a6e;
+    --accent: #0061f2;
+    --accent2: #00c9a7;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --border: #e2e8f0;
+    --font: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+  header {
+    border-bottom: 3px solid var(--accent);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  header h1 {
+    margin: 0 0 8px;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  header .subtitle {
+    color: var(--muted);
+    font-size: 1.05rem;
+  }
+  .meta {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    transition: transform 0.15s ease;
+  }
+  .kpi-card:hover { transform: translateY(-2px); }
+  .kpi-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .kpi-value.positive { color: var(--accent2); }
+  .kpi-value.negative { color: var(--danger); }
+  .kpi-value.accent { color: var(--accent); }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 28px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  section h2 {
+    margin: 0 0 16px;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text);
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+  }
+  section h3 {
+    margin: 24px 0 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  p { margin: 0 0 12px; color: var(--text); }
+  .muted { color: var(--muted); font-size: 0.92rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.92rem;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  tr:hover { background: #f8fafc; }
+  .chart-container {
+    width: 100%;
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+  svg { display: block; }
+  .tooltip {
+    position: absolute;
+    background: rgba(26,26,46,0.92);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 0.85rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-color { width: 14px; height: 14px; border-radius: 3px; }
+  .highlight-box {
+    background: #eef6ff;
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+  }
+  .highlight-box.danger {
+    background: #fdf2f2;
+    border-left-color: var(--danger);
+  }
+  .highlight-box.warning {
+    background: #fff8e6;
+    border-left-color: var(--warning);
+  }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .two-col { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .phase-bull { color: var(--accent2); font-weight: 600; }
+  .phase-bear { color: var(--danger); font-weight: 600; }
+  .bar-positive { fill: var(--accent2); }
+  .bar-negative { fill: var(--danger); }
+  .axis text { fill: var(--muted); font-size: 11px; }
+  .axis path, .axis line { stroke: var(--border); }
+  .grid line { stroke: #e2e8f0; stroke-dasharray: 3,3; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>American Express (AXP) Historical Stock Performance Report</h1>
+    <div class="subtitle">A comprehensive analysis of over 50 years of daily trading data (1972–2026)</div>
+    <div class="meta">Data source: AXP Stock Data (1972–2026) &nbsp;|&nbsp; Report generated: May 2026 &nbsp;|&nbsp; 13,556 daily observations</div>
+  </header>
+
+  <section>
+    <h2>Executive Overview</h2>
+    <p>American Express (AXP) has delivered one of the most remarkable long-term wealth-creation stories in U.S. financial services. From an adjusted split/dividend price of <strong>$1.22</strong> in June 1972 to <strong>$305.99</strong> as of March 2026, the stock has generated a cumulative capital appreciation of <strong>24,895%</strong> — equivalent to a compounded annual growth rate (CAGR) of <strong>10.81%</strong> over 53.8 years.</p>
+    <p>However, this journey has been anything but smooth. AXP is a high-volatility equity (annualized volatility: <strong>34.69%</strong>) that has weathered multiple systemic crises, including a <strong>−83.9%</strong> drawdown during the 2008 Global Financial Crisis. The stock has paid <strong>$34.27</strong> per share in cumulative dividends, with payout growth accelerating significantly in the 2010s and 2020s.</p>
+    <div class="highlight-box">
+      <strong>Key Takeaway for Investors:</strong> AXP has historically rewarded patient, long-term holders with double-digit annualized returns, but requires tolerance for severe short-to-medium term drawdowns. The stock has posted positive returns in 72.7% of calendar years and has recovered from every major crisis to date.
+    </div>
+  </section>
+
+  <section>
+    <h2>Key Performance Indicators</h2>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Cumulative Return</div>
+        <div class="kpi-value positive">+24,895%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CAGR (53.8 Yrs)</div>
+        <div class="kpi-value positive">10.81%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Annualized Volatility</div>
+        <div class="kpi-value accent">34.69%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Maximum Drawdown</div>
+        <div class="kpi-value negative">−83.91%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Dividends / Share</div>
+        <div class="kpi-value accent">$34.27</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Sharpe Ratio (0% rf)</div>
+        <div class="kpi-value accent">0.47</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">All-Time High</div>
+        <div class="kpi-value positive">$384.04</div>
+        <div class="muted">Dec 11, 2025</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">All-Time Low</div>
+        <div class="kpi-value negative">$0.38</div>
+        <div class="muted">Oct 03, 1974</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Long-Term Price Trend Analysis</h2>
+    <p>The multi-decade price trajectory of AXP reveals distinct bull and bear regimes tied to macroeconomic cycles. The logarithmic scale chart below illustrates the compounding power of long-term ownership, while also surfacing the severity of crisis-driven selloffs.</p>
+    <div class="chart-container" id="price-chart"></div>
+    <div class="legend" id="price-legend"></div>
+
+    <h3>Major Bull & Bear Phases</h3>
+    <table>
+      <thead>
+        <tr><th>Period</th><th>Phase</th><th>Duration</th><th>Total Return</th><th>Context</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Jun 1972 – Oct 1974</td><td class="phase-bear">Bear</td><td>2.3 years</td><td class="phase-bear">−67.3%</td><td>1973 Oil Crisis / Stagflation</td></tr>
+        <tr><td>Oct 1974 – Jan 1981</td><td class="phase-bull">Bull</td><td>6.3 years</td><td class="phase-bull">+191.4%</td><td>Post-Crisis Recovery</td></tr>
+        <tr><td>Aug 1982 – Aug 1987</td><td class="phase-bull">Bull</td><td>5.0 years</td><td class="phase-bull">+397.9%</td><td>Reagan Boom</td></tr>
+        <tr><td>Aug 1987 – Dec 1987</td><td class="phase-bear">Bear</td><td>0.3 years</td><td class="phase-bear">−44.5%</td><td>Black Monday Crash</td></tr>
+        <tr><td>Oct 1990 – Jul 1998</td><td class="phase-bull">Bull</td><td>7.7 years</td><td class="phase-bull">+780.9%</td><td>1990s Expansion</td></tr>
+        <tr><td>Oct 2000 – Mar 2003</td><td class="phase-bear">Bear</td><td>2.4 years</td><td class="phase-bear">−48.3%</td><td>Dot-Com Bust</td></tr>
+        <tr><td>Mar 2003 – Jul 2007</td><td class="phase-bull">Bull</td><td>4.4 years</td><td class="phase-bull">+145.3%</td><td>Mid-2000s Expansion</td></tr>
+        <tr><td>Jul 2007 – Mar 2009</td><td class="phase-bear">Bear</td><td>1.6 years</td><td class="phase-bear">−83.8%</td><td>Global Financial Crisis</td></tr>
+        <tr><td>Mar 2009 – Jul 2014</td><td class="phase-bull">Bull</td><td>5.3 years</td><td class="phase-bull">+917.0%</td><td>Post-GFC Recovery</td></tr>
+        <tr><td>Jul 2014 – Feb 2016</td><td class="phase-bear">Bear</td><td>1.6 years</td><td class="phase-bear">−44.1%</td><td>Commodity Slump / China Slowdown</td></tr>
+        <tr><td>Feb 2016 – Feb 2020</td><td class="phase-bull">Bull</td><td>4.0 years</td><td class="phase-bull">+182.7%</td><td>Late 2010s Expansion</td></tr>
+        <tr><td>Feb 2020 – Mar 2020</td><td class="phase-bear">Bear</td><td>0.1 years</td><td class="phase-bear">−45.9%</td><td>COVID-19 Crash</td></tr>
+        <tr><td>Mar 2020 – Feb 2022</td><td class="phase-bull">Bull</td><td>1.9 years</td><td class="phase-bull">+195.3%</td><td>Post-COVID Rally</td></tr>
+        <tr><td>Oct 2022 – Dec 2025</td><td class="phase-bull">Bull</td><td>3.2 years</td><td class="phase-bull">+185.0%</td><td>Growth Rally</td></tr>
+      </tbody>
+    </table>
+
+    <h3>CAGR by Sub-Period</h3>
+    <table>
+      <thead>
+        <tr><th>Period</th><th>Start Price</th><th>End Price</th><th>CAGR</th><th>Annualized Volatility</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1970s Stagflation (1972–1979)</td><td>$1.22</td><td>$0.73</td><td class="phase-bear">−6.5%</td><td>35.5%</td></tr>
+        <tr><td>1980s Expansion (1980–1989)</td><td>$0.73</td><td>$4.89</td><td class="phase-bull">+20.9%</td><td>33.8%</td></tr>
+        <tr><td>1990s Bull Market (1990–1999)</td><td>$4.89</td><td>$34.10</td><td class="phase-bull">+21.4%</td><td>32.7%</td></tr>
+        <tr><td>2000s Lost Decade (2000–2009)</td><td>$32.25</td><td>$32.17</td><td>0.0%</td><td>43.8%</td></tr>
+        <tr><td>2010s Recovery (2010–2019)</td><td>$32.48</td><td>$114.72</td><td class="phase-bull">+13.5%</td><td>22.7%</td></tr>
+        <tr><td>2020s Post-COVID (2020–2026)</td><td>$116.38</td><td>$305.99</td><td class="phase-bull">+16.7%</td><td>37.4%</td></tr>
+        <tr><td><strong>Full Period (1972–2026)</strong></td><td><strong>$1.22</strong></td><td><strong>$305.99</strong></td><td class="phase-bull"><strong>+10.81%</strong></td><td><strong>34.69%</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Volatility & Risk Assessment</h2>
+    <p>AXP's risk profile is characterized by high volatility and episodic extreme drawdowns. While the long-term trend has been strongly positive, investors have faced multiple periods where portfolio values declined by 30–80% from peak to trough.</p>
+    <div class="chart-container" id="drawdown-chart"></div>
+
+    <h3>Historical Drawdown Episodes (&gt;30%)</h3>
+    <table>
+      <thead>
+        <tr><th>Event</th><th>Peak Date</th><th>Trough Date</th><th>Drawdown</th><th>Recovery</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1973–74 Oil Crisis</td><td>Jan 19, 1973</td><td>Oct 03, 1974</td><td class="phase-bear">−74.7%</td><td>Jun 1980</td></tr>
+        <tr><td>1983–84 Recession</td><td>Jun 17, 1983</td><td>Jul 24, 1984</td><td class="phase-bear">−45.8%</td><td>Nov 1985</td></tr>
+        <tr><td>Black Monday 1987</td><td>Mar 06, 1987</td><td>Oct 19, 1987</td><td class="phase-bear">−42.7%</td><td>Oct 1987</td></tr>
+        <tr><td>Gulf War / S&L Crisis</td><td>Oct 09, 1989</td><td>Oct 17, 1990</td><td class="phase-bear">−53.9%</td><td>Mar 1991</td></tr>
+        <tr><td>LTCM / Russian Default</td><td>Jul 14, 1998</td><td>Oct 08, 1998</td><td class="phase-bear">−37.7%</td><td>Nov 1998</td></tr>
+        <tr><td>Dot-Com Bust</td><td>Oct 02, 2000</td><td>Sep 21, 2001</td><td class="phase-bear">−59.1%</td><td>May 2003</td></tr>
+        <tr><td><strong>Global Financial Crisis</strong></td><td><strong>Jul 19, 2007</strong></td><td><strong>Mar 06, 2009</strong></td><td class="phase-bear"><strong>−83.9%</strong></td><td><strong>Apr 2012</strong></td></tr>
+        <tr><td>Commodity Slump</td><td>Jul 03, 2014</td><td>Feb 11, 2016</td><td class="phase-bear">−45.4%</td><td>Apr 2016</td></tr>
+        <tr><td>COVID-19 Crash</td><td>Feb 19, 2020</td><td>Mar 23, 2020</td><td class="phase-bear">−49.6%</td><td>Feb 2021</td></tr>
+        <tr><td>Rate Hike Selloff</td><td>Feb 16, 2022</td><td>Jun 16, 2022</td><td class="phase-bear">−30.5%</td><td>Jun 2022</td></tr>
+      </tbody>
+    </table>
+
+    <div class="highlight-box danger">
+      <strong>Worst-Case Scenario:</strong> The Global Financial Crisis represents AXP's most severe drawdown. A buy-and-hold investor purchasing at the July 2007 peak of $49.30 would have seen their position decline to $7.93 by March 2009 — an 83.9% unrealized loss. Full recovery to the prior peak took <strong>1,147 trading days</strong> (approximately 4.5 years), reaching $49.76 in April 2012.
+    </div>
+
+    <h3>Risk Metrics Summary</h3>
+    <div class="two-col">
+      <div>
+        <table>
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Annualized Volatility</td><td>34.69%</td></tr>
+            <tr><td>Sharpe Ratio (0% rf)</td><td>0.47</td></tr>
+            <tr><td>Calmar Ratio (CAGR / Max DD)</td><td>0.13</td></tr>
+            <tr><td>Positive Trading Days</td><td>50.8%</td></tr>
+            <tr><td>Monthly Win Rate</td><td>57.0%</td></tr>
+            <tr><td>Yearly Win Rate</td><td>72.7%</td></tr>
+            <tr><td>Years with &gt;+20% Gain</td><td>22</td></tr>
+            <tr><td>Years with &gt;−20% Loss</td><td>6</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <table>
+          <thead><tr><th>Extreme Day</th><th>Date</th><th>Return</th></tr></thead>
+          <tbody>
+            <tr><td>Best Single Day</td><td>Mar 24, 2020</td><td class="phase-bull">+21.9%</td></tr>
+            <tr><td>Worst Single Day</td><td>Oct 19, 1987</td><td class="phase-bear">−26.2%</td></tr>
+            <tr><td>Best Year</td><td>2009</td><td class="phase-bull">+117.0%</td></tr>
+            <tr><td>Worst Year</td><td>2008</td><td class="phase-bear">−63.2%</td></tr>
+            <tr><td>Best 3Y Rolling CAGR</td><td>1995–1997</td><td class="phase-bull">+49.2%</td></tr>
+            <tr><td>Worst 3Y Rolling CAGR</td><td>2006–2008</td><td class="phase-bear">−28.0%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Trading Volume Analysis</h2>
+    <p>Trading volume data becomes reliable after the early 1980s. Volume spikes have historically coincided with major market stress events, earnings surprises, and crisis-driven capitulation. The highest volume day on record was <strong>April 24, 2009</strong>, with 90.3 million shares traded during the post-GFC rebound.</p>
+    <div class="chart-container" id="volume-chart"></div>
+
+    <h3>Notable Volume Spikes (&gt;40M Shares)</h3>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Close Price</th><th>Volume</th><th>Daily Return</th><th>Context</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Apr 24, 2009</td><td>$19.83</td><td>90,336,900</td><td class="phase-bull">+20.6%</td><td>Post-GFC earnings rally</td></tr>
+        <tr><td>Oct 05, 2010</td><td>$30.79</td><td>68,417,100</td><td>−2.0%</td><td>Post-crisis volatility</td></tr>
+        <tr><td>Aug 20, 1984</td><td>$1.90</td><td>63,615,583</td><td class="phase-bull">+1.6%</td><td>Early institutional accumulation</td></tr>
+        <tr><td>Jan 11, 2008</td><td>$33.29</td><td>57,219,900</td><td class="phase-bear">−10.1%</td><td>GFC panic selling</td></tr>
+        <tr><td>Apr 15, 2009</td><td>$16.16</td><td>50,555,000</td><td class="phase-bull">+11.9%</td><td>GFC rebound</td></tr>
+        <tr><td>Jul 22, 2008</td><td>$28.98</td><td>48,554,300</td><td class="phase-bear">−7.1%</td><td>GFC mid-crisis selloff</td></tr>
+        <tr><td>May 06, 2009</td><td>$21.27</td><td>48,304,700</td><td class="phase-bull">+2.1%</td><td>Post-GFC recovery</td></tr>
+        <tr><td>Nov 13, 2008</td><td>$15.93</td><td>47,721,200</td><td class="phase-bull">+3.6%</td><td>GFC bottoming attempt</td></tr>
+        <tr><td>Apr 13, 2009</td><td>$16.03</td><td>46,328,400</td><td class="phase-bull">+8.7%</td><td>GFC rebound</td></tr>
+        <tr><td>Oct 10, 2008</td><td>$17.75</td><td>45,641,400</td><td>−3.5%</td><td>GFC capitulation</td></tr>
+      </tbody>
+    </table>
+    <div class="muted">Note: Early records (1972–1982) show zero volume due to data unavailability.</div>
+  </section>
+
+  <section>
+    <h2>Dividend History & Stock Splits</h2>
+    <p>AXP has maintained a continuous dividend program throughout the dataset period, with 197 recorded dividend distributions. The dividend yield was highest in the 1980s (averaging ~8.2%) when the stock price was lower, and has trended downward as price appreciation outpaced payout growth. In recent years, AXP has shifted toward a growth-oriented dividend policy with strong payout growth rates.</p>
+    <div class="chart-container" id="dividend-chart"></div>
+
+    <h3>Stock Splits</h3>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Split Ratio</th><th>Close Price (Pre-Split)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Feb 11, 1983</td><td>1.333:1 (4-for-3)</td><td>$1.90</td></tr>
+        <tr><td>Aug 11, 1983</td><td>1.500:1 (3-for-2)</td><td>$2.43</td></tr>
+        <tr><td>May 11, 1987</td><td>2.000:1 (2-for-1)</td><td>$4.19</td></tr>
+        <tr><td>May 31, 1994</td><td>1.133:1</td><td>$5.17</td></tr>
+        <tr><td>May 11, 2000</td><td>3.000:1 (3-for-1)</td><td>$30.56</td></tr>
+        <tr><td>Oct 03, 2005</td><td>1.142:1</td><td>$37.41</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Dividend Yield by Decade</h3>
+    <table>
+      <thead>
+        <tr><th>Decade</th><th>Avg Annual Yield</th><th>Total Dividends</th><th>Annual Growth (CAGR)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1970s</td><td>5.08%</td><td>$0.30</td><td>—</td></tr>
+        <tr><td>1980s</td><td>8.17%</td><td>$1.80</td><td>~19.5%</td></tr>
+        <tr><td>1990s</td><td>4.17%</td><td>$2.51</td><td>~3.4%</td></tr>
+        <tr><td>2000s</td><td>1.52%</td><td>$4.53</td><td>~7.5%</td></tr>
+        <tr><td>2010s</td><td>1.69%</td><td>$10.70</td><td>~8.8%</td></tr>
+        <tr><td>2020s*</td><td>1.12%</td><td>$14.43</td><td>~14.2%</td></tr>
+      </tbody>
+    </table>
+    <div class="muted">*2020s data through March 2026. Yield calculated as annual dividends divided by average closing price.</div>
+
+    <div class="highlight-box">
+      <strong>Income Investor Note:</strong> While current yield appears modest (~1.0%), AXP's dividend growth has been robust. The 2024 annual dividend of $2.70 per share represents a 16.4% increase over 2023, and the 2025 annualized rate of $3.16 implies a 17.0% year-over-year increase. For long-term holders, dividend growth has significantly compounded total returns.
+    </div>
+  </section>
+
+  <section>
+    <h2>Decade-by-Decade Performance Comparison</h2>
+    <p>The table and charts below provide a standardized comparison across six decades, revealing how AXP's risk-return profile has evolved with the company's maturity and the broader economic environment.</p>
+    <div class="chart-container" id="decade-chart"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Decade</th>
+          <th>Start Price</th>
+          <th>End Price</th>
+          <th>Total Return</th>
+          <th>CAGR</th>
+          <th>Volatility</th>
+          <th>Max Drawdown</th>
+          <th>Total Dividends</th>
+          <th>Trading Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1970s</td><td>$1.22</td><td>$0.73</td><td class="phase-bear">−40.3%</td><td class="phase-bear">−6.6%</td><td>35.5%</td><td class="phase-bear">−74.7%</td><td>$0.30</td><td>1,914</td>
+        </tr>
+        <tr>
+          <td>1980s</td><td>$0.73</td><td>$4.89</td><td class="phase-bull">+568.5%</td><td class="phase-bull">+20.9%</td><td>33.8%</td><td class="phase-bear">−45.9%</td><td>$1.80</td><td>2,528</td>
+        </tr>
+        <tr>
+          <td>1990s</td><td>$4.89</td><td>$34.10</td><td class="phase-bull">+597.4%</td><td class="phase-bull">+21.5%</td><td>32.7%</td><td class="phase-bear">−49.0%</td><td>$2.51</td><td>2,528</td>
+        </tr>
+        <tr>
+          <td>2000s</td><td>$32.25</td><td>$32.17</td><td>−0.3%</td><td>0.0%</td><td>43.8%</td><td class="phase-bear">−83.9%</td><td>$4.53</td><td>2,515</td>
+        </tr>
+        <tr>
+          <td>2010s</td><td>$32.48</td><td>$114.72</td><td class="phase-bull">+253.2%</td><td class="phase-bull">+13.5%</td><td>22.7%</td><td class="phase-bear">−45.4%</td><td>$10.70</td><td>2,516</td>
+        </tr>
+        <tr>
+          <td>2020s*</td><td>$116.38</td><td>$305.99</td><td class="phase-bull">+162.9%</td><td class="phase-bull">+16.9%</td><td>37.4%</td><td class="phase-bear">−49.6%</td><td>$14.43</td><td>1,555</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="muted">*2020s data through March 11, 2026 (partial decade). All prices are split/dividend-adjusted.</div>
+
+    <h3>Key Observations</h3>
+    <ul>
+      <li><strong>1970s:</strong> The only losing decade, driven by stagflation and the oil crisis. AXP lost 74.7% from peak to trough.</li>
+      <li><strong>1980s–1990s:</strong> The golden era. Back-to-back decades of 20%+ CAGR with relatively contained volatility (~33%).</li>
+      <li><strong>2000s:</strong> A "lost decade" with essentially zero price appreciation despite high dividend income. The GFC destroyed nearly a decade of gains.</li>
+      <li><strong>2010s:</strong> The lowest volatility decade (22.7%) with solid 13.5% CAGR — a maturation of the risk profile.</li>
+      <li><strong>2020s:</strong> Strong returns (16.9% CAGR) but volatility has reverted to higher levels (37.4%), reflecting macro uncertainty and the COVID shock.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Conclusion & Investment Implications</h2>
+    <p>American Express has proven to be a formidable long-term wealth creator, compounding at 10.81% annually over 53.8 years — a rate that would have turned a $10,000 investment in 1972 into approximately <strong>$2.5 million</strong> by March 2026 (excluding dividend reinvestment). However, this return came with significant volatility and drawdown risk.</p>
+    <p>For prospective investors, the data suggests three key considerations:</p>
+    <ol>
+      <li><strong>Time Horizon Matters:</strong> AXP's worst crises (1973–74, 2008–09, 2020) were devastating over 1–3 year horizons but were eventually recovered. A minimum 5–7 year holding period appears necessary to smooth out cyclical risk.</li>
+      <li><strong>Dividend Growth is a Hidden Driver:</strong> With $34.27 in cumulative dividends and accelerating payout growth, dividend reinvestment would have materially improved total returns beyond the 24,895% price appreciation figure.</li>
+      <li><strong>Volatility is the Price of Admission:</strong> At 34.69% annualized volatility and a historical max drawdown of −83.9%, AXP is unsuitable for risk-averse portfolios. Position sizing should reflect this risk profile.</li>
+    </ol>
+    <div class="highlight-box warning">
+      <strong>Data Integrity Note:</strong> All figures in this report are computed directly from the provided dataset (<code>data.csv</code>) spanning 13,556 daily observations from June 1, 1972 to March 11, 2026. Prices are split/dividend-adjusted. Early volume data (1972–1982) is recorded as zero, indicating unavailability. No estimates, projections, or external data have been used.
+    </div>
+  </section>
+
+  <footer style="text-align:center; color:var(--muted); font-size:0.85rem; padding: 24px 0;">
+    Report generated by automated analysis of AXP historical stock data. Not investment advice.
+  </footer>
+</div>
+
+<script>
+const chartData = {"monthly": [{"DateStr": "1972-06-01", "Close": 1.19, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-07-01", "Close": 1.18, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-08-01", "Close": 1.27, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-09-01", "Close": 1.31, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-10-01", "Close": 1.31, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-11-01", "Close": 1.3, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1972-12-01", "Close": 1.38, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1973-01-01", "Close": 1.34, "Volume": 0, "Dividends": 0.0}, {"DateStr": "1973-02-01", "Close": 1.29, "Volume": 7989619, "Dividends": 0.0}, {"DateStr": "1973-03-01", "Close": 1.25, "Volume": 30603832, "Dividends": 0.0}, {"DateStr": "1973-04-01", "Close": 1.04, "Volume": 26856806, "Dividends": 0.0}, {"DateStr": "1973-05-01", "Close": 1.09, "Volume": 30162641, "Dividends": 0.0}, {"DateStr": "1973-06-01", "Close": 1.21, "Volume": 23358338, "Dividends": 0.0}, {"DateStr": "1973-07-01", "Close": 1.31, "Volume": 21632404, "Dividends": 0.0}, {"DateStr": "1973-08-01", "Close": 1.25, "Volume": 16993673, "Dividends": 0.0}, {"DateStr": "1973-09-01", "Close": 1.31, "Volume": 18219379, "Dividends": 0.0}, {"DateStr": "1973-10-01", "Close": 1.31, "Volume": 22564501, "Dividends": 0.0}, {"DateStr": "1973-11-01", "Close": 0.94, "Volume": 34083661, "Dividends": 0.0}, {"DateStr": "1973-12-01", "Close": 0.96, "Volume": 34290276, "Dividends": 0.0}, {"DateStr": "1974-01-01", "Close": 0.94, "Volume": 46990088, "Dividends": 0.0}, {"DateStr": "1974-02-01", "Close": 0.98, "Volume": 22297299, "Dividends": 0.0}, {"DateStr": "1974-03-01", "Close": 0.89, "Volume": 28696141, "Dividends": 0.0}, {"DateStr": "1974-04-01", "Close": 0.82, "Volume": 25730522, "Dividends": 0.0}, {"DateStr": "1974-05-01", "Close": 0.81, "Volume": 28593612, "Dividends": 0.0}, {"DateStr": "1974-06-01", "Close": 0.74, "Volume": 22996376, "Dividends": 0.0}, {"DateStr": "1974-07-01", "Close": 0.62, "Volume": 30816662, "Dividends": 0.0}, {"DateStr": "1974-08-01", "Close": 0.57, "Volume": 26956228, "Dividends": 0.0}, {"DateStr": "1974-09-01", "Close": 0.4, "Volume": 28341943, "Dividends": 0.0}, {"DateStr": "1974-10-01", "Close": 0.59, "Volume": 41568398, "Dividends": 0.0}, {"DateStr": "1974-11-01", "Close": 0.57, "Volume": 38728608, "Dividends": 0.0}, {"DateStr": "1974-12-01", "Close": 0.55, "Volume": 29458908, "Dividends": 0.0}, {"DateStr": "1975-01-01", "Close": 0.66, "Volume": 45784580, "Dividends": 0.0}, {"DateStr": "1975-02-01", "Close": 0.77, "Volume": 38565492, "Dividends": 0.0}, {"DateStr": "1975-03-01", "Close": 0.81, "Volume": 31456703, "Dividends": 0.0}, {"DateStr": "1975-04-01", "Close": 0.75, "Volume": 28829743, "Dividends": 0.0}, {"DateStr": "1975-05-01", "Close": 0.85, "Volume": 32576773, "Dividends": 0.0}, {"DateStr": "1975-06-01", "Close": 0.93, "Volume": 28112029, "Dividends": 0.0}, {"DateStr": "1975-07-01", "Close": 0.83, "Volume": 28511277, "Dividends": 0.0}, {"DateStr": "1975-08-01", "Close": 0.73, "Volume": 33518188, "Dividends": 0.0}, {"DateStr": "1975-09-01", "Close": 0.69, "Volume": 29269381, "Dividends": 0.0}, {"DateStr": "1975-10-01", "Close": 0.72, "Volume": 33869278, "Dividends": 0.0}, {"DateStr": "1975-11-01", "Close": 0.83, "Volume": 22469740, "Dividends": 0.0}, {"DateStr": "1975-12-01", "Close": 0.78, "Volume": 26224534, "Dividends": 0.0}, {"DateStr": "1976-01-01", "Close": 0.86, "Volume": 38935223, "Dividends": 0.0}, {"DateStr": "1976-02-01", "Close": 0.79, "Volume": 26031902, "Dividends": 0.0}, {"DateStr": "1976-03-01", "Close": 0.78, "Volume": 37066369, "Dividends": 0.0}, {"DateStr": "1976-04-01", "Close": 0.68, "Volume": 46971445, "Dividends": 0.0}, {"DateStr": "1976-05-01", "Close": 0.73, "Volume": 31897894, "Dividends": 0.0}, {"DateStr": "1976-06-01", "Close": 0.78, "Volume": 26424935, "Dividends": 0.0}, {"DateStr": "1976-07-01", "Close": 0.83, "Volume": 29499298, "Dividends": 0.0}, {"DateStr": "1976-08-01", "Close": 0.86, "Volume": 32332874, "Dividends": 0.0}, {"DateStr": "1976-09-01", "Close": 0.84, "Volume": 24276452, "Dividends": 0.0}, {"DateStr": "1976-10-01", "Close": 0.86, "Volume": 19628395, "Dividends": 0.0}, {"DateStr": "1976-11-01", "Close": 0.88, "Volume": 21438218, "Dividends": 0.0}, {"DateStr": "1976-12-01", "Close": 0.86, "Volume": 30944050, "Dividends": 0.0}, {"DateStr": "1977-01-01", "Close": 0.75, "Volume": 29457354, "Dividends": 0.0}, {"DateStr": "1977-02-01", "Close": 0.77, "Volume": 25025236, "Dividends": 0.0}, {"DateStr": "1977-03-01", "Close": 0.77, "Volume": 22959089, "Dividends": 0.0}, {"DateStr": "1977-04-01", "Close": 0.79, "Volume": 20221831, "Dividends": 0.019}, {"DateStr": "1977-05-01", "Close": 0.77, "Volume": 21071593, "Dividends": 0.0}, {"DateStr": "1977-06-01", "Close": 0.87, "Volume": 23712533, "Dividends": 0.0}, {"DateStr": "1977-07-01", "Close": 0.87, "Volume": 21647942, "Dividends": 0.019}, {"DateStr": "1977-08-01", "Close": 0.89, "Volume": 21766006, "Dividends": 0.0}, {"DateStr": "1977-09-01", "Close": 0.82, "Volume": 23286878, "Dividends": 0.0}, {"DateStr": "1977-10-01", "Close": 0.8, "Volume": 20815266, "Dividends": 0.023}, {"DateStr": "1977-11-01", "Close": 0.86, "Volume": 22399831, "Dividends": 0.0}, {"DateStr": "1977-12-01", "Close": 0.79, "Volume": 26165503, "Dividends": 0.023}, {"DateStr": "1978-01-01", "Close": 0.75, "Volume": 18133937, "Dividends": 0.0}, {"DateStr": "1978-02-01", "Close": 0.71, "Volume": 15009861, "Dividends": 0.0}, {"DateStr": "1978-03-01", "Close": 0.71, "Volume": 19667238, "Dividends": 0.0}, {"DateStr": "1978-04-01", "Close": 0.84, "Volume": 34583886, "Dividends": 0.023}, {"DateStr": "1978-05-01", "Close": 0.83, "Volume": 31379026, "Dividends": 0.0}, {"DateStr": "1978-06-01", "Close": 0.79, "Volume": 23153278, "Dividends": 0.026}, {"DateStr": "1978-07-01", "Close": 0.86, "Volume": 24574724, "Dividends": 0.0}, {"DateStr": "1978-08-01", "Close": 0.81, "Volume": 36960730, "Dividends": 0.0}, {"DateStr": "1978-09-01", "Close": 0.79, "Volume": 27675494, "Dividends": 0.0}, {"DateStr": "1978-10-01", "Close": 0.7, "Volume": 30636456, "Dividends": 0.026}, {"DateStr": "1978-11-01", "Close": 0.72, "Volume": 20644385, "Dividends": 0.0}, {"DateStr": "1978-12-01", "Close": 0.67, "Volume": 21935338, "Dividends": 0.026}, {"DateStr": "1979-01-01", "Close": 0.68, "Volume": 27285569, "Dividends": 0.0}, {"DateStr": "1979-02-01", "Close": 0.66, "Volume": 21099557, "Dividends": 0.0}, {"DateStr": "1979-03-01", "Close": 0.73, "Volume": 31649334, "Dividends": 0.0}, {"DateStr": "1979-04-01", "Close": 0.7, "Volume": 31406991, "Dividends": 0.029}, {"DateStr": "1979-05-01", "Close": 0.77, "Volume": 28891882, "Dividends": 0.0}, {"DateStr": "1979-06-01", "Close": 0.81, "Volume": 30429842, "Dividends": 0.029}, {"DateStr": "1979-07-01", "Close": 0.83, "Volume": 22384298, "Dividends": 0.0}, {"DateStr": "1979-08-01", "Close": 0.84, "Volume": 22684119, "Dividends": 0.0}, {"DateStr": "1979-09-01", "Close": 0.81, "Volume": 21789308, "Dividends": 0.0}, {"DateStr": "1979-10-01", "Close": 0.72, "Volume": 37085010, "Dividends": 0.029}, {"DateStr": "1979-11-01", "Close": 0.76, "Volume": 32561235, "Dividends": 0.0}, {"DateStr": "1979-12-01", "Close": 0.73, "Volume": 27731423, "Dividends": 0.029}, {"DateStr": "1980-01-01", "Close": 0.72, "Volume": 46412189, "Dividends": 0.0}, {"DateStr": "1980-02-01", "Close": 0.69, "Volume": 40926800, "Dividends": 0.0}, {"DateStr": "1980-03-01", "Close": 0.74, "Volume": 29865921, "Dividends": 0.032}, {"DateStr": "1980-04-01", "Close": 0.84, "Volume": 33151564, "Dividends": 0.0}, {"DateStr": "1980-05-01", "Close": 0.85, "Volume": 38122743, "Dividends": 0.0}, {"DateStr": "1980-06-01", "Close": 0.88, "Volume": 39354665, "Dividends": 0.032}, {"DateStr": "1980-07-01", "Close": 0.94, "Volume": 33146903, "Dividends": 0.0}, {"DateStr": "1980-08-01", "Close": 0.88, "Volume": 30964244, "Dividends": 0.0}, {"DateStr": "1980-09-01", "Close": 0.93, "Volume": 34790500, "Dividends": 0.032}, {"DateStr": "1980-10-01", "Close": 0.85, "Volume": 39822267, "Dividends": 0.0}, {"DateStr": "1980-11-01", "Close": 0.89, "Volume": 30052343, "Dividends": 0.0}, {"DateStr": "1980-12-01", "Close": 1.04, "Volume": 44580619, "Dividends": 0.032}, {"DateStr": "1981-01-01", "Close": 1.13, "Volume": 49837644, "Dividends": 0.0}, {"DateStr": "1981-02-01", "Close": 1.15, "Volume": 34156676, "Dividends": 0.0}, {"DateStr": "1981-03-01", "Close": 1.2, "Volume": 36626730, "Dividends": 0.032}, {"DateStr": "1981-04-01", "Close": 1.15, "Volume": 94514578, "Dividends": 0.0}, {"DateStr": "1981-05-01", "Close": 1.29, "Volume": 77746163, "Dividends": 0.0}, {"DateStr": "1981-06-01", "Close": 1.28, "Volume": 96720543, "Dividends": 0.032}, {"DateStr": "1981-07-01", "Close": 1.23, "Volume": 66020392, "Dividends": 0.0}, {"DateStr": "1981-08-01", "Close": 1.11, "Volume": 47302340, "Dividends": 0.0}, {"DateStr": "1981-09-01", "Close": 1.09, "Volume": 70503774, "Dividends": 0.0}, {"DateStr": "1981-10-01", "Close": 1.21, "Volume": 51684751, "Dividends": 0.032}, {"DateStr": "1981-11-01", "Close": 1.26, "Volume": 38245472, "Dividends": 0.0}, {"DateStr": "1981-12-01", "Close": 1.18, "Volume": 39362435, "Dividends": 0.0}, {"DateStr": "1982-01-01", "Close": 1.21, "Volume": 53517872, "Dividends": 0.035}, {"DateStr": "1982-02-01", "Close": 1.24, "Volume": 43831836, "Dividends": 0.0}, {"DateStr": "1982-03-01", "Close": 1.28, "Volume": 82610154, "Dividends": 0.0}, {"DateStr": "1982-04-01", "Close": 1.32, "Volume": 64861487, "Dividends": 0.0}, {"DateStr": "1982-05-01", "Close": 1.15, "Volume": 49879588, "Dividends": 0.0}, {"DateStr": "1982-06-01", "Close": 1.09, "Volume": 88835005, "Dividends": 0.0}, {"DateStr": "1982-07-01", "Close": 1.04, "Volume": 96165945, "Dividends": 0.035}, {"DateStr": "1982-08-01", "Close": 1.27, "Volume": 97514378, "Dividends": 0.0}, {"DateStr": "1982-09-01", "Close": 1.33, "Volume": 84912432, "Dividends": 0.0}, {"DateStr": "1982-10-01", "Close": 1.63, "Volume": 124524977, "Dividends": 0.035}, {"DateStr": "1982-11-01", "Close": 1.91, "Volume": 116832075, "Dividends": 0.0}, {"DateStr": "1982-12-01", "Close": 1.79, "Volume": 103883704, "Dividends": 0.0}, {"DateStr": "1983-01-01", "Close": 1.83, "Volume": 103242111, "Dividends": 0.039}, {"DateStr": "1983-02-01", "Close": 2.2, "Volume": 71066917, "Dividends": 0.0}, {"DateStr": "1983-03-01", "Close": 2.32, "Volume": 81198416, "Dividends": 0.0}, {"DateStr": "1983-04-01", "Close": 2.53, "Volume": 96929877, "Dividends": 0.039}, {"DateStr": "1983-05-01", "Close": 2.64, "Volume": 73131125, "Dividends": 0.0}, {"DateStr": "1983-06-01", "Close": 2.7, "Volume": 76020620, "Dividends": 0.0}, {"DateStr": "1983-07-01", "Close": 2.41, "Volume": 73224329, "Dividends": 0.041}, {"DateStr": "1983-08-01", "Close": 2.42, "Volume": 72680220, "Dividends": 0.0}, {"DateStr": "1983-09-01", "Close": 2.1, "Volume": 94797317, "Dividends": 0.0}, {"DateStr": "1983-10-01", "Close": 1.91, "Volume": 121978025, "Dividends": 0.041}, {"DateStr": "1983-11-01", "Close": 1.98, "Volume": 114654853, "Dividends": 0.0}, {"DateStr": "1983-12-01", "Close": 1.9, "Volume": 215735277, "Dividends": 0.041}, {"DateStr": "1984-01-01", "Close": 1.74, "Volume": 104171877, "Dividends": 0.0}, {"DateStr": "1984-02-01", "Close": 1.67, "Volume": 89653698, "Dividends": 0.0}, {"DateStr": "1984-03-01", "Close": 1.84, "Volume": 95421821, "Dividends": 0.0}, {"DateStr": "1984-04-01", "Close": 1.75, "Volume": 97618459, "Dividends": 0.041}, {"DateStr": "1984-05-01", "Close": 1.53, "Volume": 103019184, "Dividends": 0.0}, {"DateStr": "1984-06-01", "Close": 1.71, "Volume": 73574258, "Dividends": 0.041}, {"DateStr": "1984-07-01", "Close": 1.64, "Volume": 77715095, "Dividends": 0.0}, {"DateStr": "1984-08-01", "Close": 1.94, "Volume": 263040724, "Dividends": 0.0}, {"DateStr": "1984-09-01", "Close": 2.05, "Volume": 122213380, "Dividends": 0.0}, {"DateStr": "1984-10-01", "Close": 2.22, "Volume": 145545305, "Dividends": 0.041}, {"DateStr": "1984-11-01", "Close": 2.12, "Volume": 110642180, "Dividends": 0.0}, {"DateStr": "1984-12-01", "Close": 2.27, "Volume": 78132205, "Dividends": 0.041}, {"DateStr": "1985-01-01", "Close": 2.59, "Volume": 174875276, "Dividends": 0.0}, {"DateStr": "1985-02-01", "Close": 2.58, "Volume": 124110972, "Dividends": 0.0}, {"DateStr": "1985-03-01", "Close": 2.52, "Volume": 115068861, "Dividends": 0.041}, {"DateStr": "1985-04-01", "Close": 2.63, "Volume": 88180984, "Dividends": 0.0}, {"DateStr": "1985-05-01", "Close": 2.8, "Volume": 122704284, "Dividends": 0.0}, {"DateStr": "1985-06-01", "Close": 2.91, "Volume": 131982528, "Dividends": 0.041}, {"DateStr": "1985-07-01", "Close": 2.71, "Volume": 113401960, "Dividends": 0.0}, {"DateStr": "1985-08-01", "Close": 2.53, "Volume": 90254123, "Dividends": 0.0}, {"DateStr": "1985-09-01", "Close": 2.56, "Volume": 111527671, "Dividends": 0.044}, {"DateStr": "1985-10-01", "Close": 2.81, "Volume": 120468031, "Dividends": 0.0}, {"DateStr": "1985-11-01", "Close": 3.02, "Volume": 192345092, "Dividends": 0.0}, {"DateStr": "1985-12-01", "Close": 3.3, "Volume": 159491802, "Dividends": 0.044}, {"DateStr": "1986-01-01", "Close": 3.5, "Volume": 134978440, "Dividends": 0.0}, {"DateStr": "1986-02-01", "Close": 4.09, "Volume": 124835676, "Dividends": 0.0}, {"DateStr": "1986-03-01", "Close": 4.3, "Volume": 122208719, "Dividends": 0.044}, {"DateStr": "1986-04-01", "Close": 3.76, "Volume": 166327951, "Dividends": 0.0}, {"DateStr": "1986-05-01", "Close": 3.91, "Volume": 139847868, "Dividends": 0.0}, {"DateStr": "1986-06-01", "Close": 3.93, "Volume": 126207414, "Dividends": 0.044}, {"DateStr": "1986-07-01", "Close": 3.77, "Volume": 120682410, "Dividends": 0.0}, {"DateStr": "1986-08-01", "Close": 4.14, "Volume": 98393655, "Dividends": 0.0}, {"DateStr": "1986-09-01", "Close": 3.56, "Volume": 138771299, "Dividends": 0.044}, {"DateStr": "1986-10-01", "Close": 3.71, "Volume": 100885459, "Dividends": 0.0}, {"DateStr": "1986-11-01", "Close": 3.64, "Volume": 93291204, "Dividends": 0.0}, {"DateStr": "1986-12-01", "Close": 3.6, "Volume": 196576034, "Dividends": 0.046}, {"DateStr": "1987-01-01", "Close": 4.33, "Volume": 209515084, "Dividends": 0.0}, {"DateStr": "1987-02-01", "Close": 4.71, "Volume": 148429371, "Dividends": 0.0}, {"DateStr": "1987-03-01", "Close": 4.76, "Volume": 230633284, "Dividends": 0.049}, {"DateStr": "1987-04-01", "Close": 4.36, "Volume": 205430172, "Dividends": 0.0}, {"DateStr": "1987-05-01", "Close": 4.32, "Volume": 115724049, "Dividends": 0.0}, {"DateStr": "1987-06-01", "Close": 4.4, "Volume": 101705313, "Dividends": 0.049}, {"DateStr": "1987-07-01", "Close": 4.74, "Volume": 124323025, "Dividends": 0.0}, {"DateStr": "1987-08-01", "Close": 4.77, "Volume": 119454373, "Dividends": 0.0}, {"DateStr": "1987-09-01", "Close": 4.66, "Volume": 105458169, "Dividends": 0.088}, {"DateStr": "1987-10-01", "Close": 3.15, "Volume": 198101953, "Dividends": 0.049}, {"DateStr": "1987-11-01", "Close": 2.92, "Volume": 104061966, "Dividends": 0.0}, {"DateStr": "1987-12-01", "Close": 3.01, "Volume": 116348161, "Dividends": 0.049}, {"DateStr": "1988-01-01", "Close": 3.48, "Volume": 101994653, "Dividends": 0.049}, {"DateStr": "1988-02-01", "Close": 3.45, "Volume": 68463263, "Dividends": 0.0}, {"DateStr": "1988-03-01", "Close": 3.24, "Volume": 101861053, "Dividends": 0.0}, {"DateStr": "1988-04-01", "Close": 3.21, "Volume": 87602698, "Dividends": 0.049}, {"DateStr": "1988-05-01", "Close": 3.38, "Volume": 68677642, "Dividends": 0.0}, {"DateStr": "1988-06-01", "Close": 3.68, "Volume": 88120788, "Dividends": 0.0}, {"DateStr": "1988-07-01", "Close": 3.79, "Volume": 59913995, "Dividends": 0.049}, {"DateStr": "1988-08-01", "Close": 3.86, "Volume": 105991796, "Dividends": 0.0}, {"DateStr": "1988-09-01", "Close": 3.77, "Volume": 72858871, "Dividends": 0.0}, {"DateStr": "1988-10-01", "Close": 3.68, "Volume": 71092939, "Dividends": 0.049}, {"DateStr": "1988-11-01", "Close": 3.66, "Volume": 62300939, "Dividends": 0.0}, {"DateStr": "1988-12-01", "Close": 3.64, "Volume": 58160491, "Dividends": 0.054}, {"DateStr": "1989-01-01", "Close": 4.2, "Volume": 81407747, "Dividends": 0.0}, {"DateStr": "1989-02-01", "Close": 4.03, "Volume": 69885097, "Dividends": 0.0}, {"DateStr": "1989-03-01", "Close": 4.32, "Volume": 102775671, "Dividends": 0.0}, {"DateStr": "1989-04-01", "Close": 4.47, "Volume": 72054940, "Dividends": 0.054}, {"DateStr": "1989-05-01", "Close": 4.45, "Volume": 80321469, "Dividends": 0.0}, {"DateStr": "1989-06-01", "Close": 4.6, "Volume": 75885466, "Dividends": 0.054}, {"DateStr": "1989-07-01", "Close": 5.16, "Volume": 58743824, "Dividends": 0.0}, {"DateStr": "1989-08-01", "Close": 5.14, "Volume": 71889106, "Dividends": 0.0}, {"DateStr": "1989-09-01", "Close": 5.0, "Volume": 54828632, "Dividends": 0.0}, {"DateStr": "1989-10-01", "Close": 5.07, "Volume": 88753057, "Dividends": 0.054}, {"DateStr": "1989-11-01", "Close": 4.94, "Volume": 88472653, "Dividends": 0.0}, {"DateStr": "1989-12-01", "Close": 4.89, "Volume": 73992924, "Dividends": 0.059}, {"DateStr": "1990-01-01", "Close": 4.17, "Volume": 87968545, "Dividends": 0.0}, {"DateStr": "1990-02-01", "Close": 4.08, "Volume": 91299236, "Dividends": 0.0}, {"DateStr": "1990-03-01", "Close": 3.61, "Volume": 148457719, "Dividends": 0.0}, {"DateStr": "1990-04-01", "Close": 3.84, "Volume": 81011220, "Dividends": 0.059}, {"DateStr": "1990-05-01", "Close": 4.14, "Volume": 95629211, "Dividends": 0.0}, {"DateStr": "1990-06-01", "Close": 4.38, "Volume": 122965270, "Dividends": 0.059}, {"DateStr": "1990-07-01", "Close": 4.15, "Volume": 82101773, "Dividends": 0.0}, {"DateStr": "1990-08-01", "Close": 3.44, "Volume": 122125994, "Dividends": 0.0}, {"DateStr": "1990-09-01", "Close": 3.01, "Volume": 69512256, "Dividends": 0.0}, {"DateStr": "1990-10-01", "Close": 2.72, "Volume": 110869766, "Dividends": 0.059}, {"DateStr": "1990-11-01", "Close": 2.95, "Volume": 106689315, "Dividends": 0.0}, {"DateStr": "1990-12-01", "Close": 3.01, "Volume": 105733915, "Dividends": 0.059}, {"DateStr": "1991-01-01", "Close": 3.32, "Volume": 122341155, "Dividends": 0.0}, {"DateStr": "1991-02-01", "Close": 3.5, "Volume": 123007992, "Dividends": 0.0}, {"DateStr": "1991-03-01", "Close": 4.21, "Volume": 150213948, "Dividends": 0.0}, {"DateStr": "1991-04-01", "Close": 3.67, "Volume": 169408919, "Dividends": 0.059}, {"DateStr": "1991-05-01", "Close": 3.76, "Volume": 165171767, "Dividends": 0.0}, {"DateStr": "1991-06-01", "Close": 3.34, "Volume": 94084263, "Dividends": 0.059}, {"DateStr": "1991-07-01", "Close": 3.77, "Volume": 116057658, "Dividends": 0.0}, {"DateStr": "1991-08-01", "Close": 3.93, "Volume": 111465141, "Dividends": 0.0}, {"DateStr": "1991-09-01", "Close": 3.84, "Volume": 94294762, "Dividends": 0.064}, {"DateStr": "1991-10-01", "Close": 2.85, "Volume": 221527093, "Dividends": 0.0}, {"DateStr": "1991-11-01", "Close": 2.85, "Volume": 127819552, "Dividends": 0.0}, {"DateStr": "1991-12-01", "Close": 3.11, "Volume": 141122508, "Dividends": 0.064}, {"DateStr": "1992-01-01", "Close": 3.13, "Volume": 160379622, "Dividends": 0.0}, {"DateStr": "1992-02-01", "Close": 3.18, "Volume": 100373194, "Dividends": 0.0}, {"DateStr": "1992-03-01", "Close": 3.51, "Volume": 137780167, "Dividends": 0.064}, {"DateStr": "1992-04-01", "Close": 3.45, "Volume": 115230424, "Dividends": 0.0}, {"DateStr": "1992-05-01", "Close": 3.49, "Volume": 81098605, "Dividends": 0.0}, {"DateStr": "1992-06-01", "Close": 3.6, "Volume": 124631394, "Dividends": 0.064}, {"DateStr": "1992-07-01", "Close": 3.56, "Volume": 92208807, "Dividends": 0.0}, {"DateStr": "1992-08-01", "Close": 3.23, "Volume": 73284529, "Dividends": 0.0}, {"DateStr": "1992-09-01", "Close": 3.43, "Volume": 81265219, "Dividends": 0.064}, {"DateStr": "1992-10-01", "Close": 3.35, "Volume": 89967116, "Dividends": 0.0}, {"DateStr": "1992-11-01", "Close": 3.59, "Volume": 78764480, "Dividends": 0.0}, {"DateStr": "1992-12-01", "Close": 3.9, "Volume": 126464905, "Dividends": 0.0}, {"DateStr": "1993-01-01", "Close": 3.68, "Volume": 185371460, "Dividends": 0.064}, {"DateStr": "1993-02-01", "Close": 3.88, "Volume": 157011261, "Dividends": 0.0}, {"DateStr": "1993-03-01", "Close": 4.33, "Volume": 164583377, "Dividends": 0.064}, {"DateStr": "1993-04-01", "Close": 4.47, "Volume": 115972603, "Dividends": 0.0}, {"DateStr": "1993-05-01", "Close": 4.59, "Volume": 78054922, "Dividends": 0.0}, {"DateStr": "1993-06-01", "Close": 5.15, "Volume": 118146721, "Dividends": 0.0}, {"DateStr": "1993-07-01", "Close": 5.25, "Volume": 108663027, "Dividends": 0.064}, {"DateStr": "1993-08-01", "Close": 5.23, "Volume": 101043528, "Dividends": 0.0}, {"DateStr": "1993-09-01", "Close": 5.78, "Volume": 122749335, "Dividends": 0.0}, {"DateStr": "1993-10-01", "Close": 5.23, "Volume": 114355418, "Dividends": 0.064}, {"DateStr": "1993-11-01", "Close": 5.09, "Volume": 96016808, "Dividends": 0.0}, {"DateStr": "1993-12-01", "Close": 5.01, "Volume": 85219635, "Dividends": 0.0}, {"DateStr": "1994-01-01", "Close": 5.33, "Volume": 210774971, "Dividends": 0.064}, {"DateStr": "1994-02-01", "Close": 4.78, "Volume": 119076098, "Dividends": 0.0}, {"DateStr": "1994-03-01", "Close": 4.54, "Volume": 169343671, "Dividends": 0.0}, {"DateStr": "1994-04-01", "Close": 4.89, "Volume": 110088745, "Dividends": 0.064}, {"DateStr": "1994-05-01", "Close": 5.17, "Volume": 86743822, "Dividends": 0.0}, {"DateStr": "1994-06-01", "Close": 4.81, "Volume": 108153205, "Dividends": 0.0}, {"DateStr": "1994-07-01", "Close": 5.0, "Volume": 76728093, "Dividends": 0.066}, {"DateStr": "1994-08-01", "Close": 5.3, "Volume": 96270078, "Dividends": 0.0}, {"DateStr": "1994-09-01", "Close": 5.73, "Volume": 156637494, "Dividends": 0.0}, {"DateStr": "1994-10-01", "Close": 5.87, "Volume": 105458243, "Dividends": 0.066}, {"DateStr": "1994-11-01", "Close": 5.63, "Volume": 124929625, "Dividends": 0.0}, {"DateStr": "1994-12-01", "Close": 5.65, "Volume": 75381811, "Dividends": 0.066}, {"DateStr": "1995-01-01", "Close": 6.03, "Volume": 111991888, "Dividends": 0.0}, {"DateStr": "1995-02-01", "Close": 6.44, "Volume": 152707985, "Dividends": 0.0}, {"DateStr": "1995-03-01", "Close": 6.68, "Volume": 125373815, "Dividends": 0.0}, {"DateStr": "1995-04-01", "Close": 6.7, "Volume": 80307666, "Dividends": 0.066}, {"DateStr": "1995-05-01", "Close": 6.84, "Volume": 115902891, "Dividends": 0.0}, {"DateStr": "1995-06-01", "Close": 6.79, "Volume": 111144293, "Dividends": 0.0}, {"DateStr": "1995-07-01", "Close": 7.47, "Volume": 102404777, "Dividends": 0.066}, {"DateStr": "1995-08-01", "Close": 7.83, "Volume": 89934533, "Dividends": 0.0}, {"DateStr": "1995-09-01", "Close": 8.61, "Volume": 97978637, "Dividends": 0.0}, {"DateStr": "1995-10-01", "Close": 7.92, "Volume": 104372788, "Dividends": 0.066}, {"DateStr": "1995-11-01", "Close": 8.29, "Volume": 69700217, "Dividends": 0.0}, {"DateStr": "1995-12-01", "Close": 8.07, "Volume": 70465212, "Dividends": 0.0}, {"DateStr": "1996-01-01", "Close": 9.02, "Volume": 158993486, "Dividends": 0.066}, {"DateStr": "1996-02-01", "Close": 8.99, "Volume": 114664574, "Dividends": 0.0}, {"DateStr": "1996-03-01", "Close": 9.68, "Volume": 101411174, "Dividends": 0.0}, {"DateStr": "1996-04-01", "Close": 9.55, "Volume": 82197189, "Dividends": 0.066}, {"DateStr": "1996-05-01", "Close": 9.01, "Volume": 85864159, "Dividends": 0.0}, {"DateStr": "1996-06-01", "Close": 8.79, "Volume": 86715183, "Dividends": 0.0}, {"DateStr": "1996-07-01", "Close": 8.66, "Volume": 84415401, "Dividends": 0.066}, {"DateStr": "1996-08-01", "Close": 8.66, "Volume": 60168285, "Dividends": 0.0}, {"DateStr": "1996-09-01", "Close": 9.15, "Volume": 76799384, "Dividends": 0.0}, {"DateStr": "1996-10-01", "Close": 9.35, "Volume": 73791500, "Dividends": 0.066}, {"DateStr": "1996-11-01", "Close": 10.39, "Volume": 86609618, "Dividends": 0.0}, {"DateStr": "1996-12-01", "Close": 11.28, "Volume": 107235003, "Dividends": 0.066}, {"DateStr": "1997-01-01", "Close": 12.4, "Volume": 147928824, "Dividends": 0.0}, {"DateStr": "1997-02-01", "Close": 13.1, "Volume": 111516510, "Dividends": 0.0}, {"DateStr": "1997-03-01", "Close": 11.95, "Volume": 95935222, "Dividends": 0.0}, {"DateStr": "1997-04-01", "Close": 13.18, "Volume": 96703987, "Dividends": 0.066}, {"DateStr": "1997-05-01", "Close": 13.93, "Volume": 82478236, "Dividends": 0.0}, {"DateStr": "1997-06-01", "Close": 14.93, "Volume": 119695305, "Dividends": 0.0}, {"DateStr": "1997-07-01", "Close": 16.83, "Volume": 126571004, "Dividends": 0.066}, {"DateStr": "1997-08-01", "Close": 15.63, "Volume": 85770933, "Dividends": 0.0}, {"DateStr": "1997-09-01", "Close": 16.46, "Volume": 76141668, "Dividends": 0.0}, {"DateStr": "1997-10-01", "Close": 15.72, "Volume": 93573746, "Dividends": 0.066}, {"DateStr": "1997-11-01", "Close": 15.9, "Volume": 73089571, "Dividends": 0.0}, {"DateStr": "1997-12-01", "Close": 18.04, "Volume": 98374499, "Dividends": 0.066}, {"DateStr": "1998-01-01", "Close": 16.91, "Volume": 83458814, "Dividends": 0.0}, {"DateStr": "1998-02-01", "Close": 18.2, "Volume": 77301496, "Dividends": 0.0}, {"DateStr": "1998-03-01", "Close": 18.55, "Volume": 83972239, "Dividends": 0.0}, {"DateStr": "1998-04-01", "Close": 20.7, "Volume": 145375072, "Dividends": 0.066}, {"DateStr": "1998-05-01", "Close": 20.78, "Volume": 84345822, "Dividends": 0.0}, {"DateStr": "1998-06-01", "Close": 23.08, "Volume": 95786473, "Dividends": 0.066}, {"DateStr": "1998-07-01", "Close": 22.4, "Volume": 82895351, "Dividends": 0.0}, {"DateStr": "1998-08-01", "Close": 15.83, "Volume": 160544041, "Dividends": 0.0}, {"DateStr": "1998-09-01", "Close": 15.75, "Volume": 245487261, "Dividends": 0.0}, {"DateStr": "1998-10-01", "Close": 17.93, "Volume": 202531360, "Dividends": 0.066}, {"DateStr": "1998-11-01", "Close": 20.37, "Volume": 112066262, "Dividends": 0.0}, {"DateStr": "1998-12-01", "Close": 20.87, "Volume": 89053010, "Dividends": 0.0}, {"DateStr": "1999-01-01", "Close": 20.99, "Volume": 103778135, "Dividends": 0.066}, {"DateStr": "1999-02-01", "Close": 22.14, "Volume": 110190107, "Dividends": 0.0}, {"DateStr": "1999-03-01", "Close": 24.07, "Volume": 136923798, "Dividends": 0.066}, {"DateStr": "1999-04-01", "Close": 26.71, "Volume": 130930994, "Dividends": 0.0}, {"DateStr": "1999-05-01", "Close": 24.75, "Volume": 124750714, "Dividends": 0.0}, {"DateStr": "1999-06-01", "Close": 26.65, "Volume": 108124414, "Dividends": 0.066}, {"DateStr": "1999-07-01", "Close": 26.98, "Volume": 125953388, "Dividends": 0.0}, {"DateStr": "1999-08-01", "Close": 28.16, "Volume": 162991891, "Dividends": 0.0}, {"DateStr": "1999-09-01", "Close": 27.64, "Volume": 128186336, "Dividends": 0.0}, {"DateStr": "1999-10-01", "Close": 31.59, "Volume": 187830914, "Dividends": 0.066}, {"DateStr": "1999-11-01", "Close": 30.99, "Volume": 133655432, "Dividends": 0.0}, {"DateStr": "1999-12-01", "Close": 34.1, "Volume": 110973610, "Dividends": 0.0}, {"DateStr": "2000-01-01", "Close": 33.84, "Volume": 156897979, "Dividends": 0.066}, {"DateStr": "2000-02-01", "Close": 27.56, "Volume": 193839486, "Dividends": 0.0}, {"DateStr": "2000-03-01", "Close": 30.59, "Volume": 222497658, "Dividends": 0.0}, {"DateStr": "2000-04-01", "Close": 30.76, "Volume": 175119046, "Dividends": 0.07}, {"DateStr": "2000-05-01", "Close": 33.33, "Volume": 111885754, "Dividends": 0.0}, {"DateStr": "2000-06-01", "Close": 32.18, "Volume": 85592140, "Dividends": 0.0}, {"DateStr": "2000-07-01", "Close": 35.05, "Volume": 76437336, "Dividends": 0.07}, {"DateStr": "2000-08-01", "Close": 36.48, "Volume": 77582770, "Dividends": 0.0}, {"DateStr": "2000-09-01", "Close": 37.56, "Volume": 65078486, "Dividends": 0.0}, {"DateStr": "2000-10-01", "Close": 37.14, "Volume": 113792645, "Dividends": 0.07}, {"DateStr": "2000-11-01", "Close": 34.01, "Volume": 84737347, "Dividends": 0.0}, {"DateStr": "2000-12-01", "Close": 34.01, "Volume": 100405233, "Dividends": 0.0}, {"DateStr": "2001-01-01", "Close": 29.2, "Volume": 190624471, "Dividends": 0.07}, {"DateStr": "2001-02-01", "Close": 27.2, "Volume": 111417571, "Dividends": 0.0}, {"DateStr": "2001-03-01", "Close": 25.61, "Volume": 208519366, "Dividends": 0.0}, {"DateStr": "2001-04-01", "Close": 26.37, "Volume": 140443164, "Dividends": 0.07}, {"DateStr": "2001-05-01", "Close": 26.17, "Volume": 120791957, "Dividends": 0.0}, {"DateStr": "2001-06-01", "Close": 24.11, "Volume": 126568262, "Dividends": 0.0}, {"DateStr": "2001-07-01", "Close": 25.11, "Volume": 101112074, "Dividends": 0.07}, {"DateStr": "2001-08-01", "Close": 22.67, "Volume": 100526333, "Dividends": 0.0}, {"DateStr": "2001-09-01", "Close": 18.09, "Volume": 208373928, "Dividends": 0.0}, {"DateStr": "2001-10-01", "Close": 18.37, "Volume": 156554667, "Dividends": 0.07}, {"DateStr": "2001-11-01", "Close": 20.54, "Volume": 116397235, "Dividends": 0.0}, {"DateStr": "2001-12-01", "Close": 22.28, "Volume": 113448532, "Dividends": 0.0}, {"DateStr": "2002-01-01", "Close": 22.43, "Volume": 113562435, "Dividends": 0.07}, {"DateStr": "2002-02-01", "Close": 22.81, "Volume": 106069692, "Dividends": 0.0}, {"DateStr": "2002-03-01", "Close": 25.63, "Volume": 125176627, "Dividends": 0.0}, {"DateStr": "2002-04-01", "Close": 25.71, "Volume": 126111502, "Dividends": 0.07}, {"DateStr": "2002-05-01", "Close": 26.65, "Volume": 105837768, "Dividends": 0.0}, {"DateStr": "2002-06-01", "Close": 22.77, "Volume": 134829432, "Dividends": 0.0}, {"DateStr": "2002-07-01", "Close": 22.15, "Volume": 170909632, "Dividends": 0.07}, {"DateStr": "2002-08-01", "Close": 22.66, "Volume": 113413114, "Dividends": 0.0}, {"DateStr": "2002-09-01", "Close": 19.59, "Volume": 112593053, "Dividends": 0.0}, {"DateStr": "2002-10-01", "Close": 22.91, "Volume": 167909860, "Dividends": 0.07}, {"DateStr": "2002-11-01", "Close": 24.52, "Volume": 116744545, "Dividends": 0.0}, {"DateStr": "2002-12-01", "Close": 22.31, "Volume": 83401006, "Dividends": 0.07}, {"DateStr": "2003-01-01", "Close": 22.43, "Volume": 110468525, "Dividends": 0.0}, {"DateStr": "2003-02-01", "Close": 21.2, "Volume": 96467042, "Dividends": 0.0}, {"DateStr": "2003-03-01", "Close": 20.98, "Volume": 140443162, "Dividends": 0.0}, {"DateStr": "2003-04-01", "Close": 23.96, "Volume": 126487260, "Dividends": 0.07}, {"DateStr": "2003-05-01", "Close": 26.36, "Volume": 132452529, "Dividends": 0.0}, {"DateStr": "2003-06-01", "Close": 26.46, "Volume": 111965613, "Dividends": 0.0}, {"DateStr": "2003-07-01", "Close": 28.02, "Volume": 107872388, "Dividends": 0.088}, {"DateStr": "2003-08-01", "Close": 28.57, "Volume": 87440195, "Dividends": 0.0}, {"DateStr": "2003-09-01", "Close": 28.58, "Volume": 105006854, "Dividends": 0.0}, {"DateStr": "2003-10-01", "Close": 29.83, "Volume": 98251114, "Dividends": 0.088}, {"DateStr": "2003-11-01", "Close": 29.06, "Volume": 102299671, "Dividends": 0.0}, {"DateStr": "2003-12-01", "Close": 30.72, "Volume": 97568490, "Dividends": 0.088}, {"DateStr": "2004-01-01", "Close": 33.02, "Volume": 109087740, "Dividends": 0.0}, {"DateStr": "2004-02-01", "Close": 34.03, "Volume": 100768651, "Dividends": 0.0}, {"DateStr": "2004-03-01", "Close": 33.09, "Volume": 134058379, "Dividends": 0.088}, {"DateStr": "2004-04-01", "Close": 31.24, "Volume": 112815376, "Dividends": 0.0}, {"DateStr": "2004-05-01", "Close": 32.36, "Volume": 93525192, "Dividends": 0.0}, {"DateStr": "2004-06-01", "Close": 32.86, "Volume": 78126471, "Dividends": 0.088}, {"DateStr": "2004-07-01", "Close": 32.13, "Volume": 94395863, "Dividends": 0.0}, {"DateStr": "2004-08-01", "Close": 31.99, "Volume": 74199017, "Dividends": 0.0}, {"DateStr": "2004-09-01", "Close": 32.91, "Volume": 72733577, "Dividends": 0.0}, {"DateStr": "2004-10-01", "Close": 34.01, "Volume": 83863817, "Dividends": 0.105}, {"DateStr": "2004-11-01", "Close": 35.71, "Volume": 87004684, "Dividends": 0.0}, {"DateStr": "2004-12-01", "Close": 36.13, "Volume": 80250886, "Dividends": 0.0}, {"DateStr": "2005-01-01", "Close": 34.27, "Volume": 107440992, "Dividends": 0.105}, {"DateStr": "2005-02-01", "Close": 34.78, "Volume": 129023422, "Dividends": 0.0}, {"DateStr": "2005-03-01", "Close": 33.07, "Volume": 143024564, "Dividends": 0.105}, {"DateStr": "2005-04-01", "Close": 33.93, "Volume": 121054267, "Dividends": 0.0}, {"DateStr": "2005-05-01", "Close": 34.67, "Volume": 90854563, "Dividends": 0.0}, {"DateStr": "2005-06-01", "Close": 34.35, "Volume": 97305839, "Dividends": 0.105}, {"DateStr": "2005-07-01", "Close": 35.49, "Volume": 102963899, "Dividends": 0.0}, {"DateStr": "2005-08-01", "Close": 35.65, "Volume": 105239346, "Dividends": 0.0}, {"DateStr": "2005-09-01", "Close": 37.06, "Volume": 154679538, "Dividends": 0.0}, {"DateStr": "2005-10-01", "Close": 36.78, "Volume": 139098000, "Dividends": 0.12}, {"DateStr": "2005-11-01", "Close": 38.0, "Volume": 160047300, "Dividends": 0.0}, {"DateStr": "2005-12-01", "Close": 38.03, "Volume": 96168100, "Dividends": 0.0}, {"DateStr": "2006-01-01", "Close": 38.85, "Volume": 125762500, "Dividends": 0.12}, {"DateStr": "2006-02-01", "Close": 39.91, "Volume": 83315000, "Dividends": 0.0}, {"DateStr": "2006-03-01", "Close": 38.92, "Volume": 97873600, "Dividends": 0.0}, {"DateStr": "2006-04-01", "Close": 39.95, "Volume": 86435600, "Dividends": 0.12}, {"DateStr": "2006-05-01", "Close": 40.35, "Volume": 125793800, "Dividends": 0.0}, {"DateStr": "2006-06-01", "Close": 39.51, "Volume": 103408000, "Dividends": 0.0}, {"DateStr": "2006-07-01", "Close": 38.75, "Volume": 101652000, "Dividends": 0.15}, {"DateStr": "2006-08-01", "Close": 39.11, "Volume": 83478800, "Dividends": 0.0}, {"DateStr": "2006-09-01", "Close": 41.75, "Volume": 95940300, "Dividends": 0.0}, {"DateStr": "2006-10-01", "Close": 43.15, "Volume": 141825100, "Dividends": 0.15}, {"DateStr": "2006-11-01", "Close": 43.83, "Volume": 102996600, "Dividends": 0.0}, {"DateStr": "2006-12-01", "Close": 45.29, "Volume": 88634700, "Dividends": 0.0}, {"DateStr": "2007-01-01", "Close": 43.56, "Volume": 117260700, "Dividends": 0.15}, {"DateStr": "2007-02-01", "Close": 42.55, "Volume": 108102800, "Dividends": 0.0}, {"DateStr": "2007-03-01", "Close": 42.2, "Volume": 136389000, "Dividends": 0.0}, {"DateStr": "2007-04-01", "Close": 45.52, "Volume": 139656800, "Dividends": 0.15}, {"DateStr": "2007-05-01", "Close": 48.75, "Volume": 108627900, "Dividends": 0.0}, {"DateStr": "2007-06-01", "Close": 45.9, "Volume": 112275700, "Dividends": 0.0}, {"DateStr": "2007-07-01", "Close": 44.03, "Volume": 168563400, "Dividends": 0.15}, {"DateStr": "2007-08-01", "Close": 44.09, "Volume": 244395000, "Dividends": 0.0}, {"DateStr": "2007-09-01", "Close": 44.65, "Volume": 136541600, "Dividends": 0.0}, {"DateStr": "2007-10-01", "Close": 45.96, "Volume": 190447900, "Dividends": 0.15}, {"DateStr": "2007-11-01", "Close": 44.47, "Volume": 221983200, "Dividends": 0.0}, {"DateStr": "2007-12-01", "Close": 39.22, "Volume": 188658600, "Dividends": 0.0}, {"DateStr": "2008-01-01", "Close": 37.17, "Volume": 344053700, "Dividends": 0.18}, {"DateStr": "2008-02-01", "Close": 32.0, "Volume": 199425300, "Dividends": 0.0}, {"DateStr": "2008-03-01", "Close": 33.08, "Volume": 231292900, "Dividends": 0.0}, {"DateStr": "2008-04-01", "Close": 36.47, "Volume": 198222200, "Dividends": 0.18}, {"DateStr": "2008-05-01", "Close": 35.2, "Volume": 204823400, "Dividends": 0.0}, {"DateStr": "2008-06-01", "Close": 28.61, "Volume": 299867500, "Dividends": 0.0}, {"DateStr": "2008-07-01", "Close": 28.32, "Volume": 427436900, "Dividends": 0.18}, {"DateStr": "2008-08-01", "Close": 30.27, "Volume": 259774200, "Dividends": 0.0}, {"DateStr": "2008-09-01", "Close": 27.03, "Volume": 405306700, "Dividends": 0.0}, {"DateStr": "2008-10-01", "Close": 21.09, "Volume": 470465400, "Dividends": 0.18}, {"DateStr": "2008-11-01", "Close": 17.87, "Volume": 400723100, "Dividends": 0.0}, {"DateStr": "2008-12-01", "Close": 14.22, "Volume": 314843600, "Dividends": 0.0}, {"DateStr": "2009-01-01", "Close": 12.94, "Volume": 365774600, "Dividends": 0.18}, {"DateStr": "2009-02-01", "Close": 9.33, "Volume": 439240000, "Dividends": 0.0}, {"DateStr": "2009-03-01", "Close": 10.54, "Volume": 663272400, "Dividends": 0.0}, {"DateStr": "2009-04-01", "Close": 19.76, "Volume": 753595900, "Dividends": 0.18}, {"DateStr": "2009-05-01", "Close": 19.47, "Volume": 513617500, "Dividends": 0.0}, {"DateStr": "2009-06-01", "Close": 18.35, "Volume": 441662300, "Dividends": 0.18}, {"DateStr": "2009-07-01", "Close": 22.37, "Volume": 405481400, "Dividends": 0.0}, {"DateStr": "2009-08-01", "Close": 26.7, "Volume": 279343200, "Dividends": 0.0}, {"DateStr": "2009-09-01", "Close": 26.91, "Volume": 250193200, "Dividends": 0.18}, {"DateStr": "2009-10-01", "Close": 27.66, "Volume": 287819700, "Dividends": 0.0}, {"DateStr": "2009-11-01", "Close": 33.21, "Volume": 240181800, "Dividends": 0.0}, {"DateStr": "2009-12-01", "Close": 32.17, "Volume": 193368700, "Dividends": 0.0}, {"DateStr": "2010-01-01", "Close": 30.03, "Volume": 233778400, "Dividends": 0.18}, {"DateStr": "2010-02-01", "Close": 30.45, "Volume": 182316200, "Dividends": 0.0}, {"DateStr": "2010-03-01", "Close": 33.04, "Volume": 183005200, "Dividends": 0.18}, {"DateStr": "2010-04-01", "Close": 36.93, "Volume": 224527200, "Dividends": 0.0}, {"DateStr": "2010-05-01", "Close": 31.93, "Volume": 316645600, "Dividends": 0.0}, {"DateStr": "2010-06-01", "Close": 31.93, "Volume": 248059000, "Dividends": 0.18}, {"DateStr": "2010-07-01", "Close": 35.91, "Volume": 195904500, "Dividends": 0.0}, {"DateStr": "2010-08-01", "Close": 32.07, "Volume": 180947900, "Dividends": 0.0}, {"DateStr": "2010-09-01", "Close": 33.81, "Volume": 213981000, "Dividends": 0.0}, {"DateStr": "2010-10-01", "Close": 33.51, "Volume": 383508900, "Dividends": 0.18}, {"DateStr": "2010-11-01", "Close": 34.93, "Volume": 185665800, "Dividends": 0.0}, {"DateStr": "2010-12-01", "Close": 34.69, "Volume": 203583700, "Dividends": 0.0}, {"DateStr": "2011-01-01", "Close": 35.2, "Volume": 181823600, "Dividends": 0.18}, {"DateStr": "2011-02-01", "Close": 35.36, "Volume": 162975100, "Dividends": 0.0}, {"DateStr": "2011-03-01", "Close": 36.68, "Volume": 161901000, "Dividends": 0.0}, {"DateStr": "2011-04-01", "Close": 39.99, "Volume": 132384700, "Dividends": 0.18}, {"DateStr": "2011-05-01", "Close": 42.04, "Volume": 150391500, "Dividends": 0.0}, {"DateStr": "2011-06-01", "Close": 42.27, "Volume": 155151400, "Dividends": 0.18}, {"DateStr": "2011-07-01", "Close": 40.92, "Volume": 122374900, "Dividends": 0.0}, {"DateStr": "2011-08-01", "Close": 40.65, "Volume": 253292100, "Dividends": 0.0}, {"DateStr": "2011-09-01", "Close": 36.71, "Volume": 180539400, "Dividends": 0.0}, {"DateStr": "2011-10-01", "Close": 41.56, "Volume": 216452700, "Dividends": 0.18}, {"DateStr": "2011-11-01", "Close": 39.44, "Volume": 144928800, "Dividends": 0.0}, {"DateStr": "2011-12-01", "Close": 38.73, "Volume": 125137900, "Dividends": 0.0}, {"DateStr": "2012-01-01", "Close": 41.32, "Volume": 127316500, "Dividends": 0.18}, {"DateStr": "2012-02-01", "Close": 43.59, "Volume": 120114000, "Dividends": 0.0}, {"DateStr": "2012-03-01", "Close": 47.69, "Volume": 139018900, "Dividends": 0.0}, {"DateStr": "2012-04-01", "Close": 49.79, "Volume": 130045000, "Dividends": 0.2}, {"DateStr": "2012-05-01", "Close": 46.17, "Volume": 130999300, "Dividends": 0.0}, {"DateStr": "2012-06-01", "Close": 48.14, "Volume": 115585100, "Dividends": 0.0}, {"DateStr": "2012-07-01", "Close": 47.89, "Volume": 115339800, "Dividends": 0.2}, {"DateStr": "2012-08-01", "Close": 48.38, "Volume": 99516100, "Dividends": 0.0}, {"DateStr": "2012-09-01", "Close": 47.18, "Volume": 102389100, "Dividends": 0.0}, {"DateStr": "2012-10-01", "Close": 46.61, "Volume": 110170500, "Dividends": 0.2}, {"DateStr": "2012-11-01", "Close": 46.55, "Volume": 112897900, "Dividends": 0.0}, {"DateStr": "2012-12-01", "Close": 47.86, "Volume": 103366200, "Dividends": 0.0}, {"DateStr": "2013-01-01", "Close": 49.14, "Volume": 122718400, "Dividends": 0.2}, {"DateStr": "2013-02-01", "Close": 51.93, "Volume": 107254600, "Dividends": 0.0}, {"DateStr": "2013-03-01", "Close": 56.37, "Volume": 101367800, "Dividends": 0.0}, {"DateStr": "2013-04-01", "Close": 57.33, "Volume": 121827000, "Dividends": 0.2}, {"DateStr": "2013-05-01", "Close": 63.45, "Volume": 121571700, "Dividends": 0.0}, {"DateStr": "2013-06-01", "Close": 62.66, "Volume": 121769400, "Dividends": 0.0}, {"DateStr": "2013-07-01", "Close": 62.02, "Volume": 126314000, "Dividends": 0.23}, {"DateStr": "2013-08-01", "Close": 60.45, "Volume": 69917600, "Dividends": 0.0}, {"DateStr": "2013-09-01", "Close": 63.49, "Volume": 74592300, "Dividends": 0.0}, {"DateStr": "2013-10-01", "Close": 68.98, "Volume": 102592600, "Dividends": 0.23}, {"DateStr": "2013-11-01", "Close": 72.35, "Volume": 62754400, "Dividends": 0.0}, {"DateStr": "2013-12-01", "Close": 76.5, "Volume": 67589400, "Dividends": 0.0}, {"DateStr": "2014-01-01", "Close": 71.88, "Volume": 104874000, "Dividends": 0.23}, {"DateStr": "2014-02-01", "Close": 77.17, "Volume": 76173800, "Dividends": 0.0}, {"DateStr": "2014-03-01", "Close": 76.11, "Volume": 71488400, "Dividends": 0.0}, {"DateStr": "2014-04-01", "Close": 74.1, "Volume": 84786400, "Dividends": 0.23}, {"DateStr": "2014-05-01", "Close": 77.55, "Volume": 65091900, "Dividends": 0.0}, {"DateStr": "2014-06-01", "Close": 80.41, "Volume": 60522000, "Dividends": 0.0}, {"DateStr": "2014-07-01", "Close": 74.79, "Volume": 68452900, "Dividends": 0.26}, {"DateStr": "2014-08-01", "Close": 76.11, "Volume": 83077800, "Dividends": 0.0}, {"DateStr": "2014-09-01", "Close": 74.4, "Volume": 85326800, "Dividends": 0.0}, {"DateStr": "2014-10-01", "Close": 76.67, "Volume": 120825700, "Dividends": 0.26}, {"DateStr": "2014-11-01", "Close": 78.78, "Volume": 62030800, "Dividends": 0.0}, {"DateStr": "2014-12-01", "Close": 79.31, "Volume": 81719400, "Dividends": 0.0}, {"DateStr": "2015-01-01", "Close": 68.98, "Volume": 122791700, "Dividends": 0.26}, {"DateStr": "2015-02-01", "Close": 69.75, "Volume": 211931300, "Dividends": 0.0}, {"DateStr": "2015-03-01", "Close": 67.01, "Volume": 154668200, "Dividends": 0.26}, {"DateStr": "2015-04-01", "Close": 66.43, "Volume": 133853700, "Dividends": 0.0}, {"DateStr": "2015-05-01", "Close": 68.38, "Volume": 103420200, "Dividends": 0.0}, {"DateStr": "2015-06-01", "Close": 66.91, "Volume": 141794200, "Dividends": 0.29}, {"DateStr": "2015-07-01", "Close": 65.49, "Volume": 117930900, "Dividends": 0.0}, {"DateStr": "2015-08-01", "Close": 66.05, "Volume": 155122400, "Dividends": 0.0}, {"DateStr": "2015-09-01", "Close": 63.82, "Volume": 110385200, "Dividends": 0.0}, {"DateStr": "2015-10-01", "Close": 63.31, "Volume": 122115500, "Dividends": 0.29}, {"DateStr": "2015-11-01", "Close": 61.91, "Volume": 106839600, "Dividends": 0.0}, {"DateStr": "2015-12-01", "Close": 60.11, "Volume": 124233200, "Dividends": 0.0}, {"DateStr": "2016-01-01", "Close": 46.44, "Volume": 237308200, "Dividends": 0.29}, {"DateStr": "2016-02-01", "Close": 48.24, "Volume": 159711400, "Dividends": 0.0}, {"DateStr": "2016-03-01", "Close": 53.3, "Volume": 129864200, "Dividends": 0.0}, {"DateStr": "2016-04-01", "Close": 57.07, "Volume": 99858200, "Dividends": 0.29}, {"DateStr": "2016-05-01", "Close": 57.36, "Volume": 96794800, "Dividends": 0.0}, {"DateStr": "2016-06-01", "Close": 53.26, "Volume": 121804700, "Dividends": 0.29}, {"DateStr": "2016-07-01", "Close": 56.51, "Volume": 90064900, "Dividends": 0.0}, {"DateStr": "2016-08-01", "Close": 57.49, "Volume": 77514100, "Dividends": 0.0}, {"DateStr": "2016-09-01", "Close": 56.14, "Volume": 95572800, "Dividends": 0.0}, {"DateStr": "2016-10-01", "Close": 58.52, "Volume": 116243400, "Dividends": 0.32}, {"DateStr": "2016-11-01", "Close": 63.47, "Volume": 99527200, "Dividends": 0.0}, {"DateStr": "2016-12-01", "Close": 65.27, "Volume": 75948200, "Dividends": 0.0}, {"DateStr": "2017-01-01", "Close": 67.58, "Volume": 103904900, "Dividends": 0.32}, {"DateStr": "2017-02-01", "Close": 70.84, "Volume": 65816600, "Dividends": 0.0}, {"DateStr": "2017-03-01", "Close": 69.99, "Volume": 98700800, "Dividends": 0.0}, {"DateStr": "2017-04-01", "Close": 70.41, "Volume": 77893800, "Dividends": 0.32}, {"DateStr": "2017-05-01", "Close": 68.35, "Volume": 66075700, "Dividends": 0.0}, {"DateStr": "2017-06-01", "Close": 74.84, "Volume": 77500300, "Dividends": 0.0}, {"DateStr": "2017-07-01", "Close": 76.0, "Volume": 71355200, "Dividends": 0.32}, {"DateStr": "2017-08-01", "Close": 76.78, "Volume": 66408400, "Dividends": 0.0}, {"DateStr": "2017-09-01", "Close": 80.67, "Volume": 64969800, "Dividends": 0.0}, {"DateStr": "2017-10-01", "Close": 85.51, "Volume": 77019400, "Dividends": 0.35}, {"DateStr": "2017-11-01", "Close": 87.47, "Volume": 61227900, "Dividends": 0.0}, {"DateStr": "2017-12-01", "Close": 88.9, "Volume": 65046400, "Dividends": 0.0}, {"DateStr": "2018-01-01", "Close": 89.3, "Volume": 81900600, "Dividends": 0.35}, {"DateStr": "2018-02-01", "Close": 87.6, "Volume": 88312400, "Dividends": 0.0}, {"DateStr": "2018-03-01", "Close": 83.8, "Volume": 78495700, "Dividends": 0.0}, {"DateStr": "2018-04-01", "Close": 89.05, "Volume": 84082200, "Dividends": 0.35}, {"DateStr": "2018-05-01", "Close": 88.64, "Volume": 61288200, "Dividends": 0.0}, {"DateStr": "2018-06-01", "Close": 88.37, "Volume": 83248200, "Dividends": 0.0}, {"DateStr": "2018-07-01", "Close": 90.06, "Volume": 76267100, "Dividends": 0.35}, {"DateStr": "2018-08-01", "Close": 95.91, "Volume": 52885700, "Dividends": 0.0}, {"DateStr": "2018-09-01", "Close": 96.37, "Volume": 59450500, "Dividends": 0.0}, {"DateStr": "2018-10-01", "Close": 93.3, "Volume": 88321800, "Dividends": 0.39}, {"DateStr": "2018-11-01", "Close": 101.97, "Volume": 72184900, "Dividends": 0.0}, {"DateStr": "2018-12-01", "Close": 86.57, "Volume": 96451500, "Dividends": 0.0}, {"DateStr": "2019-01-01", "Close": 93.66, "Volume": 88543100, "Dividends": 0.39}, {"DateStr": "2019-02-01", "Close": 98.25, "Volume": 58842300, "Dividends": 0.0}, {"DateStr": "2019-03-01", "Close": 99.68, "Volume": 70700200, "Dividends": 0.0}, {"DateStr": "2019-04-01", "Close": 107.29, "Volume": 72221100, "Dividends": 0.39}, {"DateStr": "2019-05-01", "Close": 104.98, "Volume": 69606000, "Dividends": 0.0}, {"DateStr": "2019-06-01", "Close": 112.97, "Volume": 57138300, "Dividends": 0.0}, {"DateStr": "2019-07-01", "Close": 114.18, "Volume": 73131900, "Dividends": 0.39}, {"DateStr": "2019-08-01", "Close": 110.51, "Volume": 72422500, "Dividends": 0.0}, {"DateStr": "2019-09-01", "Close": 108.59, "Volume": 78724200, "Dividends": 0.0}, {"DateStr": "2019-10-01", "Close": 108.08, "Volume": 70555800, "Dividends": 0.43}, {"DateStr": "2019-11-01", "Close": 110.7, "Volume": 46669100, "Dividends": 0.0}, {"DateStr": "2019-12-01", "Close": 114.72, "Volume": 63636800, "Dividends": 0.0}, {"DateStr": "2020-01-01", "Close": 120.1, "Volume": 71778000, "Dividends": 0.43}, {"DateStr": "2020-02-01", "Close": 101.66, "Volume": 73480200, "Dividends": 0.0}, {"DateStr": "2020-03-01", "Close": 79.17, "Volume": 227466200, "Dividends": 0.0}, {"DateStr": "2020-04-01", "Close": 84.85, "Volume": 164062900, "Dividends": 0.43}, {"DateStr": "2020-05-01", "Close": 88.4, "Volume": 128961200, "Dividends": 0.0}, {"DateStr": "2020-06-01", "Close": 88.53, "Volume": 135814900, "Dividends": 0.0}, {"DateStr": "2020-07-01", "Close": 87.17, "Volume": 91212300, "Dividends": 0.43}, {"DateStr": "2020-08-01", "Close": 94.9, "Volume": 77065000, "Dividends": 0.0}, {"DateStr": "2020-09-01", "Close": 93.64, "Volume": 96051800, "Dividends": 0.0}, {"DateStr": "2020-10-01", "Close": 85.58, "Volume": 84881500, "Dividends": 0.43}, {"DateStr": "2020-11-01", "Close": 111.24, "Volume": 98537200, "Dividends": 0.0}, {"DateStr": "2020-12-01", "Close": 113.41, "Volume": 77433700, "Dividends": 0.0}, {"DateStr": "2021-01-01", "Close": 109.44, "Volume": 88363200, "Dividends": 0.43}, {"DateStr": "2021-02-01", "Close": 127.32, "Volume": 63958300, "Dividends": 0.0}, {"DateStr": "2021-03-01", "Close": 133.54, "Volume": 79164400, "Dividends": 0.43}, {"DateStr": "2021-04-01", "Close": 144.78, "Volume": 59479600, "Dividends": 0.0}, {"DateStr": "2021-05-01", "Close": 151.18, "Volume": 56085700, "Dividends": 0.0}, {"DateStr": "2021-06-01", "Close": 156.0, "Volume": 74352400, "Dividends": 0.0}, {"DateStr": "2021-07-01", "Close": 161.42, "Volume": 87624900, "Dividends": 0.43}, {"DateStr": "2021-08-01", "Close": 157.1, "Volume": 75391100, "Dividends": 0.0}, {"DateStr": "2021-09-01", "Close": 158.58, "Volume": 77243700, "Dividends": 0.0}, {"DateStr": "2021-10-01", "Close": 164.91, "Volume": 71472800, "Dividends": 0.43}, {"DateStr": "2021-11-01", "Close": 144.52, "Volume": 82687000, "Dividends": 0.0}, {"DateStr": "2021-12-01", "Close": 155.25, "Volume": 83519900, "Dividends": 0.0}, {"DateStr": "2022-01-01", "Close": 171.07, "Volume": 95135700, "Dividends": 0.43}, {"DateStr": "2022-02-01", "Close": 185.07, "Volume": 78163700, "Dividends": 0.0}, {"DateStr": "2022-03-01", "Close": 177.9, "Volume": 102603900, "Dividends": 0.0}, {"DateStr": "2022-04-01", "Close": 166.68, "Volume": 67323500, "Dividends": 0.52}, {"DateStr": "2022-05-01", "Close": 161.06, "Volume": 68023800, "Dividends": 0.0}, {"DateStr": "2022-06-01", "Close": 132.74, "Volume": 76071200, "Dividends": 0.52}, {"DateStr": "2022-07-01", "Close": 147.49, "Volume": 78372700, "Dividends": 0.0}, {"DateStr": "2022-08-01", "Close": 145.55, "Volume": 54978900, "Dividends": 0.0}, {"DateStr": "2022-09-01", "Close": 129.19, "Volume": 66353600, "Dividends": 0.0}, {"DateStr": "2022-10-01", "Close": 142.7, "Volume": 75505300, "Dividends": 0.52}, {"DateStr": "2022-11-01", "Close": 151.48, "Volume": 59586600, "Dividends": 0.0}, {"DateStr": "2022-12-01", "Close": 142.03, "Volume": 53948900, "Dividends": 0.0}, {"DateStr": "2023-01-01", "Close": 168.73, "Volume": 80776600, "Dividends": 0.52}, {"DateStr": "2023-02-01", "Close": 167.83, "Volume": 56739600, "Dividends": 0.0}, {"DateStr": "2023-03-01", "Close": 159.11, "Volume": 90838300, "Dividends": 0.0}, {"DateStr": "2023-04-01", "Close": 156.2, "Volume": 60906600, "Dividends": 0.6}, {"DateStr": "2023-05-01", "Close": 153.51, "Volume": 65416800, "Dividends": 0.0}, {"DateStr": "2023-06-01", "Close": 168.65, "Volume": 63735100, "Dividends": 0.0}, {"DateStr": "2023-07-01", "Close": 164.06, "Volume": 61310100, "Dividends": 0.6}, {"DateStr": "2023-08-01", "Close": 153.48, "Volume": 53842900, "Dividends": 0.0}, {"DateStr": "2023-09-01", "Close": 144.93, "Volume": 59822300, "Dividends": 0.0}, {"DateStr": "2023-10-01", "Close": 142.45, "Volume": 76058600, "Dividends": 0.6}, {"DateStr": "2023-11-01", "Close": 166.58, "Volume": 53565500, "Dividends": 0.0}, {"DateStr": "2023-12-01", "Close": 182.74, "Volume": 67066500, "Dividends": 0.0}, {"DateStr": "2024-01-01", "Close": 196.45, "Volume": 76485700, "Dividends": 0.6}, {"DateStr": "2024-02-01", "Close": 214.73, "Volume": 65123600, "Dividends": 0.0}, {"DateStr": "2024-03-01", "Close": 222.82, "Volume": 51283500, "Dividends": 0.0}, {"DateStr": "2024-04-01", "Close": 229.74, "Volume": 73349500, "Dividends": 0.7}, {"DateStr": "2024-05-01", "Close": 235.6, "Volume": 57855000, "Dividends": 0.0}, {"DateStr": "2024-06-01", "Close": 227.3, "Volume": 54926500, "Dividends": 0.0}, {"DateStr": "2024-07-01", "Close": 249.14, "Volume": 58923200, "Dividends": 0.7}, {"DateStr": "2024-08-01", "Close": 254.66, "Volume": 59868200, "Dividends": 0.0}, {"DateStr": "2024-09-01", "Close": 267.02, "Volume": 55838400, "Dividends": 0.0}, {"DateStr": "2024-10-01", "Close": 266.61, "Volume": 61917200, "Dividends": 0.7}, {"DateStr": "2024-11-01", "Close": 300.76, "Volume": 51452900, "Dividends": 0.0}, {"DateStr": "2024-12-01", "Close": 292.98, "Volume": 49228300, "Dividends": 0.0}, {"DateStr": "2025-01-01", "Close": 314.11, "Volume": 53786000, "Dividends": 0.7}, {"DateStr": "2025-02-01", "Close": 297.79, "Volume": 42819700, "Dividends": 0.0}, {"DateStr": "2025-03-01", "Close": 266.22, "Volume": 73827500, "Dividends": 0.0}, {"DateStr": "2025-04-01", "Close": 264.48, "Volume": 87788300, "Dividends": 0.82}, {"DateStr": "2025-05-01", "Close": 291.92, "Volume": 58574000, "Dividends": 0.0}, {"DateStr": "2025-06-01", "Close": 316.67, "Volume": 54722500, "Dividends": 0.0}, {"DateStr": "2025-07-01", "Close": 297.89, "Volume": 57946500, "Dividends": 0.82}, {"DateStr": "2025-08-01", "Close": 329.71, "Volume": 49072000, "Dividends": 0.0}, {"DateStr": "2025-09-01", "Close": 330.59, "Volume": 59413200, "Dividends": 0.0}, {"DateStr": "2025-10-01", "Close": 359.93, "Volume": 57443800, "Dividends": 0.82}, {"DateStr": "2025-11-01", "Close": 364.46, "Volume": 48104600, "Dividends": 0.0}, {"DateStr": "2025-12-01", "Close": 369.13, "Volume": 54144100, "Dividends": 0.0}, {"DateStr": "2026-01-01", "Close": 352.17, "Volume": 62726500, "Dividends": 0.82}, {"DateStr": "2026-02-01", "Close": 308.9, "Volume": 75703400, "Dividends": 0.0}, {"DateStr": "2026-03-01", "Close": 305.99, "Volume": 37806200, "Dividends": 0.0}], "drawdown": [{"DateStr": "1972-06-01", "Drawdown": -12.42}, {"DateStr": "1972-07-01", "Drawdown": -10.62}, {"DateStr": "1972-08-01", "Drawdown": -8.17}, {"DateStr": "1972-09-01", "Drawdown": -12.75}, {"DateStr": "1972-10-01", "Drawdown": -9.96}, {"DateStr": "1972-11-01", "Drawdown": -6.15}, {"DateStr": "1972-12-01", "Drawdown": -4.23}, {"DateStr": "1973-01-01", "Drawdown": -9.69}, {"DateStr": "1973-02-01", "Drawdown": -16.88}, {"DateStr": "1973-03-01", "Drawdown": -17.77}, {"DateStr": "1973-04-01", "Drawdown": -30.7}, {"DateStr": "1973-05-01", "Drawdown": -29.62}, {"DateStr": "1973-06-01", "Drawdown": -28.01}, {"DateStr": "1973-07-01", "Drawdown": -22.44}, {"DateStr": "1973-08-01", "Drawdown": -17.06}, {"DateStr": "1973-09-01", "Drawdown": -17.77}, {"DateStr": "1973-10-01", "Drawdown": -14.72}, {"DateStr": "1973-11-01", "Drawdown": -36.62}, {"DateStr": "1973-12-01", "Drawdown": -40.22}, {"DateStr": "1974-01-01", "Drawdown": -47.22}, {"DateStr": "1974-02-01", "Drawdown": -41.83}, {"DateStr": "1974-03-01", "Drawdown": -40.04}, {"DateStr": "1974-04-01", "Drawdown": -47.04}, {"DateStr": "1974-05-01", "Drawdown": -52.42}, {"DateStr": "1974-06-01", "Drawdown": -50.09}, {"DateStr": "1974-07-01", "Drawdown": -61.4}, {"DateStr": "1974-08-01", "Drawdown": -67.68}, {"DateStr": "1974-09-01", "Drawdown": -73.07}, {"DateStr": "1974-10-01", "Drawdown": -74.69}, {"DateStr": "1974-11-01", "Drawdown": -64.63}, {"DateStr": "1974-12-01", "Drawdown": -66.25}, {"DateStr": "1975-01-01", "Drawdown": -63.38}, {"DateStr": "1975-02-01", "Drawdown": -56.01}, {"DateStr": "1975-03-01", "Drawdown": -52.42}, {"DateStr": "1975-04-01", "Drawdown": -50.81}, {"DateStr": "1975-05-01", "Drawdown": -47.94}, {"DateStr": "1975-06-01", "Drawdown": -43.09}, {"DateStr": "1975-07-01", "Drawdown": -47.04}, {"DateStr": "1975-08-01", "Drawdown": -58.35}, {"DateStr": "1975-09-01", "Drawdown": -57.81}, {"DateStr": "1975-10-01", "Drawdown": -53.32}, {"DateStr": "1975-11-01", "Drawdown": -50.63}, {"DateStr": "1975-12-01", "Drawdown": -50.27}, {"DateStr": "1976-01-01", "Drawdown": -47.4}, {"DateStr": "1976-02-01", "Drawdown": -47.04}, {"DateStr": "1976-03-01", "Drawdown": -51.53}, {"DateStr": "1976-04-01", "Drawdown": -55.48}, {"DateStr": "1976-05-01", "Drawdown": -54.4}, {"DateStr": "1976-06-01", "Drawdown": -52.06}, {"DateStr": "1976-07-01", "Drawdown": -47.04}, {"DateStr": "1976-08-01", "Drawdown": -44.7}, {"DateStr": "1976-09-01", "Drawdown": -43.63}, {"DateStr": "1976-10-01", "Drawdown": -45.24}, {"DateStr": "1976-11-01", "Drawdown": -45.78}, {"DateStr": "1976-12-01", "Drawdown": -44.7}, {"DateStr": "1977-01-01", "Drawdown": -49.73}, {"DateStr": "1977-02-01", "Drawdown": -48.83}, {"DateStr": "1977-03-01", "Drawdown": -49.01}, {"DateStr": "1977-04-01", "Drawdown": -47.68}, {"DateStr": "1977-05-01", "Drawdown": -48.41}, {"DateStr": "1977-06-01", "Drawdown": -48.95}, {"DateStr": "1977-07-01", "Drawdown": -43.28}, {"DateStr": "1977-08-01", "Drawdown": -41.09}, {"DateStr": "1977-09-01", "Drawdown": -45.1}, {"DateStr": "1977-10-01", "Drawdown": -47.17}, {"DateStr": "1977-11-01", "Drawdown": -46.62}, {"DateStr": "1977-12-01", "Drawdown": -48.09}, {"DateStr": "1978-01-01", "Drawdown": -52.42}, {"DateStr": "1978-02-01", "Drawdown": -52.42}, {"DateStr": "1978-03-01", "Drawdown": -52.61}, {"DateStr": "1978-04-01", "Drawdown": -52.46}, {"DateStr": "1978-05-01", "Drawdown": -45.88}, {"DateStr": "1978-06-01", "Drawdown": -48.14}, {"DateStr": "1978-07-01", "Drawdown": -46.6}, {"DateStr": "1978-08-01", "Drawdown": -45.27}, {"DateStr": "1978-09-01", "Drawdown": -47.36}, {"DateStr": "1978-10-01", "Drawdown": -53.28}, {"DateStr": "1978-11-01", "Drawdown": -53.67}, {"DateStr": "1978-12-01", "Drawdown": -56.17}, {"DateStr": "1979-01-01", "Drawdown": -55.77}, {"DateStr": "1979-02-01", "Drawdown": -55.77}, {"DateStr": "1979-03-01", "Drawdown": -55.18}, {"DateStr": "1979-04-01", "Drawdown": -52.76}, {"DateStr": "1979-05-01", "Drawdown": -53.15}, {"DateStr": "1979-06-01", "Drawdown": -46.63}, {"DateStr": "1979-07-01", "Drawdown": -47.13}, {"DateStr": "1979-08-01", "Drawdown": -44.33}, {"DateStr": "1979-09-01", "Drawdown": -47.13}, {"DateStr": "1979-10-01", "Drawdown": -52.1}, {"DateStr": "1979-11-01", "Drawdown": -54.74}, {"DateStr": "1979-12-01", "Drawdown": -51.09}, {"DateStr": "1980-01-01", "Drawdown": -51.59}, {"DateStr": "1980-02-01", "Drawdown": -53.86}, {"DateStr": "1980-03-01", "Drawdown": -57.98}, {"DateStr": "1980-04-01", "Drawdown": -52.81}, {"DateStr": "1980-05-01", "Drawdown": -45.47}, {"DateStr": "1980-06-01", "Drawdown": -43.79}, {"DateStr": "1980-07-01", "Drawdown": -42.15}, {"DateStr": "1980-08-01", "Drawdown": -40.45}, {"DateStr": "1980-09-01", "Drawdown": -41.3}, {"DateStr": "1980-10-01", "Drawdown": -45.25}, {"DateStr": "1980-11-01", "Drawdown": -42.02}, {"DateStr": "1980-12-01", "Drawdown": -40.94}, {"DateStr": "1981-01-01", "Drawdown": -30.15}, {"DateStr": "1981-02-01", "Drawdown": -28.84}, {"DateStr": "1981-03-01", "Drawdown": -24.04}, {"DateStr": "1981-04-01", "Drawdown": -28.06}, {"DateStr": "1981-05-01", "Drawdown": -26.74}, {"DateStr": "1981-06-01", "Drawdown": -14.38}, {"DateStr": "1981-07-01", "Drawdown": -22.63}, {"DateStr": "1981-08-01", "Drawdown": -25.08}, {"DateStr": "1981-09-01", "Drawdown": -30.66}, {"DateStr": "1981-10-01", "Drawdown": -25.08}, {"DateStr": "1981-11-01", "Drawdown": -17.86}, {"DateStr": "1981-12-01", "Drawdown": -22.83}, {"DateStr": "1982-01-01", "Drawdown": -27.57}, {"DateStr": "1982-02-01", "Drawdown": -23.68}, {"DateStr": "1982-03-01", "Drawdown": -20.71}, {"DateStr": "1982-04-01", "Drawdown": -13.63}, {"DateStr": "1982-05-01", "Drawdown": -22.31}, {"DateStr": "1982-06-01", "Drawdown": -26.42}, {"DateStr": "1982-07-01", "Drawdown": -31.87}, {"DateStr": "1982-08-01", "Drawdown": -33.96}, {"DateStr": "1982-09-01", "Drawdown": -14.26}, {"DateStr": "1982-10-01", "Drawdown": -9.3}, {"DateStr": "1982-11-01", "Drawdown": -7.17}, {"DateStr": "1982-12-01", "Drawdown": -16.85}, {"DateStr": "1983-01-01", "Drawdown": -11.36}, {"DateStr": "1983-02-01", "Drawdown": -7.92}, {"DateStr": "1983-03-01", "Drawdown": -5.5}, {"DateStr": "1983-04-01", "Drawdown": -4.67}, {"DateStr": "1983-05-01", "Drawdown": -5.8}, {"DateStr": "1983-06-01", "Drawdown": -7.83}, {"DateStr": "1983-07-01", "Drawdown": -13.61}, {"DateStr": "1983-08-01", "Drawdown": -17.1}, {"DateStr": "1983-09-01", "Drawdown": -27.04}, {"DateStr": "1983-10-01", "Drawdown": -32.58}, {"DateStr": "1983-11-01", "Drawdown": -32.07}, {"DateStr": "1983-12-01", "Drawdown": -41.33}, {"DateStr": "1984-01-01", "Drawdown": -37.64}, {"DateStr": "1984-02-01", "Drawdown": -41.8}, {"DateStr": "1984-03-01", "Drawdown": -40.24}, {"DateStr": "1984-04-01", "Drawdown": -40.94}, {"DateStr": "1984-05-01", "Drawdown": -45.66}, {"DateStr": "1984-06-01", "Drawdown": -44.88}, {"DateStr": "1984-07-01", "Drawdown": -45.84}, {"DateStr": "1984-08-01", "Drawdown": -37.61}, {"DateStr": "1984-09-01", "Drawdown": -32.56}, {"DateStr": "1984-10-01", "Drawdown": -30.86}, {"DateStr": "1984-11-01", "Drawdown": -26.04}, {"DateStr": "1984-12-01", "Drawdown": -25.5}, {"DateStr": "1985-01-01", "Drawdown": -21.89}, {"DateStr": "1985-02-01", "Drawdown": -12.97}, {"DateStr": "1985-03-01", "Drawdown": -12.7}, {"DateStr": "1985-04-01", "Drawdown": -11.21}, {"DateStr": "1985-05-01", "Drawdown": -8.76}, {"DateStr": "1985-06-01", "Drawdown": -3.69}, {"DateStr": "1985-07-01", "Drawdown": -11.4}, {"DateStr": "1985-08-01", "Drawdown": -14.51}, {"DateStr": "1985-09-01", "Drawdown": -15.8}, {"DateStr": "1985-10-01", "Drawdown": -15.11}, {"DateStr": "1985-11-01", "Drawdown": -5.45}, {"DateStr": "1985-12-01", "Drawdown": -4.84}, {"DateStr": "1986-01-01", "Drawdown": -5.6}, {"DateStr": "1986-02-01", "Drawdown": -1.87}, {"DateStr": "1986-03-01", "Drawdown": -6.43}, {"DateStr": "1986-04-01", "Drawdown": -13.68}, {"DateStr": "1986-05-01", "Drawdown": -18.34}, {"DateStr": "1986-06-01", "Drawdown": -16.01}, {"DateStr": "1986-07-01", "Drawdown": -16.44}, {"DateStr": "1986-08-01", "Drawdown": -15.36}, {"DateStr": "1986-09-01", "Drawdown": -21.2}, {"DateStr": "1986-10-01", "Drawdown": -18.84}, {"DateStr": "1986-11-01", "Drawdown": -20.47}, {"DateStr": "1986-12-01", "Drawdown": -17.24}, {"DateStr": "1987-01-01", "Drawdown": -15.41}, {"DateStr": "1987-02-01", "Drawdown": -4.12}, {"DateStr": "1987-03-01", "Drawdown": -8.86}, {"DateStr": "1987-04-01", "Drawdown": -18.7}, {"DateStr": "1987-05-01", "Drawdown": -24.47}, {"DateStr": "1987-06-01", "Drawdown": -16.04}, {"DateStr": "1987-07-01", "Drawdown": -19.37}, {"DateStr": "1987-08-01", "Drawdown": -10.58}, {"DateStr": "1987-09-01", "Drawdown": -12.78}, {"DateStr": "1987-10-01", "Drawdown": -43.95}, {"DateStr": "1987-11-01", "Drawdown": -42.99}, {"DateStr": "1987-12-01", "Drawdown": -45.86}, {"DateStr": "1988-01-01", "Drawdown": -38.15}, {"DateStr": "1988-02-01", "Drawdown": -35.23}, {"DateStr": "1988-03-01", "Drawdown": -38.47}, {"DateStr": "1988-04-01", "Drawdown": -38.31}, {"DateStr": "1988-05-01", "Drawdown": -40.27}, {"DateStr": "1988-06-01", "Drawdown": -31.46}, {"DateStr": "1988-07-01", "Drawdown": -30.33}, {"DateStr": "1988-08-01", "Drawdown": -27.7}, {"DateStr": "1988-09-01", "Drawdown": -27.04}, {"DateStr": "1988-10-01", "Drawdown": -28.19}, {"DateStr": "1988-11-01", "Drawdown": -30.51}, {"DateStr": "1988-12-01", "Drawdown": -29.19}, {"DateStr": "1989-01-01", "Drawdown": -28.97}, {"DateStr": "1989-02-01", "Drawdown": -21.97}, {"DateStr": "1989-03-01", "Drawdown": -21.3}, {"DateStr": "1989-04-01", "Drawdown": -15.07}, {"DateStr": "1989-05-01", "Drawdown": -15.4}, {"DateStr": "1989-06-01", "Drawdown": -12.38}, {"DateStr": "1989-07-01", "Drawdown": -9.81}, {"DateStr": "1989-08-01", "Drawdown": -4.25}, {"DateStr": "1989-09-01", "Drawdown": -6.21}, {"DateStr": "1989-10-01", "Drawdown": -10.83}, {"DateStr": "1989-11-01", "Drawdown": -14.65}, {"DateStr": "1989-12-01", "Drawdown": -21.02}, {"DateStr": "1990-01-01", "Drawdown": -24.01}, {"DateStr": "1990-02-01", "Drawdown": -29.14}, {"DateStr": "1990-03-01", "Drawdown": -33.95}, {"DateStr": "1990-04-01", "Drawdown": -32.71}, {"DateStr": "1990-05-01", "Drawdown": -31.41}, {"DateStr": "1990-06-01", "Drawdown": -23.0}, {"DateStr": "1990-07-01", "Drawdown": -24.05}, {"DateStr": "1990-08-01", "Drawdown": -40.35}, {"DateStr": "1990-09-01", "Drawdown": -46.54}, {"DateStr": "1990-10-01", "Drawdown": -53.86}, {"DateStr": "1990-11-01", "Drawdown": -50.57}, {"DateStr": "1990-12-01", "Drawdown": -45.68}, {"DateStr": "1991-01-01", "Drawdown": -48.34}, {"DateStr": "1991-02-01", "Drawdown": -39.68}, {"DateStr": "1991-03-01", "Drawdown": -32.35}, {"DateStr": "1991-04-01", "Drawdown": -32.81}, {"DateStr": "1991-05-01", "Drawdown": -38.52}, {"DateStr": "1991-06-01", "Drawdown": -38.92}, {"DateStr": "1991-07-01", "Drawdown": -40.62}, {"DateStr": "1991-08-01", "Drawdown": -32.13}, {"DateStr": "1991-09-01", "Drawdown": -31.11}, {"DateStr": "1991-10-01", "Drawdown": -48.26}, {"DateStr": "1991-11-01", "Drawdown": -49.63}, {"DateStr": "1991-12-01", "Drawdown": -50.32}, {"DateStr": "1992-01-01", "Drawdown": -42.78}, {"DateStr": "1992-02-01", "Drawdown": -42.43}, {"DateStr": "1992-03-01", "Drawdown": -42.43}, {"DateStr": "1992-04-01", "Drawdown": -39.0}, {"DateStr": "1992-05-01", "Drawdown": -38.65}, {"DateStr": "1992-06-01", "Drawdown": -35.14}, {"DateStr": "1992-07-01", "Drawdown": -35.51}, {"DateStr": "1992-08-01", "Drawdown": -41.18}, {"DateStr": "1992-09-01", "Drawdown": -39.76}, {"DateStr": "1992-10-01", "Drawdown": -42.65}, {"DateStr": "1992-11-01", "Drawdown": -40.5}, {"DateStr": "1992-12-01", "Drawdown": -35.48}, {"DateStr": "1993-01-01", "Drawdown": -35.19}, {"DateStr": "1993-02-01", "Drawdown": -31.21}, {"DateStr": "1993-03-01", "Drawdown": -28.67}, {"DateStr": "1993-04-01", "Drawdown": -21.08}, {"DateStr": "1993-05-01", "Drawdown": -20.35}, {"DateStr": "1993-06-01", "Drawdown": -17.43}, {"DateStr": "1993-07-01", "Drawdown": -9.03}, {"DateStr": "1993-08-01", "Drawdown": -5.11}, {"DateStr": "1993-09-01", "Drawdown": -4.38}, {"DateStr": "1993-10-01", "Drawdown": -13.08}, {"DateStr": "1993-11-01", "Drawdown": -17.91}, {"DateStr": "1993-12-01", "Drawdown": -16.88}, {"DateStr": "1994-01-01", "Drawdown": -18.98}, {"DateStr": "1994-02-01", "Drawdown": -18.63}, {"DateStr": "1994-03-01", "Drawdown": -22.81}, {"DateStr": "1994-04-01", "Drawdown": -23.51}, {"DateStr": "1994-05-01", "Drawdown": -20.35}, {"DateStr": "1994-06-01", "Drawdown": -18.09}, {"DateStr": "1994-07-01", "Drawdown": -18.18}, {"DateStr": "1994-08-01", "Drawdown": -13.76}, {"DateStr": "1994-09-01", "Drawdown": -8.55}, {"DateStr": "1994-10-01", "Drawdown": -6.02}, {"DateStr": "1994-11-01", "Drawdown": -10.01}, {"DateStr": "1994-12-01", "Drawdown": -8.41}, {"DateStr": "1995-01-01", "Drawdown": -6.1}, {"DateStr": "1995-02-01", "Drawdown": -1.93}, {"DateStr": "1995-03-01", "Drawdown": -5.88}, {"DateStr": "1995-04-01", "Drawdown": -3.18}, {"DateStr": "1995-05-01", "Drawdown": -3.15}, {"DateStr": "1995-06-01", "Drawdown": -4.5}, {"DateStr": "1995-07-01", "Drawdown": -4.1}, {"DateStr": "1995-08-01", "Drawdown": -2.53}, {"DateStr": "1995-09-01", "Drawdown": -4.48}, {"DateStr": "1995-10-01", "Drawdown": -12.29}, {"DateStr": "1995-11-01", "Drawdown": -9.78}, {"DateStr": "1995-12-01", "Drawdown": -8.38}, {"DateStr": "1996-01-01", "Drawdown": -12.94}, {"DateStr": "1996-02-01", "Drawdown": -3.43}, {"DateStr": "1996-03-01", "Drawdown": -6.07}, {"DateStr": "1996-04-01", "Drawdown": -9.38}, {"DateStr": "1996-05-01", "Drawdown": -9.63}, {"DateStr": "1996-06-01", "Drawdown": -14.32}, {"DateStr": "1996-07-01", "Drawdown": -18.86}, {"DateStr": "1996-08-01", "Drawdown": -13.15}, {"DateStr": "1996-09-01", "Drawdown": -14.64}, {"DateStr": "1996-10-01", "Drawdown": -8.74}, {"DateStr": "1996-11-01", "Drawdown": -6.25}, {"DateStr": "1996-12-01", "Drawdown": -4.87}, {"DateStr": "1997-01-01", "Drawdown": -8.24}, {"DateStr": "1997-02-01", "Drawdown": -7.71}, {"DateStr": "1997-03-01", "Drawdown": -14.16}, {"DateStr": "1997-04-01", "Drawdown": -16.36}, {"DateStr": "1997-05-01", "Drawdown": -5.56}, {"DateStr": "1997-06-01", "Drawdown": -5.25}, {"DateStr": "1997-07-01", "Drawdown": -8.36}, {"DateStr": "1997-08-01", "Drawdown": -7.85}, {"DateStr": "1997-09-01", "Drawdown": -8.89}, {"DateStr": "1997-10-01", "Drawdown": -13.58}, {"DateStr": "1997-11-01", "Drawdown": -11.49}, {"DateStr": "1997-12-01", "Drawdown": -4.82}, {"DateStr": "1998-01-01", "Drawdown": -11.49}, {"DateStr": "1998-02-01", "Drawdown": -4.43}, {"DateStr": "1998-03-01", "Drawdown": -6.55}, {"DateStr": "1998-04-01", "Drawdown": -5.55}, {"DateStr": "1998-05-01", "Drawdown": -7.06}, {"DateStr": "1998-06-01", "Drawdown": -7.05}, {"DateStr": "1998-07-01", "Drawdown": -9.17}, {"DateStr": "1998-08-01", "Drawdown": -33.83}, {"DateStr": "1998-09-01", "Drawdown": -41.04}, {"DateStr": "1998-10-01", "Drawdown": -39.77}, {"DateStr": "1998-11-01", "Drawdown": -23.03}, {"DateStr": "1998-12-01", "Drawdown": -22.13}, {"DateStr": "1999-01-01", "Drawdown": -18.11}, {"DateStr": "1999-02-01", "Drawdown": -18.17}, {"DateStr": "1999-03-01", "Drawdown": -8.23}, {"DateStr": "1999-04-01", "Drawdown": -8.94}, {"DateStr": "1999-05-01", "Drawdown": -17.48}, {"DateStr": "1999-06-01", "Drawdown": -14.82}, {"DateStr": "1999-07-01", "Drawdown": -7.46}, {"DateStr": "1999-08-01", "Drawdown": -13.56}, {"DateStr": "1999-09-01", "Drawdown": -9.68}, {"DateStr": "1999-10-01", "Drawdown": -11.16}, {"DateStr": "1999-11-01", "Drawdown": -9.94}, {"DateStr": "1999-12-01", "Drawdown": -9.02}, {"DateStr": "2000-01-01", "Drawdown": -12.09}, {"DateStr": "2000-02-01", "Drawdown": -26.18}, {"DateStr": "2000-03-01", "Drawdown": -27.37}, {"DateStr": "2000-04-01", "Drawdown": -20.71}, {"DateStr": "2000-05-01", "Drawdown": -15.83}, {"DateStr": "2000-06-01", "Drawdown": -9.25}, {"DateStr": "2000-07-01", "Drawdown": -8.34}, {"DateStr": "2000-08-01", "Drawdown": -5.83}, {"DateStr": "2000-09-01", "Drawdown": -6.17}, {"DateStr": "2000-10-01", "Drawdown": -17.55}, {"DateStr": "2000-11-01", "Drawdown": -18.35}, {"DateStr": "2000-12-01", "Drawdown": -18.25}, {"DateStr": "2001-01-01", "Drawdown": -28.37}, {"DateStr": "2001-02-01", "Drawdown": -30.15}, {"DateStr": "2001-03-01", "Drawdown": -44.76}, {"DateStr": "2001-04-01", "Drawdown": -42.25}, {"DateStr": "2001-05-01", "Drawdown": -34.12}, {"DateStr": "2001-06-01", "Drawdown": -38.98}, {"DateStr": "2001-07-01", "Drawdown": -40.86}, {"DateStr": "2001-08-01", "Drawdown": -42.54}, {"DateStr": "2001-09-01", "Drawdown": -59.06}, {"DateStr": "2001-10-01", "Drawdown": -56.02}, {"DateStr": "2001-11-01", "Drawdown": -52.33}, {"DateStr": "2001-12-01", "Drawdown": -48.48}, {"DateStr": "2002-01-01", "Drawdown": -44.67}, {"DateStr": "2002-02-01", "Drawdown": -47.15}, {"DateStr": "2002-03-01", "Drawdown": -40.06}, {"DateStr": "2002-04-01", "Drawdown": -36.39}, {"DateStr": "2002-05-01", "Drawdown": -34.55}, {"DateStr": "2002-06-01", "Drawdown": -42.58}, {"DateStr": "2002-07-01", "Drawdown": -53.77}, {"DateStr": "2002-08-01", "Drawdown": -51.02}, {"DateStr": "2002-09-01", "Drawdown": -50.06}, {"DateStr": "2002-10-01", "Drawdown": -56.99}, {"DateStr": "2002-11-01", "Drawdown": -43.3}, {"DateStr": "2002-12-01", "Drawdown": -42.71}, {"DateStr": "2003-01-01", "Drawdown": -45.84}, {"DateStr": "2003-02-01", "Drawdown": -47.33}, {"DateStr": "2003-03-01", "Drawdown": -48.96}, {"DateStr": "2003-04-01", "Drawdown": -45.51}, {"DateStr": "2003-05-01", "Drawdown": -38.67}, {"DateStr": "2003-06-01", "Drawdown": -32.08}, {"DateStr": "2003-07-01", "Drawdown": -31.75}, {"DateStr": "2003-08-01", "Drawdown": -30.87}, {"DateStr": "2003-09-01", "Drawdown": -27.3}, {"DateStr": "2003-10-01", "Drawdown": -24.82}, {"DateStr": "2003-11-01", "Drawdown": -28.3}, {"DateStr": "2003-12-01", "Drawdown": -26.55}, {"DateStr": "2004-01-01", "Drawdown": -21.99}, {"DateStr": "2004-02-01", "Drawdown": -14.82}, {"DateStr": "2004-03-01", "Drawdown": -18.31}, {"DateStr": "2004-04-01", "Drawdown": -19.79}, {"DateStr": "2004-05-01", "Drawdown": -21.12}, {"DateStr": "2004-06-01", "Drawdown": -17.08}, {"DateStr": "2004-07-01", "Drawdown": -21.01}, {"DateStr": "2004-08-01", "Drawdown": -19.06}, {"DateStr": "2004-09-01", "Drawdown": -17.73}, {"DateStr": "2004-10-01", "Drawdown": -15.83}, {"DateStr": "2004-11-01", "Drawdown": -12.93}, {"DateStr": "2004-12-01", "Drawdown": -9.43}, {"DateStr": "2005-01-01", "Drawdown": -14.36}, {"DateStr": "2005-02-01", "Drawdown": -11.31}, {"DateStr": "2005-03-01", "Drawdown": -17.08}, {"DateStr": "2005-04-01", "Drawdown": -17.66}, {"DateStr": "2005-05-01", "Drawdown": -14.45}, {"DateStr": "2005-06-01", "Drawdown": -11.81}, {"DateStr": "2005-07-01", "Drawdown": -12.19}, {"DateStr": "2005-08-01", "Drawdown": -9.16}, {"DateStr": "2005-09-01", "Drawdown": -8.38}, {"DateStr": "2005-10-01", "Drawdown": -10.54}, {"DateStr": "2005-11-01", "Drawdown": -6.78}, {"DateStr": "2005-12-01", "Drawdown": -4.14}, {"DateStr": "2006-01-01", "Drawdown": -4.8}, {"DateStr": "2006-02-01", "Drawdown": -3.56}, {"DateStr": "2006-03-01", "Drawdown": -4.99}, {"DateStr": "2006-04-01", "Drawdown": -6.84}, {"DateStr": "2006-05-01", "Drawdown": -5.2}, {"DateStr": "2006-06-01", "Drawdown": -4.75}, {"DateStr": "2006-07-01", "Drawdown": -7.33}, {"DateStr": "2006-08-01", "Drawdown": -5.23}, {"DateStr": "2006-09-01", "Drawdown": -4.26}, {"DateStr": "2006-10-01", "Drawdown": -2.5}, {"DateStr": "2006-11-01", "Drawdown": -1.97}, {"DateStr": "2006-12-01", "Drawdown": -2.25}, {"DateStr": "2007-01-01", "Drawdown": -6.81}, {"DateStr": "2007-02-01", "Drawdown": -9.97}, {"DateStr": "2007-03-01", "Drawdown": -11.33}, {"DateStr": "2007-04-01", "Drawdown": -9.53}, {"DateStr": "2007-05-01", "Drawdown": -1.64}, {"DateStr": "2007-06-01", "Drawdown": -5.98}, {"DateStr": "2007-07-01", "Drawdown": -10.69}, {"DateStr": "2007-08-01", "Drawdown": -13.44}, {"DateStr": "2007-09-01", "Drawdown": -11.9}, {"DateStr": "2007-10-01", "Drawdown": -13.03}, {"DateStr": "2007-11-01", "Drawdown": -18.12}, {"DateStr": "2007-12-01", "Drawdown": -22.25}, {"DateStr": "2008-01-01", "Drawdown": -34.52}, {"DateStr": "2008-02-01", "Drawdown": -35.08}, {"DateStr": "2008-03-01", "Drawdown": -38.55}, {"DateStr": "2008-04-01", "Drawdown": -34.18}, {"DateStr": "2008-05-01", "Drawdown": -29.98}, {"DateStr": "2008-06-01", "Drawdown": -41.97}, {"DateStr": "2008-07-01", "Drawdown": -45.27}, {"DateStr": "2008-08-01", "Drawdown": -43.68}, {"DateStr": "2008-09-01", "Drawdown": -49.63}, {"DateStr": "2008-10-01", "Drawdown": -64.11}, {"DateStr": "2008-11-01", "Drawdown": -73.2}, {"DateStr": "2008-12-01", "Drawdown": -72.47}, {"DateStr": "2009-01-01", "Drawdown": -76.16}, {"DateStr": "2009-02-01", "Drawdown": -81.08}, {"DateStr": "2009-03-01", "Drawdown": -83.91}, {"DateStr": "2009-04-01", "Drawdown": -77.05}, {"DateStr": "2009-05-01", "Drawdown": -62.8}, {"DateStr": "2009-06-01", "Drawdown": -63.55}, {"DateStr": "2009-07-01", "Drawdown": -64.33}, {"DateStr": "2009-08-01", "Drawdown": -54.11}, {"DateStr": "2009-09-01", "Drawdown": -48.83}, {"DateStr": "2009-10-01", "Drawdown": -47.73}, {"DateStr": "2009-11-01", "Drawdown": -42.55}, {"DateStr": "2009-12-01", "Drawdown": -37.41}, {"DateStr": "2010-01-01", "Drawdown": -39.47}, {"DateStr": "2010-02-01", "Drawdown": -40.5}, {"DateStr": "2010-03-01", "Drawdown": -38.34}, {"DateStr": "2010-04-01", "Drawdown": -32.27}, {"DateStr": "2010-05-01", "Drawdown": -38.0}, {"DateStr": "2010-06-01", "Drawdown": -38.75}, {"DateStr": "2010-07-01", "Drawdown": -36.03}, {"DateStr": "2010-08-01", "Drawdown": -35.44}, {"DateStr": "2010-09-01", "Drawdown": -34.62}, {"DateStr": "2010-10-01", "Drawdown": -38.0}, {"DateStr": "2010-11-01", "Drawdown": -32.12}, {"DateStr": "2010-12-01", "Drawdown": -30.33}, {"DateStr": "2011-01-01", "Drawdown": -28.86}, {"DateStr": "2011-02-01", "Drawdown": -28.5}, {"DateStr": "2011-03-01", "Drawdown": -30.28}, {"DateStr": "2011-04-01", "Drawdown": -25.34}, {"DateStr": "2011-05-01", "Drawdown": -18.22}, {"DateStr": "2011-06-01", "Drawdown": -21.87}, {"DateStr": "2011-07-01", "Drawdown": -17.01}, {"DateStr": "2011-08-01", "Drawdown": -29.01}, {"DateStr": "2011-09-01", "Drawdown": -25.53}, {"DateStr": "2011-10-01", "Drawdown": -27.97}, {"DateStr": "2011-11-01", "Drawdown": -25.06}, {"DateStr": "2011-12-01", "Drawdown": -23.32}, {"DateStr": "2012-01-01", "Drawdown": -19.41}, {"DateStr": "2012-02-01", "Drawdown": -15.38}, {"DateStr": "2012-03-01", "Drawdown": -13.51}, {"DateStr": "2012-04-01", "Drawdown": -5.76}, {"DateStr": "2012-05-01", "Drawdown": -9.25}, {"DateStr": "2012-06-01", "Drawdown": -12.48}, {"DateStr": "2012-07-01", "Drawdown": -8.57}, {"DateStr": "2012-08-01", "Drawdown": -8.21}, {"DateStr": "2012-09-01", "Drawdown": -7.73}, {"DateStr": "2012-10-01", "Drawdown": -8.91}, {"DateStr": "2012-11-01", "Drawdown": -11.53}, {"DateStr": "2012-12-01", "Drawdown": -7.9}, {"DateStr": "2013-01-01", "Drawdown": -3.97}, {"DateStr": "2013-02-01", "Drawdown": -2.99}, {"DateStr": "2013-03-01", "Drawdown": -1.45}, {"DateStr": "2013-04-01", "Drawdown": -4.95}, {"DateStr": "2013-05-01", "Drawdown": -0.89}, {"DateStr": "2013-06-01", "Drawdown": -8.01}, {"DateStr": "2013-07-01", "Drawdown": -5.82}, {"DateStr": "2013-08-01", "Drawdown": -8.2}, {"DateStr": "2013-09-01", "Drawdown": -7.53}, {"DateStr": "2013-10-01", "Drawdown": -7.52}, {"DateStr": "2013-11-01", "Drawdown": -3.28}, {"DateStr": "2013-12-01", "Drawdown": -3.06}, {"DateStr": "2014-01-01", "Drawdown": -6.7}, {"DateStr": "2014-02-01", "Drawdown": -9.07}, {"DateStr": "2014-03-01", "Drawdown": -4.47}, {"DateStr": "2014-04-01", "Drawdown": -9.7}, {"DateStr": "2014-05-01", "Drawdown": -7.93}, {"DateStr": "2014-06-01", "Drawdown": -2.02}, {"DateStr": "2014-07-01", "Drawdown": -7.93}, {"DateStr": "2014-08-01", "Drawdown": -10.0}, {"DateStr": "2014-09-01", "Drawdown": -9.22}, {"DateStr": "2014-10-01", "Drawdown": -15.8}, {"DateStr": "2014-11-01", "Drawdown": -5.42}, {"DateStr": "2014-12-01", "Drawdown": -7.4}, {"DateStr": "2015-01-01", "Drawdown": -15.07}, {"DateStr": "2015-02-01", "Drawdown": -17.82}, {"DateStr": "2015-03-01", "Drawdown": -17.94}, {"DateStr": "2015-04-01", "Drawdown": -18.52}, {"DateStr": "2015-05-01", "Drawdown": -17.97}, {"DateStr": "2015-06-01", "Drawdown": -17.84}, {"DateStr": "2015-07-01", "Drawdown": -20.59}, {"DateStr": "2015-08-01", "Drawdown": -22.07}, {"DateStr": "2015-09-01", "Drawdown": -22.52}, {"DateStr": "2015-10-01", "Drawdown": -22.86}, {"DateStr": "2015-11-01", "Drawdown": -24.34}, {"DateStr": "2015-12-01", "Drawdown": -27.79}, {"DateStr": "2016-01-01", "Drawdown": -43.49}, {"DateStr": "2016-02-01", "Drawdown": -45.38}, {"DateStr": "2016-03-01", "Drawdown": -39.3}, {"DateStr": "2016-04-01", "Drawdown": -36.8}, {"DateStr": "2016-05-01", "Drawdown": -32.63}, {"DateStr": "2016-06-01", "Drawdown": -38.07}, {"DateStr": "2016-07-01", "Drawdown": -36.17}, {"DateStr": "2016-08-01", "Drawdown": -31.5}, {"DateStr": "2016-09-01", "Drawdown": -31.61}, {"DateStr": "2016-10-01", "Drawdown": -35.03}, {"DateStr": "2016-11-01", "Drawdown": -29.14}, {"DateStr": "2016-12-01", "Drawdown": -22.06}, {"DateStr": "2017-01-01", "Drawdown": -18.27}, {"DateStr": "2017-02-01", "Drawdown": -16.66}, {"DateStr": "2017-03-01", "Drawdown": -15.55}, {"DateStr": "2017-04-01", "Drawdown": -17.37}, {"DateStr": "2017-05-01", "Drawdown": -16.47}, {"DateStr": "2017-06-01", "Drawdown": -14.38}, {"DateStr": "2017-07-01", "Drawdown": -8.07}, {"DateStr": "2017-08-01", "Drawdown": -7.46}, {"DateStr": "2017-09-01", "Drawdown": -7.51}, {"DateStr": "2017-10-01", "Drawdown": -1.26}, {"DateStr": "2017-11-01", "Drawdown": -3.29}, {"DateStr": "2017-12-01", "Drawdown": -2.23}, {"DateStr": "2018-01-01", "Drawdown": -3.2}, {"DateStr": "2018-02-01", "Drawdown": -12.72}, {"DateStr": "2018-03-01", "Drawdown": -11.01}, {"DateStr": "2018-04-01", "Drawdown": -10.47}, {"DateStr": "2018-05-01", "Drawdown": -5.11}, {"DateStr": "2018-06-01", "Drawdown": -6.11}, {"DateStr": "2018-07-01", "Drawdown": -4.73}, {"DateStr": "2018-08-01", "Drawdown": -4.24}, {"DateStr": "2018-09-01", "Drawdown": -4.16}, {"DateStr": "2018-10-01", "Drawdown": -8.6}, {"DateStr": "2018-11-01", "Drawdown": -6.32}, {"DateStr": "2018-12-01", "Drawdown": -20.72}, {"DateStr": "2019-01-01", "Drawdown": -16.9}, {"DateStr": "2019-02-01", "Drawdown": -8.33}, {"DateStr": "2019-03-01", "Drawdown": -4.06}, {"DateStr": "2019-04-01", "Drawdown": -2.92}, {"DateStr": "2019-05-01", "Drawdown": -4.84}, {"DateStr": "2019-06-01", "Drawdown": -4.92}, {"DateStr": "2019-07-01", "Drawdown": -3.27}, {"DateStr": "2019-08-01", "Drawdown": -8.42}, {"DateStr": "2019-09-01", "Drawdown": -9.15}, {"DateStr": "2019-10-01", "Drawdown": -12.22}, {"DateStr": "2019-11-01", "Drawdown": -7.27}, {"DateStr": "2019-12-01", "Drawdown": -8.99}, {"DateStr": "2020-01-01", "Drawdown": -3.88}, {"DateStr": "2020-02-01", "Drawdown": -19.72}, {"DateStr": "2020-03-01", "Drawdown": -49.64}, {"DateStr": "2020-04-01", "Drawdown": -45.95}, {"DateStr": "2020-05-01", "Drawdown": -42.7}, {"DateStr": "2020-06-01", "Drawdown": -31.4}, {"DateStr": "2020-07-01", "Drawdown": -33.19}, {"DateStr": "2020-08-01", "Drawdown": -31.25}, {"DateStr": "2020-09-01", "Drawdown": -29.59}, {"DateStr": "2020-10-01", "Drawdown": -32.54}, {"DateStr": "2020-11-01", "Drawdown": -30.81}, {"DateStr": "2020-12-01", "Drawdown": -15.14}, {"DateStr": "2021-01-01", "Drawdown": -15.19}, {"DateStr": "2021-02-01", "Drawdown": -13.0}, {"DateStr": "2021-03-01", "Drawdown": -9.44}, {"DateStr": "2021-04-01", "Drawdown": -3.77}, {"DateStr": "2021-05-01", "Drawdown": -4.2}, {"DateStr": "2021-06-01", "Drawdown": -5.01}, {"DateStr": "2021-07-01", "Drawdown": -6.22}, {"DateStr": "2021-08-01", "Drawdown": -8.39}, {"DateStr": "2021-09-01", "Drawdown": -8.57}, {"DateStr": "2021-10-01", "Drawdown": -7.11}, {"DateStr": "2021-11-01", "Drawdown": -18.59}, {"DateStr": "2021-12-01", "Drawdown": -19.79}, {"DateStr": "2022-01-01", "Drawdown": -14.94}, {"DateStr": "2022-02-01", "Drawdown": -5.06}, {"DateStr": "2022-03-01", "Drawdown": -19.79}, {"DateStr": "2022-04-01", "Drawdown": -11.68}, {"DateStr": "2022-05-01", "Drawdown": -22.54}, {"DateStr": "2022-06-01", "Drawdown": -30.49}, {"DateStr": "2022-07-01", "Drawdown": -30.75}, {"DateStr": "2022-08-01", "Drawdown": -23.08}, {"DateStr": "2022-09-01", "Drawdown": -31.55}, {"DateStr": "2022-10-01", "Drawdown": -30.62}, {"DateStr": "2022-11-01", "Drawdown": -29.04}, {"DateStr": "2022-12-01", "Drawdown": -26.65}, {"DateStr": "2023-01-01", "Drawdown": -25.16}, {"DateStr": "2023-02-01", "Drawdown": -11.51}, {"DateStr": "2023-03-01", "Drawdown": -20.0}, {"DateStr": "2023-04-01", "Drawdown": -20.12}, {"DateStr": "2023-05-01", "Drawdown": -24.11}, {"DateStr": "2023-06-01", "Drawdown": -16.52}, {"DateStr": "2023-07-01", "Drawdown": -15.79}, {"DateStr": "2023-08-01", "Drawdown": -18.78}, {"DateStr": "2023-09-01", "Drawdown": -23.2}, {"DateStr": "2023-10-01", "Drawdown": -26.96}, {"DateStr": "2023-11-01", "Drawdown": -24.3}, {"DateStr": "2023-12-01", "Drawdown": -13.42}, {"DateStr": "2024-01-01", "Drawdown": -6.77}, {"DateStr": "2024-02-01", "Drawdown": -1.32}, {"DateStr": "2024-03-01", "Drawdown": -2.22}, {"DateStr": "2024-04-01", "Drawdown": -4.78}, {"DateStr": "2024-05-01", "Drawdown": -3.49}, {"DateStr": "2024-06-01", "Drawdown": -8.59}, {"DateStr": "2024-07-01", "Drawdown": -3.91}, {"DateStr": "2024-08-01", "Drawdown": -10.72}, {"DateStr": "2024-09-01", "Drawdown": -6.07}, {"DateStr": "2024-10-01", "Drawdown": -6.45}, {"DateStr": "2024-11-01", "Drawdown": -5.46}, {"DateStr": "2024-12-01", "Drawdown": -5.82}, {"DateStr": "2025-01-01", "Drawdown": -3.79}, {"DateStr": "2025-02-01", "Drawdown": -9.98}, {"DateStr": "2025-03-01", "Drawdown": -21.63}, {"DateStr": "2025-04-01", "Drawdown": -28.76}, {"DateStr": "2025-05-01", "Drawdown": -17.32}, {"DateStr": "2025-06-01", "Drawdown": -11.39}, {"DateStr": "2025-07-01", "Drawdown": -8.78}, {"DateStr": "2025-08-01", "Drawdown": -10.32}, {"DateStr": "2025-09-01", "Drawdown": -2.97}, {"DateStr": "2025-10-01", "Drawdown": -7.38}, {"DateStr": "2025-11-01", "Drawdown": -8.61}, {"DateStr": "2025-12-01", "Drawdown": -3.88}, {"DateStr": "2026-01-01", "Drawdown": -8.3}, {"DateStr": "2026-02-01", "Drawdown": -19.57}, {"DateStr": "2026-03-01", "Drawdown": -21.62}], "yearly": [{"Year": 1972, "Open": 1.2242109775543213, "Close": 1.3815715312957764, "Low": 1.0721850395202637, "High": 1.3869056701660156, "Volume": 0, "Dividends": 0.0, "Return": 12.85, "Yield": 0.0}, {"Year": 1973, "Open": 1.3949072360992432, "Close": 0.9574986696243286, "Low": 0.8881535530090332, "High": 1.485588550567627, "Volume": 266755130, "Dividends": 0.0, "Return": -31.36, "Yield": 0.0}, {"Year": 1974, "Open": 0.8828190565109253, "Close": 0.55476313829422, "Low": 0.3760650157928467, "High": 1.0295110940933228, "Volume": 371174785, "Dividends": 0.0, "Return": -37.16, "Yield": 0.0}, {"Year": 1975, "Open": 0.5654311180114746, "Close": 0.7841349244117737, "Low": 0.5440940260887146, "High": 0.9574986696243286, "Volume": 379187718, "Dividends": 0.0, "Return": 38.68, "Yield": 0.0}, {"Year": 1976, "Open": 0.7814685702323914, "Close": 0.8641495108604431, "Low": 0.6614479422569275, "High": 0.9041566252708436, "Volume": 365447055, "Dividends": 0.0, "Return": 10.58, "Yield": 0.0}, {"Year": 1977, "Open": 0.8561475872993469, "Close": 0.7924413681030273, "Low": 0.7467960715293884, "High": 0.899538516998291, "Volume": 278529062, "Dividends": 0.083682, "Return": -7.44, "Yield": 10.15}, {"Year": 1978, "Open": 0.7675908803939819, "Close": 0.6745026111602783, "Low": 0.6511908769607544, "High": 0.9175867438316344, "Volume": 304354353, "Dividends": 0.099774, "Return": -12.13, "Yield": 13.84}, {"Year": 1979, "Open": 0.6571335196495056, "Close": 0.7314079999923706, "Low": 0.6571335196495056, "High": 0.8716443777084351, "Volume": 334998568, "Dividends": 0.115868, "Return": 11.3, "Yield": 16.69}, {"Year": 1980, "Open": 0.7314079999923706, "Close": 1.0441563129425049, "Low": 0.6242980360984802, "High": 1.0441563129425049, "Volume": 441190758, "Dividends": 0.128744, "Return": 42.76, "Yield": 14.5}, {"Year": 1981, "Open": 1.0376722812652588, "Close": 1.1833394765853882, "Low": 1.0301337242126465, "High": 1.4162497520446775, "Volume": 702721498, "Dividends": 0.096558, "Return": 14.04, "Yield": 8.69}, {"Year": 1982, "Open": 1.1982755661010742, "Close": 1.7895219326019287, "Low": 0.981107771396637, "High": 1.9427098035812376, "Volume": 1007369453, "Dividends": 0.106212, "Return": 49.34, "Yield": 7.11}, {"Year": 1983, "Open": 1.725559949874878, "Close": 1.8950005769729612, "Low": 1.6394098997116089, "High": 2.7942986488342285, "Volume": 1194659087, "Dividends": 0.200837, "Return": 9.82, "Yield": 11.09}, {"Year": 1984, "Open": 1.8078733682632449, "Close": 2.273230791091919, "Low": 1.513432264328003, "High": 2.298891067504883, "Volume": 1360748186, "Dividends": 0.164788, "Return": 25.74, "Yield": 8.08}, {"Year": 1985, "Open": 2.2354702949523926, "Close": 3.2967898845672607, "Low": 2.182603359222412, "High": 3.352425098419189, "Volume": 1544411584, "Dividends": 0.16993799999999998, "Return": 47.48, "Yield": 6.14}, {"Year": 1986, "Open": 3.2890145778656006, "Close": 3.6036226749420166, "Low": 3.164607048034668, "High": 4.354251861572266, "Volume": 1563006129, "Dividends": 0.177663, "Return": 9.57, "Yield": 5.16}, {"Year": 1987, "Open": 3.683172464370728, "Close": 3.010814905166626, "Low": 2.7737016677856445, "High": 5.1230292320251465, "Volume": 1779184920, "Dividends": 0.283233, "Return": -18.25, "Yield": 8.46}, {"Year": 1988, "Open": 3.1853444576263428, "Close": 3.638956069946289, "Low": 3.059882879257202, "High": 4.0684895515441895, "Volume": 947039128, "Dividends": 0.24976, "Return": 14.24, "Yield": 7.32}, {"Year": 1989, "Open": 3.638956069946289, "Close": 4.889509677886963, "Low": 3.638956069946289, "High": 5.465668201446533, "Volume": 919010586, "Dividends": 0.221437, "Return": 34.37, "Yield": 5.19}, {"Year": 1990, "Open": 4.889509677886963, "Close": 3.0055699348449707, "Low": 2.5217437744140625, "High": 4.942087650299072, "Volume": 1224364220, "Dividends": 0.236884, "Return": -38.53, "Yield": 6.0}, {"Year": 1991, "Open": 2.950922727584839, "Close": 3.1086010932922363, "Low": 2.71534276008606, "High": 4.388479232788086, "Volume": 1636514758, "Dividends": 0.24718400000000001, "Return": 5.34, "Yield": 8.16}, {"Year": 1992, "Open": 3.1465108394622803, "Close": 3.8985445499420166, "Low": 3.127553939819336, "High": 3.9377269744873047, "Volume": 1261448462, "Dividends": 0.19311299999999998, "Return": 23.9, "Yield": 5.48}, {"Year": 1993, "Open": 3.957911252975464, "Close": 5.007628440856934, "Low": 3.5423331260681152, "High": 5.878111362457275, "Volume": 1447188095, "Dividends": 0.257484, "Return": 26.52, "Yield": 5.74}, {"Year": 1994, "Open": 4.844111919403076, "Close": 5.649023056030273, "Low": 4.496273994445801, "High": 5.9650397300720215, "Volume": 1439585856, "Dividends": 0.325686, "Return": 16.62, "Yield": 6.21}, {"Year": 1995, "Open": 5.6011505126953125, "Close": 8.068191528320312, "Low": 5.6011505126953125, "High": 8.726327896118164, "Volume": 1232284702, "Dividends": 0.196944, "Return": 44.05, "Yield": 2.88}, {"Year": 1996, "Open": 8.092568397521973, "Close": 11.28069305419922, "Low": 7.597506523132324, "High": 11.85793685913086, "Volume": 1118864956, "Dividends": 0.32824, "Return": 39.4, "Yield": 3.39}, {"Year": 1997, "Open": 10.906333923339844, "Close": 18.036136627197266, "Low": 10.881377220153809, "High": 18.052350997924805, "Volume": 1207779505, "Dividends": 0.262592, "Return": 65.37, "Yield": 1.81}, {"Year": 1998, "Open": 17.922470092773438, "Close": 20.866390228271484, "Low": 14.103597640991213, "High": 23.920310974121094, "Volume": 1462817201, "Dividends": 0.196944, "Return": 16.43, "Yield": 1.02}, {"Year": 1999, "Open": 20.662818908691406, "Close": 34.097835540771484, "Low": 19.574678421020508, "High": 34.40549087524414, "Volume": 1564289733, "Dividends": 0.262883, "Return": 65.02, "Yield": 0.96}, {"Year": 2000, "Open": 32.251956939697266, "Close": 34.00780487060547, "Low": 25.2134952545166, "High": 38.9480094909668, "Volume": 1463865880, "Dividends": 0.27572, "Return": 5.44, "Yield": 0.83}, {"Year": 2001, "Open": 32.18942642211914, "Close": 22.28026962280273, "Low": 15.94349765777588, "High": 34.680206298828125, "Volume": 1694777560, "Dividends": 0.280096, "Return": -30.78, "Yield": 1.03}, {"Year": 2002, "Open": 22.449199676513672, "Close": 22.314451217651367, "Low": 16.75340461730957, "High": 28.130475997924805, "Volume": 1476558666, "Dividends": 0.35012, "Return": -0.6, "Yield": 1.56}, {"Year": 2003, "Open": 23.14769554138184, "Close": 30.72203254699707, "Low": 19.87785148620605, "High": 31.154518127441406, "Volume": 1316722843, "Dividends": 0.33261399999999997, "Return": 32.72, "Yield": 1.23}, {"Year": 2004, "Open": 30.41628074645996, "Close": 36.12891387939453, "Low": 30.384428024291992, "High": 36.481441497802734, "Volume": 1120829653, "Dividends": 0.280096, "Return": 18.78, "Yield": 0.84}, {"Year": 2005, "Open": 35.8340950012207, "Close": 38.02798843383789, "Low": 32.06977462768555, "High": 39.04777145385742, "Volume": 1446899830, "Dividends": 0.435108, "Return": 6.12, "Yield": 1.18}, {"Year": 2006, "Open": 38.85565185546875, "Close": 45.2856674194336, "Low": 37.68285751342773, "High": 46.20377731323242, "Volume": 1237116000, "Dividends": 0.54, "Return": 16.55, "Yield": 1.28}, {"Year": 2007, "Open": 45.16593933105469, "Close": 39.22215270996094, "Low": 38.33245849609375, "High": 49.30123901367188, "Volume": 1872902600, "Dividends": 0.6, "Return": -13.16, "Yield": 1.42}, {"Year": 2008, "Open": 38.61688995361328, "Close": 14.22307300567627, "Low": 13.210976600646973, "High": 38.98731231689453, "Volume": 3756234900, "Dividends": 0.72, "Return": -63.17, "Yield": 2.73}, {"Year": 2009, "Open": 14.821128845214844, "Close": 32.16579818725586, "Low": 7.93456506729126, "High": 33.20570373535156, "Volume": 4833550700, "Dividends": 0.72, "Return": 117.03, "Yield": 3.06}, {"Year": 2010, "Open": 32.48331832885742, "Close": 34.68666458129883, "Low": 29.33206558227539, "High": 38.47645950317383, "Volume": 2751923400, "Dividends": 0.72, "Return": 6.78, "Yield": 2.14}, {"Year": 2011, "Open": 35.074615478515625, "Close": 38.73033142089844, "Low": 34.37488555908203, "High": 43.81930923461914, "Volume": 1987353100, "Dividends": 0.72, "Return": 10.42, "Yield": 1.95}, {"Year": 2012, "Open": 39.7320556640625, "Close": 47.86474990844727, "Low": 39.7320556640625, "High": 50.488162994384766, "Volume": 1406758400, "Dividends": 0.78, "Return": 20.47, "Yield": 1.78}, {"Year": 2013, "Open": 49.09311676025391, "Close": 76.50498962402344, "Low": 49.09311676025391, "High": 76.50498962402344, "Volume": 1200269200, "Dividends": 0.8600000000000001, "Return": 55.84, "Yield": 1.37}, {"Year": 2014, "Open": 75.42567443847656, "Close": 79.30714416503906, "Low": 68.39645385742188, "High": 81.22730255126953, "Volume": 964369900, "Dividends": 0.98, "Return": 5.15, "Yield": 1.27}, {"Year": 2015, "Open": 79.29010009765625, "Close": 60.10730743408203, "Low": 58.65541076660156, "High": 79.29010009765625, "Volume": 1605086100, "Dividends": 1.1, "Return": -24.19, "Yield": 1.58}, {"Year": 2016, "Open": 58.41341018676758, "Close": 65.26583099365234, "Low": 44.36419677734375, "High": 66.35831451416016, "Volume": 1400212100, "Dividends": 1.19, "Return": 11.73, "Yield": 1.92}, {"Year": 2017, "Open": 66.38475036621094, "Close": 88.90275573730469, "Low": 66.38475036621094, "High": 89.25186920166016, "Volume": 895919200, "Dividends": 1.31, "Return": 33.92, "Yield": 1.69}, {"Year": 2018, "Open": 88.57154083251953, "Close": 86.57334899902344, "Low": 79.36138916015625, "High": 102.5311050415039, "Volume": 922888800, "Dividends": 1.44, "Return": -2.26, "Yield": 1.64}, {"Year": 2019, "Open": 86.90030670166016, "Close": 114.72473907470705, "Low": 85.20407104492188, "High": 118.03328704833984, "Volume": 822191300, "Dividends": 1.6, "Return": 32.02, "Yield": 1.59}, {"Year": 2020, "Open": 116.38005065917967, "Close": 113.4147491455078, "Low": 63.77090835571289, "High": 126.6263198852539, "Volume": 1326744900, "Dividends": 1.72, "Return": -2.55, "Yield": 1.5}, {"Year": 2021, "Open": 110.72264862060548, "Close": 155.24737548828125, "Low": 107.3927764892578, "High": 177.52857971191406, "Volume": 899343000, "Dividends": 1.72, "Return": 40.21, "Yield": 1.29}, {"Year": 2022, "Open": 159.62197875976562, "Close": 142.02505493164062, "Low": 129.18942260742188, "High": 188.72413635253903, "Volume": 876067800, "Dividends": 1.99, "Return": -11.02, "Yield": 1.32}, {"Year": 2023, "Open": 141.41946411132812, "Close": 182.7444305419922, "Low": 137.84356689453125, "High": 183.1931304931641, "Volume": 790078900, "Dividends": 2.32, "Return": 29.22, "Yield": 1.43}, {"Year": 2024, "Open": 183.6906280517578, "Close": 292.9761047363281, "Low": 175.94622802734375, "High": 301.64324951171875, "Volume": 716252000, "Dividends": 2.6999999999999997, "Return": 59.49, "Yield": 1.13}, {"Year": 2025, "Open": 294.5950012207031, "Close": 369.1300048828125, "Low": 229.71365356445312, "High": 384.0368957519531, "Volume": 697642200, "Dividends": 3.1599999999999997, "Return": 25.3, "Yield": 0.95}, {"Year": 2026, "Open": 372.7300109863281, "Close": 305.989990234375, "Low": 301.0, "High": 383.55999755859375, "Volume": 176236100, "Dividends": 0.82, "Return": -17.91, "Yield": 0.24}], "decades": [{"Decade": "1970s", "StartPrice": 1.22, "EndPrice": 0.73, "TotalReturn": -40.3, "CAGR": -6.6, "Volatility": 35.5, "MaxDrawdown": 74.7, "TotalDividends": 0.3, "TradingDays": 1914}, {"Decade": "1980s", "StartPrice": 0.73, "EndPrice": 4.89, "TotalReturn": 568.5, "CAGR": 20.9, "Volatility": 33.8, "MaxDrawdown": 45.9, "TotalDividends": 1.8, "TradingDays": 2528}, {"Decade": "1990s", "StartPrice": 4.89, "EndPrice": 34.1, "TotalReturn": 597.4, "CAGR": 21.5, "Volatility": 32.7, "MaxDrawdown": 49.0, "TotalDividends": 2.51, "TradingDays": 2528}, {"Decade": "2000s", "StartPrice": 32.25, "EndPrice": 32.17, "TotalReturn": -0.3, "CAGR": -0.0, "Volatility": 43.8, "MaxDrawdown": 83.9, "TotalDividends": 4.53, "TradingDays": 2515}, {"Decade": "2010s", "StartPrice": 32.48, "EndPrice": 114.72, "TotalReturn": 253.2, "CAGR": 13.5, "Volatility": 22.7, "MaxDrawdown": 45.4, "TotalDividends": 10.7, "TradingDays": 2516}, {"Decade": "2020s", "StartPrice": 116.38, "EndPrice": 305.99, "TotalReturn": 162.9, "CAGR": 16.9, "Volatility": 37.4, "MaxDrawdown": 49.6, "TotalDividends": 14.43, "TradingDays": 1555}], "phases": [{"Name": "1973 Oil Crisis", "Type": "Bear", "Start": "1972-06-01", "End": "1974-10-03", "Return": -67.3, "Years": 2.3}, {"Name": "Post-Crisis Recovery", "Type": "Bull", "Start": "1974-10-03", "End": "1981-01-19", "Return": 191.4, "Years": 6.3}, {"Name": "Early 80s Recession", "Type": "Bear", "Start": "1981-01-19", "End": "1982-08-12", "Return": -10.5, "Years": 1.6}, {"Name": "Reagan Boom", "Type": "Bull", "Start": "1982-08-12", "End": "1987-08-25", "Return": 397.9, "Years": 5.0}, {"Name": "Black Monday", "Type": "Bear", "Start": "1987-08-25", "End": "1987-12-04", "Return": -44.5, "Years": 0.3}, {"Name": "Late 80s Rally", "Type": "Bull", "Start": "1987-12-04", "End": "1989-10-09", "Return": 89.3, "Years": 1.8}, {"Name": "Gulf War / S&L Crisis", "Type": "Bear", "Start": "1989-10-09", "End": "1990-10-16", "Return": -50.9, "Years": 1.0}, {"Name": "1990s Expansion", "Type": "Bull", "Start": "1990-10-16", "End": "1998-07-14", "Return": 780.9, "Years": 7.7}, {"Name": "LTCM Crisis", "Type": "Bear", "Start": "1998-07-14", "End": "1998-10-08", "Return": -37.7, "Years": 0.2}, {"Name": "Dot-Com Peak", "Type": "Bull", "Start": "1998-10-08", "End": "2000-10-02", "Return": 154.9, "Years": 2.0}, {"Name": "Dot-Com Bust", "Type": "Bear", "Start": "2000-10-02", "End": "2003-03-11", "Return": -48.3, "Years": 2.4}, {"Name": "Mid-2000s Expansion", "Type": "Bull", "Start": "2003-03-11", "End": "2007-07-19", "Return": 145.3, "Years": 4.4}, {"Name": "Global Financial Crisis", "Type": "Bear", "Start": "2007-07-19", "End": "2009-03-06", "Return": -83.8, "Years": 1.6}, {"Name": "Post-GFC Recovery", "Type": "Bull", "Start": "2009-03-06", "End": "2014-07-03", "Return": 917.0, "Years": 5.3}, {"Name": "Commodity Slump", "Type": "Bear", "Start": "2014-07-03", "End": "2016-02-11", "Return": -44.1, "Years": 1.6}, {"Name": "Late 2010s Expansion", "Type": "Bull", "Start": "2016-02-11", "End": "2020-02-19", "Return": 182.7, "Years": 4.0}, {"Name": "COVID-19 Crash", "Type": "Bear", "Start": "2020-02-19", "End": "2020-03-23", "Return": -45.9, "Years": 0.1}, {"Name": "Post-COVID Rally", "Type": "Bull", "Start": "2020-03-23", "End": "2022-02-16", "Return": 195.3, "Years": 1.9}, {"Name": "Rate Hike Selloff", "Type": "Bear", "Start": "2022-02-16", "End": "2022-10-14", "Return": -27.9, "Years": 0.7}, {"Name": "Growth Rally", "Type": "Bull", "Start": "2022-10-14", "End": "2025-12-11", "Return": 185.0, "Years": 3.2}, {"Name": "2026 Correction", "Type": "Bear", "Start": "2025-12-11", "End": "2026-03-11", "Return": -21.1, "Years": 0.2}], "drawdowns_table": [{"Event": "1973-74 Oil Crisis", "Peak": "Jan 19, 1973", "Trough": "Oct 03, 1974", "Drawdown": -74.7, "Recovery": "Jun 1980"}, {"Event": "1983-84 Recession", "Peak": "Jun 17, 1983", "Trough": "Jul 24, 1984", "Drawdown": -45.8, "Recovery": "Nov 1985"}, {"Event": "Black Monday 1987", "Peak": "Mar 06, 1987", "Trough": "Oct 19, 1987", "Drawdown": -42.7, "Recovery": "Oct 1987"}, {"Event": "Gulf War / S&L Crisis", "Peak": "Oct 09, 1989", "Trough": "Oct 17, 1990", "Drawdown": -53.9, "Recovery": "Mar 1991"}, {"Event": "LTCM / Russian Default", "Peak": "Jul 14, 1998", "Trough": "Oct 08, 1998", "Drawdown": -37.7, "Recovery": "Nov 1998"}, {"Event": "Dot-Com Bust", "Peak": "Oct 02, 2000", "Trough": "Sep 21, 2001", "Drawdown": -59.1, "Recovery": "May 2003"}, {"Event": "Global Financial Crisis", "Peak": "Jul 19, 2007", "Trough": "Mar 06, 2009", "Drawdown": -83.9, "Recovery": "Apr 2012"}, {"Event": "Commodity Slump", "Peak": "Jul 03, 2014", "Trough": "Feb 11, 2016", "Drawdown": -45.4, "Recovery": "Apr 2016"}, {"Event": "COVID-19 Crash", "Peak": "Feb 19, 2020", "Trough": "Mar 23, 2020", "Drawdown": -49.6, "Recovery": "Feb 2021"}, {"Event": "Rate Hike Selloff", "Peak": "Feb 16, 2022", "Trough": "Jun 16, 2022", "Drawdown": -30.5, "Recovery": "Jun 2022"}], "splits": [{"DateStr": "Feb 11, 1983", "Close": 1.9, "Stock Splits": 1.333}, {"DateStr": "Aug 11, 1983", "Close": 2.43, "Stock Splits": 1.5}, {"DateStr": "May 11, 1987", "Close": 4.19, "Stock Splits": 2.0}, {"DateStr": "May 31, 1994", "Close": 5.17, "Stock Splits": 1.133}, {"DateStr": "May 11, 2000", "Close": 30.56, "Stock Splits": 3.0}, {"DateStr": "Oct 03, 2005", "Close": 37.41, "Stock Splits": 1.142}], "vol_spikes": [{"DateStr": "Aug 20, 1984", "Close": 1.9, "Volume": 63615583, "DailyReturn": 1.6}, {"DateStr": "Jan 11, 2008", "Close": 33.29, "Volume": 57219900, "DailyReturn": -10.1}, {"DateStr": "Jul 22, 2008", "Close": 28.98, "Volume": 48554300, "DailyReturn": -7.1}, {"DateStr": "Sep 18, 2008", "Close": 28.77, "Volume": 43084400, "DailyReturn": 14.2}, {"DateStr": "Oct 10, 2008", "Close": 17.75, "Volume": 45641400, "DailyReturn": -3.5}, {"DateStr": "Nov 13, 2008", "Close": 15.93, "Volume": 47721200, "DailyReturn": 3.6}, {"DateStr": "Feb 24, 2009", "Close": 10.53, "Volume": 40853700, "DailyReturn": 12.1}, {"DateStr": "Apr 13, 2009", "Close": 16.03, "Volume": 46328400, "DailyReturn": 8.7}, {"DateStr": "Apr 14, 2009", "Close": 14.44, "Volume": 40389800, "DailyReturn": -9.9}, {"DateStr": "Apr 15, 2009", "Close": 16.16, "Volume": 50555000, "DailyReturn": 11.9}, {"DateStr": "Apr 20, 2009", "Close": 14.87, "Volume": 40434400, "DailyReturn": -13.0}, {"DateStr": "Apr 21, 2009", "Close": 15.34, "Volume": 43648700, "DailyReturn": 3.1}, {"DateStr": "Apr 24, 2009", "Close": 19.83, "Volume": 90336900, "DailyReturn": 20.6}, {"DateStr": "May 06, 2009", "Close": 21.27, "Volume": 48304700, "DailyReturn": 2.1}, {"DateStr": "Oct 05, 2010", "Close": 30.79, "Volume": 68417100, "DailyReturn": -2.0}, {"DateStr": "Jan 22, 2016", "Close": 47.79, "Volume": 43783400, "DailyReturn": -12.1}]};
+
+
+const parseDate = d3.utcParse("%Y-%m-%d");
+const parseYear = d3.utcParse("%Y");
+
+chartData.monthly.forEach(d => d.date = parseDate(d.DateStr));
+chartData.drawdown.forEach(d => d.date = parseDate(d.DateStr));
+chartData.yearly.forEach(d => d.year = d.Year);
+
+function createLineChart(containerId, data, xField, yField, options = {}) {
+  const container = document.getElementById(containerId);
+  const width = container.clientWidth || 900;
+  const height = options.height || 360;
+  const margin = {top: 20, right: 30, bottom: 40, left: 60};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const x = d3.scaleUtc()
+    .domain(d3.extent(data, d => d[xField]))
+    .range([0, innerW]);
+
+  const y = d3.scaleLinear()
+    .domain(options.yDomain || d3.extent(data, d => d[yField]))
+    .range([innerH, 0]);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Grid
+  g.append("g")
+    .attr("class", "grid")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickSize(-innerH).tickFormat(""));
+
+  g.append("g")
+    .attr("class", "grid")
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""));
+
+  // Line
+  const line = d3.line()
+    .x(d => x(d[xField]))
+    .y(d => y(d[yField]))
+    .curve(d3.curveMonotoneX);
+
+  g.append("path")
+    .datum(data)
+    .attr("fill", "none")
+    .attr("stroke", options.color || "#0061f2")
+    .attr("stroke-width", options.strokeWidth || 2)
+    .attr("d", line);
+
+  if (options.area) {
+    const area = d3.area()
+      .x(d => x(d[xField]))
+      .y0(innerH)
+      .y1(d => y(d[yField]))
+      .curve(d3.curveMonotoneX);
+    g.append("path")
+      .datum(data)
+      .attr("fill", options.color || "#0061f2")
+      .attr("opacity", 0.12)
+      .attr("d", area);
+  }
+
+  // Axes
+  g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(width < 500 ? 4 : 8));
+
+  g.append("g")
+    .attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(6).tickFormat(options.yFormat || d3.format(".2f")));
+
+  // Axis labels
+  if (options.yLabel) {
+    g.append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -margin.left + 12)
+      .attr("x", -innerH / 2)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#5a5a6e")
+      .attr("font-size", "12px")
+      .text(options.yLabel);
+  }
+
+  // Tooltip
+  const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+  const bisect = d3.bisector(d => d[xField]).left;
+
+  const overlay = g.append("rect")
+    .attr("width", innerW)
+    .attr("height", innerH)
+    .attr("fill", "transparent");
+
+  overlay.on("mousemove", function(event) {
+    const mx = d3.pointer(event, this)[0];
+    const x0 = x.invert(mx);
+    const i = bisect(data, x0, 1);
+    const d0 = data[i - 1];
+    const d1 = data[i];
+    if (!d0 || !d1) return;
+    const d = x0 - d0[xField] > d1[xField] - x0 ? d1 : d0;
+    tooltip.style("opacity", 1)
+      .style("left", (event.pageX + 12) + "px")
+      .style("top", (event.pageY - 28) + "px")
+      .html(`<strong>${d3.utcFormat("%b %Y")(d[xField])}</strong><br/>${options.tooltipLabel || ""}: ${options.yFormat ? options.yFormat(d[yField]) : d[yField].toFixed(2)}`);
+  }).on("mouseout", () => tooltip.style("opacity", 0));
+}
+
+// Price chart (log scale)
+(function() {
+  const container = document.getElementById("price-chart");
+  const width = container.clientWidth || 900;
+  const height = 420;
+  const margin = {top: 20, right: 30, bottom: 40, left: 70};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const data = chartData.monthly;
+  const x = d3.scaleUtc().domain(d3.extent(data, d => d.date)).range([0, innerW]);
+  const y = d3.scaleLog().domain([0.3, 500]).range([innerH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g").attr("class", "grid").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickSize(-innerH).tickFormat(""));
+  g.append("g").attr("class", "grid")
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""));
+
+  const line = d3.line().x(d => x(d.date)).y(d => y(d.Close)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "none").attr("stroke", "#0061f2").attr("stroke-width", 2).attr("d", line);
+
+  // Area under line
+  const area = d3.area().x(d => x(d.date)).y0(innerH).y1(d => y(d.Close)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "#0061f2").attr("opacity", 0.08).attr("d", area);
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(width < 500 ? 4 : 8));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(6, "~s"));
+
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -margin.left + 16)
+    .attr("x", -innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Adjusted Close Price (Log Scale, USD)");
+
+  // Annotations for major events
+  const annotations = [
+    {date: new Date("1974-10-03"), label: "ATL $0.38", y: 0.38},
+    {date: new Date("1987-10-19"), label: "Black Monday", y: 3.0},
+    {date: new Date("2007-07-19"), label: "GFC Peak", y: 49.3},
+    {date: new Date("2009-03-06"), label: "GFC Trough", y: 7.93},
+    {date: new Date("2020-03-23"), label: "COVID Low", y: 63.77},
+    {date: new Date("2025-12-11"), label: "ATH $384", y: 384},
+  ];
+
+  annotations.forEach(a => {
+    const ax = x(a.date);
+    const ay = y(a.y);
+    if (ax >= 0 && ax <= innerW && ay >= 0 && ay <= innerH) {
+      g.append("circle").attr("cx", ax).attr("cy", ay).attr("r", 4).attr("fill", "#e74c3c").attr("stroke", "#fff").attr("stroke-width", 1.5);
+      g.append("text").attr("x", ax + 8).attr("y", ay - 8).attr("fill", "#e74c3c").attr("font-size", "11px").attr("font-weight", "600").text(a.label);
+    }
+  });
+
+  const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+  const bisect = d3.bisector(d => d.date).left;
+  g.append("rect").attr("width", innerW).attr("height", innerH).attr("fill", "transparent")
+    .on("mousemove", function(event) {
+      const mx = d3.pointer(event, this)[0];
+      const x0 = x.invert(mx);
+      const i = bisect(data, x0, 1);
+      const d = data[i] || data[i-1];
+      if (!d) return;
+      tooltip.style("opacity", 1)
+        .style("left", (event.pageX + 12) + "px")
+        .style("top", (event.pageY - 28) + "px")
+        .html(`<strong>${d3.utcFormat("%b %Y")(d.date)}</strong><br/>Close: $${d.Close.toFixed(2)}`);
+    }).on("mouseout", () => tooltip.style("opacity", 0));
+})();
+
+// Drawdown chart
+(function() {
+  const container = document.getElementById("drawdown-chart");
+  const width = container.clientWidth || 900;
+  const height = 320;
+  const margin = {top: 20, right: 30, bottom: 40, left: 60};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+  const data = chartData.drawdown;
+  const x = d3.scaleUtc().domain(d3.extent(data, d => d.date)).range([0, innerW]);
+  const y = d3.scaleLinear().domain([-90, 0]).range([innerH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g").attr("class", "grid").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickSize(-innerH).tickFormat(""));
+  g.append("g").attr("class", "grid")
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""));
+
+  const area = d3.area().x(d => x(d.date)).y0(innerH).y1(d => y(d.Drawdown)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "#e74c3c").attr("opacity", 0.25).attr("d", area);
+
+  const line = d3.line().x(d => x(d.date)).y(d => y(d.Drawdown)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "none").attr("stroke", "#e74c3c").attr("stroke-width", 1.5).attr("d", line);
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(width < 500 ? 4 : 8));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(6, d => d + "%"));
+
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -margin.left + 16)
+    .attr("x", -innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Drawdown (%)");
+
+  const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+  const bisect = d3.bisector(d => d.date).left;
+  g.append("rect").attr("width", innerW).attr("height", innerH).attr("fill", "transparent")
+    .on("mousemove", function(event) {
+      const mx = d3.pointer(event, this)[0];
+      const x0 = x.invert(mx);
+      const i = bisect(data, x0, 1);
+      const d = data[i] || data[i-1];
+      if (!d) return;
+      tooltip.style("opacity", 1)
+        .style("left", (event.pageX + 12) + "px")
+        .style("top", (event.pageY - 28) + "px")
+        .html(`<strong>${d3.utcFormat("%b %Y")(d.date)}</strong><br/>Drawdown: ${d.Drawdown.toFixed(1)}%`);
+    }).on("mouseout", () => tooltip.style("opacity", 0));
+})();
+
+// Volume chart
+(function() {
+  const container = document.getElementById("volume-chart");
+  const width = container.clientWidth || 900;
+  const height = 320;
+  const margin = {top: 20, right: 30, bottom: 40, left: 70};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+  const data = chartData.monthly.filter(d => d.Volume > 0);
+  const x = d3.scaleUtc().domain(d3.extent(data, d => d.date)).range([0, innerW]);
+  const y = d3.scaleLinear().domain([0, d3.max(data, d => d.Volume) * 1.05]).range([innerH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g").attr("class", "grid").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickSize(-innerH).tickFormat(""));
+  g.append("g").attr("class", "grid")
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""));
+
+  const area = d3.area().x(d => x(d.date)).y0(innerH).y1(d => y(d.Volume)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "#00c9a7").attr("opacity", 0.2).attr("d", area);
+
+  const line = d3.line().x(d => x(d.date)).y(d => y(d.Volume)).curve(d3.curveMonotoneX);
+  g.append("path").datum(data).attr("fill", "none").attr("stroke", "#00c9a7").attr("stroke-width", 1.5).attr("d", line);
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(width < 500 ? 4 : 8));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(6, d => d3.format(".2s")(d)));
+
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -margin.left + 16)
+    .attr("x", -innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Monthly Volume (shares)");
+
+  const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+  const bisect = d3.bisector(d => d.date).left;
+  g.append("rect").attr("width", innerW).attr("height", innerH).attr("fill", "transparent")
+    .on("mousemove", function(event) {
+      const mx = d3.pointer(event, this)[0];
+      const x0 = x.invert(mx);
+      const i = bisect(data, x0, 1);
+      const d = data[i] || data[i-1];
+      if (!d) return;
+      tooltip.style("opacity", 1)
+        .style("left", (event.pageX + 12) + "px")
+        .style("top", (event.pageY - 28) + "px")
+        .html(`<strong>${d3.utcFormat("%b %Y")(d.date)}</strong><br/>Volume: ${d3.format(",")(d.Volume)}`);
+    }).on("mouseout", () => tooltip.style("opacity", 0));
+})();
+
+// Dividend chart (annual yield + dividends)
+(function() {
+  const container = document.getElementById("dividend-chart");
+  const width = container.clientWidth || 900;
+  const height = 360;
+  const margin = {top: 20, right: 50, bottom: 40, left: 60};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+  const data = chartData.yearly.filter(d => d.Dividends > 0 || d.Year >= 1977);
+  const x = d3.scaleBand().domain(data.map(d => d.Year)).range([0, innerW]).padding(0.3);
+  const y1 = d3.scaleLinear().domain([0, d3.max(data, d => d.Dividends) * 1.1]).range([innerH, 0]);
+  const y2 = d3.scaleLinear().domain([0, d3.max(data, d => d.Yield) * 1.1]).range([innerH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Bars for dividends
+  g.selectAll(".bar")
+    .data(data)
+    .enter().append("rect")
+    .attr("class", d => d.Dividends >= 0 ? "bar-positive" : "bar-negative")
+    .attr("x", d => x(d.Year))
+    .attr("y", d => y1(d.Dividends))
+    .attr("width", x.bandwidth())
+    .attr("height", d => innerH - y1(d.Dividends))
+    .attr("fill", "#0061f2")
+    .attr("opacity", 0.7);
+
+  // Line for yield
+  const line = d3.line()
+    .x(d => x(d.Year) + x.bandwidth()/2)
+    .y(d => y2(d.Yield))
+    .curve(d3.curveMonotoneX);
+
+  g.append("path").datum(data).attr("fill", "none").attr("stroke", "#f39c12").attr("stroke-width", 2).attr("d", line);
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).tickValues(x.domain().filter((d,i) => i % 5 === 0)));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(y1).ticks(6, d => "$" + d));
+  g.append("g").attr("class", "axis").attr("transform", `translate(${innerW},0)`)
+    .call(d3.axisRight(y2).ticks(6, d => d + "%"));
+
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -margin.left + 16)
+    .attr("x", -innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Annual Dividends ($)");
+  g.append("text").attr("transform", "rotate(90)").attr("y", -margin.right + 12)
+    .attr("x", innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Dividend Yield (%)");
+
+  // Legend
+  const legend = d3.select(container).append("div").attr("class", "legend");
+  legend.append("div").attr("class", "legend-item")
+    .html(`<div class="legend-color" style="background:#0061f2"></div> Annual Dividends ($)`);
+  legend.append("div").attr("class", "legend-item")
+    .html(`<div class="legend-color" style="background:#f39c12"></div> Dividend Yield (%)`);
+})();
+
+// Decade comparison chart (grouped bar)
+(function() {
+  const container = document.getElementById("decade-chart");
+  const width = container.clientWidth || 900;
+  const height = 380;
+  const margin = {top: 20, right: 30, bottom: 40, left: 60};
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append("svg").attr("width", width).attr("height", height);
+  const data = chartData.decades;
+  const metrics = ['CAGR', 'Volatility', 'MaxDrawdown'];
+  const colors = ['#0061f2', '#00c9a7', '#e74c3c'];
+
+  const x0 = d3.scaleBand().domain(data.map(d => d.Decade)).range([0, innerW]).padding(0.2);
+  const x1 = d3.scaleBand().domain(metrics).range([0, x0.bandwidth()]).padding(0.05);
+  const y = d3.scaleLinear().domain([-90, 60]).range([innerH, 0]);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g").attr("class", "grid").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x0).tickSize(-innerH).tickFormat(""));
+  g.append("g").attr("class", "grid")
+    .call(d3.axisLeft(y).tickSize(-innerW).tickFormat(""));
+
+  data.forEach(d => {
+    const dg = g.append("g").attr("transform", `translate(${x0(d.Decade)},0)`);
+    metrics.forEach((m, i) => {
+      const val = d[m];
+      const h = Math.abs(y(0) - y(val));
+      const yPos = val >= 0 ? y(val) : y(0);
+      dg.append("rect")
+        .attr("x", x1(m))
+        .attr("y", yPos)
+        .attr("width", x1.bandwidth())
+        .attr("height", h)
+        .attr("fill", colors[i])
+        .attr("opacity", 0.85)
+        .attr("rx", 3);
+    });
+  });
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x0));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(y).ticks(8, d => d + "%"));
+
+  g.append("line").attr("x1", 0).attr("x2", innerW).attr("y1", y(0)).attr("y2", y(0))
+    .attr("stroke", "#1a1a2e").attr("stroke-width", 1);
+
+  g.append("text").attr("transform", "rotate(-90)").attr("y", -margin.left + 16)
+    .attr("x", -innerH/2).attr("text-anchor", "middle").attr("fill", "#5a5a6e").attr("font-size", "12px")
+    .text("Percentage (%)");
+
+  const legend = d3.select(container).append("div").attr("class", "legend");
+  metrics.forEach((m, i) => {
+    legend.append("div").attr("class", "legend-item")
+      .html(`<div class="legend-color" style="background:${colors[i]}"></div> ${m}`);
+  });
+})();
+</script>
+</body>
+</html>

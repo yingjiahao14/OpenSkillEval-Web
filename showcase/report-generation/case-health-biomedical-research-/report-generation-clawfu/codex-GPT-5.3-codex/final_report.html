@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biomedical Research Landscape 2024–2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --bg:#f6f8fb; --card:#ffffff; --ink:#1f2937; --muted:#6b7280; --pri:#2563eb; --sec:#0ea5e9; --ok:#16a34a; --warn:#d97706; }
+    body { margin:0; font-family: Inter,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:1200px; margin:0 auto; padding:24px; }
+    .hero { background:linear-gradient(135deg,#1e3a8a,#0c4a6e); color:#fff; border-radius:14px; padding:26px; }
+    .hero h1{ margin:0 0 8px; font-size:30px; }
+    .hero p{ margin:4px 0; opacity:.95; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin:18px 0 24px; }
+    .card { background:var(--card); border-radius:12px; padding:16px; box-shadow:0 4px 18px rgba(0,0,0,.06); }
+    .kpi .label{ color:var(--muted); font-size:13px; }
+    .kpi .val{ font-size:28px; font-weight:700; margin-top:6px; }
+    h2 { margin:28px 0 12px; font-size:22px; }
+    p, li { line-height:1.45; }
+    .chart { background:var(--card); border-radius:12px; padding:14px; box-shadow:0 4px 18px rgba(0,0,0,.06); margin-bottom:14px; }
+    table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+    th,td { padding:10px; border-bottom:1px solid #e5e7eb; text-align:left; font-size:14px; }
+    th { background:#f3f4f6; }
+    .small { color:var(--muted); font-size:13px; }
+    .takeaways li{ margin-bottom:8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Biomedical Research Landscape 2024–2026</h1>
+    <p><strong>Scope:</strong> 4,886 PubMed abstracts (sampled dataset) from Jan-2024 to Mar-2026</p>
+    <p><strong>Audience:</strong> Research policy analysts & funding strategists</p>
+    <p class="small">Note: The source brief references 126,832 records, while the provided analysis file contains 4,886 rows. All metrics below are computed only from the supplied <code>data.csv</code>.</p>
+  </section>
+
+  <div class="grid">
+    <div class="card kpi"><div class="label">Total Publications</div><div class="val" id="kpi_total"></div></div>
+    <div class="card kpi"><div class="label">Open Access Rate</div><div class="val" id="kpi_oa"></div></div>
+    <div class="card kpi"><div class="label">Median Authors / Publication</div><div class="val" id="kpi_authors"></div></div>
+    <div class="card kpi"><div class="label">Top 10 Countries Share</div><div class="val" id="kpi_top10"></div></div>
+    <div class="card kpi"><div class="label">Fastest Emerging Topic MoM</div><div class="val" id="kpi_emerge"></div></div>
+  </div>
+
+  <h2>Publication Volume & Temporal Distribution</h2>
+  <p>The publication time series shows strong 2024 dominance (indexing accumulation effect), with lower volumes in 2025 and early 2026. Monthly analysis excludes unknown months from trend lines to avoid calendar distortion and reports them separately.</p>
+  <div class="chart"><canvas id="monthlyVolume"></canvas></div>
+  <div class="chart"><canvas id="yearlyVolume"></canvas></div>
+
+  <h2>Geographic Landscape of Biomedical Research</h2>
+  <p>Country output is concentrated among a small group of high-volume contributors. The top-10 share quantifies this concentration and informs concentration risk and partnership opportunity assessment.</p>
+  <div class="chart"><canvas id="topCountries"></canvas></div>
+
+  <h2>Research Topic & MeSH Keyword Analysis</h2>
+  <p>Topic prevalence and acceleration are analyzed using <code>major_topic</code>. Emerging topic growth is computed as average month-over-month growth over the most recent comparable months with non-zero baselines, requiring a minimum activity threshold to reduce noise.</p>
+  <div class="chart"><canvas id="topTopics"></canvas></div>
+  <div class="card"><table id="emergingTable"></table></div>
+
+  <h2>Open Access Adoption & Journal Landscape</h2>
+  <p>Open-access adoption is measured by the <code>open_access</code> flag and tracked monthly and yearly. Journal concentration highlights where publication volume is clustered.</p>
+  <div class="chart"><canvas id="oaTrend"></canvas></div>
+  <div class="chart"><canvas id="topJournals"></canvas></div>
+
+  <h2>Research Type Distribution & Collaboration Indicators</h2>
+  <p>Research type mix is extracted from multi-value publication type strings; author counts are used as collaboration proxies across the corpus and by top countries.</p>
+  <div class="chart"><canvas id="researchType"></canvas></div>
+  <div class="chart"><canvas id="authorsByCountry"></canvas></div>
+
+  <h2>Key Takeaways & Strategic Implications</h2>
+  <div class="card"><ul class="takeaways" id="takeaways"></ul></div>
+
+  <h2>Method Notes</h2>
+  <div class="card small">
+    <ul>
+      <li>All values are computed directly from <code>/app/benchmark/data.csv</code> (n=4,886).</li>
+      <li>Monthly time-series uses valid month entries (<code>pub_month_num</code> 1–12); unknown months are excluded from trend charts but retained in totals.</li>
+      <li>Emerging topic growth is an inferential KPI and sensitive to low-volume baselines; thresholding is applied.</li>
+      <li>Given the known PubMed indexing lag, 2025–2026 values should be interpreted as partial/incomplete relative to 2024.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const parseCSV = async () => {
+    const txt = await (await fetch('../benchmark/data.csv')).text();
+    const lines = txt.split(/\r?\n/);
+    const header = lines[0].split(',');
+    const rows = [];
+    for (let i=1;i<lines.length;i++) {
+      if(!lines[i]) continue;
+      const cells = [];
+      let cur='', inq=false;
+      for(let j=0;j<lines[i].length;j++){
+        const ch=lines[i][j];
+        if(ch==='"'){ if(inq && lines[i][j+1]==='"'){ cur+='"'; j++; } else inq=!inq; }
+        else if(ch===',' && !inq){ cells.push(cur); cur=''; }
+        else cur+=ch;
+      }
+      cells.push(cur);
+      if(cells.length===header.length){ const obj={}; header.forEach((h,k)=>obj[h]=cells[k]); rows.push(obj); }
+    }
+    return rows;
+  };
+
+  const d = await parseCSV();
+  const n = d.length;
+  const num = (v)=> Number(v||0);
+  const isOA = (v)=> String(v).toLowerCase()==='true';
+
+  const byYear={}; d.forEach(r=>{byYear[r.pub_year]=(byYear[r.pub_year]||0)+1;});
+  const oaRate = (d.filter(r=>isOA(r.open_access)).length/n)*100;
+  const authors = d.map(r=>num(r.authors_count)).sort((a,b)=>a-b);
+  const medianAuthors = authors.length%2?authors[(authors.length-1)/2]:(authors[authors.length/2-1]+authors[authors.length/2])/2;
+
+  const country={}; d.forEach(r=>{const c=r.country||'Unknown'; country[c]=(country[c]||0)+1;});
+  const topCountries = Object.entries(country).sort((a,b)=>b[1]-a[1]);
+  const top10Share = topCountries.slice(0,10).reduce((s,x)=>s+x[1],0)/n*100;
+
+  const monthly={}; const oaMonthly={};
+  d.forEach(r=>{
+    const y=num(r.pub_year), m=num(r.pub_month_num);
+    if(m>=1&&m<=12){
+      const k=`${y}-${String(m).padStart(2,'0')}`;
+      monthly[k]=(monthly[k]||0)+1;
+      oaMonthly[k]=oaMonthly[k]||{oa:0,t:0};
+      oaMonthly[k].t++;
+      if(isOA(r.open_access)) oaMonthly[k].oa++;
+    }
+  });
+  const monthKeys=Object.keys(monthly).sort();
+
+  const topicMonth={};
+  d.forEach(r=>{
+    const t=(r.major_topic||'').trim(); const y=num(r.pub_year), m=num(r.pub_month_num);
+    if(!t || !(m>=1&&m<=12)) return;
+    const k=`${y}-${String(m).padStart(2,'0')}`;
+    topicMonth[t]=topicMonth[t]||{};
+    topicMonth[t][k]=(topicMonth[t][k]||0)+1;
+  });
+
+  const emerging=[];
+  for(const [t,series] of Object.entries(topicMonth)){
+    const vals=monthKeys.map(k=>series[k]||0);
+    const total=vals.reduce((a,b)=>a+b,0);
+    if(total<12) continue;
+    const gr=[];
+    for(let i=1;i<vals.length;i++) if(vals[i-1]>0) gr.push((vals[i]-vals[i-1])/vals[i-1]);
+    if(gr.length>=4){
+      const avg=gr.reduce((a,b)=>a+b,0)/gr.length;
+      emerging.push({topic:t,growth:avg,total});
+    }
+  }
+  emerging.sort((a,b)=>b.growth-a.growth);
+  const topEmerging=emerging.slice(0,8);
+
+  const topic={}; d.forEach(r=>{const t=(r.major_topic||'Unspecified').trim()||'Unspecified'; topic[t]=(topic[t]||0)+1;});
+  const topTopic=Object.entries(topic).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  const journal={}; d.forEach(r=>{const j=(r.journal||'Unknown').trim()||'Unknown'; journal[j]=(journal[j]||0)+1;});
+  const topJournal=Object.entries(journal).sort((a,b)=>b[1]-a[1]).slice(0,10);
+
+  const type={};
+  d.forEach(r=>{
+    const raw=(r.research_type||'Unknown');
+    raw.split(/[;|]/).map(x=>x.trim()).filter(Boolean).forEach(t=>{type[t]=(type[t]||0)+1;});
+  });
+  const topType=Object.entries(type).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const cMed=topCountries.slice(0,8).map(([c])=>{
+    const arr=d.filter(r=>(r.country||'Unknown')===c).map(r=>num(r.authors_count)).sort((a,b)=>a-b);
+    const m=arr.length%2?arr[(arr.length-1)/2]:(arr[arr.length/2-1]+arr[arr.length/2])/2;
+    return [c,m];
+  });
+
+  document.getElementById('kpi_total').textContent = n.toLocaleString();
+  document.getElementById('kpi_oa').textContent = oaRate.toFixed(1)+'%';
+  document.getElementById('kpi_authors').textContent = medianAuthors.toFixed(1);
+  document.getElementById('kpi_top10').textContent = top10Share.toFixed(1)+'%';
+  document.getElementById('kpi_emerge').textContent = topEmerging.length ? (topEmerging[0].growth*100).toFixed(1)+'% MoM' : 'N/A';
+
+  const mk=(id,type,data,opt={})=>new Chart(document.getElementById(id),{type,data,options:{responsive:true,plugins:{legend:{display:opt.legend??true}},scales:opt.scales||{}}});
+  mk('monthlyVolume','line',{labels:monthKeys,datasets:[{label:'Publications',data:monthKeys.map(k=>monthly[k]),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.2)',tension:.2}]});
+  mk('yearlyVolume','bar',{labels:Object.keys(byYear).sort(),datasets:[{label:'Publications',data:Object.keys(byYear).sort().map(y=>byYear[y]),backgroundColor:['#1d4ed8','#0ea5e9','#22c55e']}]});
+  mk('topCountries','bar',{labels:topCountries.slice(0,10).map(x=>x[0]),datasets:[{label:'Publications',data:topCountries.slice(0,10).map(x=>x[1]),backgroundColor:'#0ea5e9'}]});
+  mk('topTopics','bar',{labels:topTopic.map(x=>x[0]),datasets:[{label:'Publications',data:topTopic.map(x=>x[1]),backgroundColor:'#7c3aed'}]});
+  mk('oaTrend','line',{labels:monthKeys,datasets:[{label:'Open Access Rate (%)',data:monthKeys.map(k=>oaMonthly[k]?(oaMonthly[k].oa/oaMonthly[k].t*100):null),borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,.2)',tension:.2}]});
+  mk('topJournals','bar',{labels:topJournal.map(x=>x[0]),datasets:[{label:'Publications',data:topJournal.map(x=>x[1]),backgroundColor:'#f59e0b'}]},{legend:false});
+  mk('researchType','bar',{labels:topType.map(x=>x[0]),datasets:[{label:'Tagged occurrences',data:topType.map(x=>x[1]),backgroundColor:'#14b8a6'}]});
+  mk('authorsByCountry','bar',{labels:cMed.map(x=>x[0]),datasets:[{label:'Median Authors',data:cMed.map(x=>x[1]),backgroundColor:'#ef4444'}]});
+
+  const t=document.getElementById('emergingTable');
+  t.innerHTML='<tr><th>Emerging Major Topic</th><th>Avg MoM Growth</th><th>Total Publications</th></tr>' +
+    topEmerging.map(r=>`<tr><td>${r.topic}</td><td>${(r.growth*100).toFixed(1)}%</td><td>${r.total}</td></tr>`).join('');
+
+  const topCountry=topCountries[0]||['N/A',0];
+  const yearKeys=Object.keys(byYear).sort();
+  const take=[
+    `Volume concentration: ${byYear[2024]||0} publications in 2024 (${((byYear[2024]||0)/n*100).toFixed(1)}%), versus ${(byYear[2025]||0)} in 2025 and ${(byYear[2026]||0)} in early 2026, consistent with expected indexing lag.`,
+    `Open-access penetration is ${oaRate.toFixed(1)}% overall; month-level variation indicates policy-sensitive changes in accessibility rather than a static publishing model.`,
+    `Geographic concentration remains high: top 10 countries account for ${top10Share.toFixed(1)}% of output; ${topCountry[0]} leads with ${topCountry[1]} publications.`,
+    `Collaboration intensity is stable at a median of ${medianAuthors.toFixed(1)} authors per article, supporting multi-investigator team science as the dominant production model.`,
+    topEmerging.length?`Fastest-rising tracked topic is ${topEmerging[0].topic} at an average ${(topEmerging[0].growth*100).toFixed(1)}% month-over-month growth (activity-filtered), indicating a candidate area for targeted funding calls.`:'No topic met the emerging-growth threshold under current activity filters.'
+  ];
+  document.getElementById('takeaways').innerHTML=take.map(x=>`<li>${x}</li>`).join('');
+})();
+</script>
+</body>
+</html>

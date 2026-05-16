@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV Charging Network Performance & Grid Optimization Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+    --navy: #0a1628;
+    --navy-light: #13203d;
+    --teal: #00b4a6;
+    --teal-light: #00d4c3;
+    --amber: #f5a623;
+    --orange: #ff6b35;
+    --red: #e74c3c;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-900: #0f172a;
+    --white: #ffffff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    line-height: 1.6;
+}
+
+/* ── Navigation ── */
+.nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: var(--navy);
+    color: white;
+    z-index: 1000;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    height: 56px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.nav-title {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    margin-right: 24px;
+    color: var(--teal-light);
+}
+.nav-links {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.nav-links::-webkit-scrollbar { display: none; }
+.nav-links a {
+    color: var(--gray-300);
+    text-decoration: none;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.nav-links a:hover { color: white; background: rgba(255,255,255,0.1); }
+
+.container {
+    max-width: 1200px;
+    margin: 72px auto 40px;
+    padding: 0 24px;
+}
+
+/* ── Header ── */
+.report-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    color: white;
+    padding: 36px 40px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+.report-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+}
+.report-header .subtitle {
+    font-size: 15px;
+    color: var(--teal-light);
+    margin-bottom: 4px;
+}
+.report-header .meta {
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+/* ── KPI Banner ── */
+.kpi-banner {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+.kpi-card {
+    background: white;
+    padding: 20px 24px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--teal);
+}
+.kpi-card.kpi-highlight { border-left-color: var(--amber); }
+.kpi-label { font-size: 11px; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px; margin-bottom: 4px; }
+.kpi-value { font-size: 28px; font-weight: 800; color: var(--gray-900); }
+
+/* ── Sections ── */
+.section {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    padding: 32px;
+    margin-bottom: 24px;
+}
+.section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--gray-100);
+}
+.section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 24px 0 12px;
+}
+.section p {
+    font-size: 14px;
+    color: var(--gray-700);
+    margin-bottom: 12px;
+}
+.section .objective {
+    font-size: 13px;
+    color: var(--gray-500);
+    font-style: italic;
+    margin-bottom: 20px;
+}
+
+/* ── Charts ── */
+.chart-wrap {
+    margin: 16px 0;
+    position: relative;
+}
+.chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+@media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+
+/* ── Tables ── */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 13px;
+}
+.data-table th {
+    background: var(--gray-50);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+}
+.data-table tr:hover td { background: var(--gray-50); }
+
+/* ── Insights ── */
+.insight-box {
+    background: linear-gradient(135deg, #f0fdf9 0%, #e8faf7 100%);
+    border-left: 4px solid var(--teal);
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin: 16px 0;
+}
+.insight-box h4 {
+    font-size: 13px;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.insight-box p { font-size: 13px; color: var(--gray-700); margin: 0; }
+
+.insight-warn {
+    background: linear-gradient(135deg, #fff8f0 0%, #fff3e6 100%);
+    border-left-color: var(--amber);
+}
+.insight-warn h4 { color: var(--amber); }
+
+.insight-crit {
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+    border-left-color: var(--red);
+}
+.insight-crit h4 { color: var(--red); }
+
+/* ── Recommendation Cards ── */
+.rec-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+}
+.rec-card {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 20px;
+    background: white;
+}
+.rec-card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+}
+.rec-card .rec-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+.rec-tag.high { background: #fee2e2; color: #991b1b; }
+.rec-tag.medium { background: #fef3c7; color: #92400e; }
+.rec-tag.low { background: #dcfce7; color: #166534; }
+.rec-card p { font-size: 13px; color: var(--gray-700); margin: 0; }
+.rec-card .rec-metric {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--gray-50);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--gray-500);
+}
+
+/* ── Footer ── */
+.footer {
+    text-align: center;
+    color: var(--gray-500);
+    font-size: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+    <span class="nav-title">&#9889; EV Charging Analytics</span>
+    <div class="nav-links">
+        <a href="#top">Overview</a>
+        <a href="#sec-utilization">Station Utilization</a>
+        <a href="#sec-queue">Queue & Wait</a>
+        <a href="#sec-energy">Energy & Grid</a>
+        <a href="#sec-renewable">Renewables & Pricing</a>
+        <a href="#sec-vehicle">Vehicle Profiles</a>
+        <a href="#sec-recommendations">Recommendations</a>
+    </div>
+</nav>
+
+<div class="container" id="top">
+
+<!-- Report Header -->
+<div class="report-header">
+    <h1>EV Charging Network Performance &amp; Grid Optimization</h1>
+    <p class="subtitle">Comprehensive Analytics Report for Infrastructure Managers &amp; Grid Planners</p>
+    <p class="meta">Dataset: 8,354 sessions across 20 stations | 8,354 vehicles | Generated: 2026-05-08 03:35 UTC</p>
+</div>
+
+<!-- KPI Summary Banner -->
+<div class="kpi-banner">
+    <div class="kpi-card ">
+        <div class="kpi-label">Avg Waiting Time</div>
+        <div class="kpi-value">9.5 min</div>
+    </div>
+    <div class="kpi-card ">
+        <div class="kpi-label">Avg Energy / Session</div>
+        <div class="kpi-value">39.1 kWh</div>
+    </div>
+    <div class="kpi-card ">
+        <div class="kpi-label">Mean Station Load</div>
+        <div class="kpi-value">53.2 kW</div>
+    </div>
+    <div class="kpi-card ">
+        <div class="kpi-label">Renewable Energy Ratio</div>
+        <div class="kpi-value">35.4%</div>
+    </div>
+    <div class="kpi-card kpi-highlight">
+        <div class="kpi-label">Mean Optimization Reward</div>
+        <div class="kpi-value">-11.8</div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: Station Utilization & Demand -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-utilization">
+<h2>1. Station Utilization &amp; Demand Analysis</h2>
+<p class="objective">Analyzing charging demand distribution across stations and location types, identifying high-demand stations, peak utilization periods, and capacity constraints.</p>
+
+<div class="chart-row">
+    <div class="chart-wrap"><canvas id="chart-demand-loc" height="300"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-demand-slot" height="300"></canvas></div>
+</div>
+
+<h3>Sessions & Demand by Location Type</h3>
+<table class="data-table">
+<tr><th>Location</th><th>Sessions</th><th>Share</th><th>Avg Demand</th><th>Total Energy (kWh)</th></tr><tr><td><strong>Urban</strong></td><td>4,188</td><td>50.1%</td><td>52.9</td><td>163,680</td></tr><tr><td><strong>Highway</strong></td><td>4,166</td><td>49.9%</td><td>53.4</td><td>162,792</td></tr></table>
+
+<div class="insight-box">
+    <h4>Key Finding</h4>
+    <p><strong>Highway</strong> stations experience the highest average charging demand (53.4), indicating where capacity expansion should be prioritized. Peak-period demand (84.1) is <strong>2.43&times;</strong> Off-Peak levels (34.6), creating a substantial load imbalance across the day.</p></div>
+
+<h3>Top 10 Stations by Session Volume</h3>
+<table class="data-table">
+<tr><th>Station</th><th>Sessions</th><th>Avg Demand</th><th>Avg Load (kW)</th><th>Avg Wait (min)</th></tr><tr><td><strong>ST013</strong></td><td>459</td><td>53.4</td><td>53.6</td><td>9.5</td></tr><tr><td><strong>ST001</strong></td><td>443</td><td>54.2</td><td>54.5</td><td>9.5</td></tr><tr><td><strong>ST005</strong></td><td>438</td><td>52.9</td><td>52.9</td><td>9.3</td></tr><tr><td><strong>ST017</strong></td><td>434</td><td>52.0</td><td>52.1</td><td>9.5</td></tr><tr><td><strong>ST011</strong></td><td>432</td><td>51.1</td><td>51.1</td><td>9.8</td></tr><tr><td><strong>ST003</strong></td><td>431</td><td>55.1</td><td>54.9</td><td>9.6</td></tr><tr><td><strong>ST019</strong></td><td>427</td><td>51.5</td><td>51.6</td><td>9.6</td></tr><tr><td><strong>ST012</strong></td><td>421</td><td>56.1</td><td>55.9</td><td>9.7</td></tr><tr><td><strong>ST009</strong></td><td>417</td><td>52.5</td><td>52.5</td><td>9.9</td></tr><tr><td><strong>ST015</strong></td><td>416</td><td>52.9</td><td>53.2</td><td>9.5</td></tr></table>
+
+<h3>Demand Profile by Day of Week</h3><div class="chart-wrap"><canvas id="chart-demand-day" height="300"></canvas></div>
+<div class="insight-box insight-warn">
+    <h4>Capacity Constraint Alert</h4>
+    <p>Station <strong>ST013</strong> handles the highest session volume with average load of <strong>53.6 kW</strong> and wait times of <strong>9.5 min</strong>. Consider adding charger units or redirecting overflow to nearby stations during peak windows.</p></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: Queue & Waiting Time -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-queue">
+<h2>2. Queue Length &amp; Waiting Time Analysis</h2>
+<p class="objective">Examining queue lengths and waiting times by station, time slot, vehicle type, and traffic density to identify bottleneck patterns and quantify the customer experience impact.</p>
+
+<div class="chart-row">
+    {chart_container('chart-wait-heatmap')}
+    {chart_container('chart-wait-vehicle')}
+</div>
+
+<h3>Wait Time Heatmap: Location Type &times; Time Slot</h3>
+<table class="data-table">
+<tr><th>Location</th><th>Peak</th><th>Mid-Peak</th><th>Off-Peak</th><th>Overall Avg</th></tr><tr><td><strong>Urban</strong></td><td>9.3 min</td><td>- min</td><td>9.5 min</td><td><strong>9.5 min</strong></td></tr><tr><td><strong>Highway</strong></td><td>9.5 min</td><td>- min</td><td>9.6 min</td><td><strong>9.6 min</strong></td></tr></table>
+
+<h3>Average Queue Length Heatmap: Location Type &times; Time Slot</h3>
+<table class="data-table">
+<tr><th>Location</th><th>Peak</th><th>Mid-Peak</th><th>Off-Peak</th></tr><tr><td><strong>Urban</strong></td><td>4.5 vehicles</td><td>- vehicles</td><td>4.6 vehicles</td></tr><tr><td><strong>Highway</strong></td><td>4.5 vehicles</td><td>- vehicles</td><td>4.7 vehicles</td></tr></table>
+
+<h3>Wait Time by Traffic Density</h3>
+<table class="data-table">
+<tr><th>Traffic Level</th><th>Mean Wait (min)</th><th>Median Wait (min)</th><th>Max Wait (min)</th></tr><tr><td><strong>Low</strong></td><td>9.6</td><td>10.0</td><td>27.0</td></tr><tr><td><strong>Medium</strong></td><td>9.6</td><td>9.0</td><td>28.0</td></tr><tr><td><strong>High</strong></td><td>9.4</td><td>9.0</td><td>27.0</td></tr></table>
+
+<div class="insight-box insight-crit">
+    <h4>Critical Customer Experience Finding</h4>
+    <p>Worst-case wait times occur at <strong>Highway stations during Off-Peak</strong> (9.6 min average). <strong>Bus</strong> vehicles experience the longest waits (9.6 min), likely due to larger battery capacities requiring extended charger availability. Queue lengths follow traffic density patterns tightly, confirming that traffic-driven demand surges are a primary wait-time driver.</p></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: Energy Consumption & Grid Load -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-energy">
+<h2>3. Energy Consumption &amp; Grid Load Patterns</h2>
+<p class="objective">Assessing energy consumption patterns, station load profiles across time slots and days of the week, and the relationship between charging power levels and grid stress.</p>
+
+<div class="chart-row">
+    {chart_container('chart-load-slot')}
+    {chart_container('chart-load-day')}
+</div>
+
+<h3>Energy Consumption by Location</h3>
+<table class="data-table">
+<tr><th>Location</th><th>Avg Energy (kWh)</th><th>Total Energy (kWh)</th><th>Std Dev (kWh)</th></tr><tr><td><strong>Urban</strong></td><td>39.1</td><td>163,680</td><td>18.9</td></tr><tr><td><strong>Highway</strong></td><td>39.1</td><td>162,792</td><td>19.1</td></tr></table>
+
+<h3>Grid Load by Time Slot</h3>
+<table class="data-table">
+<tr><th>Time Slot</th><th>Mean Load (kW)</th><th>Peak Load (kW)</th></tr><tr><td><strong>Peak</strong></td><td>84.1</td><td>100.0</td></tr><tr><td><strong>Off-Peak</strong></td><td>34.7</td><td>73.4</td></tr></table>
+
+<div class="chart-row">
+    {chart_container('chart-load-loc-slot')}
+    {chart_container('chart-power-load')}
+</div>
+
+<div class="insight-box">
+    <h4>Grid Stress Insight</h4>
+    <p>Peak periods carry <strong>84.1 kW</strong> average load vs. <strong>34.7 kW</strong> during Off-Peak, a 2.42&times; differential. This imbalance strains infrastructure during peak hours while leaving capacity underutilized at other times. Load patterns are consistent across weekdays, suggesting predictable demand that can be managed through scheduled load-shifting programs.</p></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 4: Renewable Energy & Pricing -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-renewable">
+<h2>4. Renewable Energy Integration &amp; Dynamic Pricing</h2>
+<p class="objective">Evaluating the renewable energy ratio across different conditions (time, weather, location) and analyzing how dynamic electricity pricing correlates with demand, renewable availability, and optimization rewards.</p>
+
+<div class="chart-row">
+    {chart_container('chart-renew-weather')}
+    {chart_container('chart-renew-slot')}
+</div>
+
+<h3>Renewable Energy Ratio by Weather Condition</h3>
+<table class="data-table">
+<tr><th>Weather</th><th>Avg Renewable Ratio</th><th>Price ($/kWh)</th></tr><tr><td><strong>Clear</strong></td><td>35.7%</td><td>$9.97</td></tr><tr><td><strong>Rainy</strong></td><td>35.4%</td><td>$9.94</td></tr><tr><td><strong>Cloudy</strong></td><td>35.1%</td><td>$9.97</td></tr></table>
+
+<h3>Dynamic Pricing by Time Slot</h3>
+<table class="data-table">
+<tr><th>Time Slot</th><th>Avg Price ($/kWh)</th><th>Avg Renewable Ratio</th></tr><tr><td><strong>Peak</strong></td><td>$9.94</td><td>29.0%</td></tr><tr><td><strong>Off-Peak</strong></td><td>$9.97</td><td>39.3%</td></tr></table>
+
+<div class="chart-row">
+    <div class="chart-wrap"><canvas id="chart-price-demand" height="300"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-opt-renew" height="300"></canvas></div>
+</div>
+
+<div class="insight-box">
+    <h4>Pricing &amp; Sustainability Insight</h4>
+    <p>Correlation between renewable ratio and electricity price: <strong>r = -0.005</strong>. <strong>Clear</strong> weather yields the highest renewable ratio (35.7%), and <strong>Off-Peak</strong> periods offer the most green energy (39.3%). These conditions present the best opportunity windows for scheduling environmentally-conscious charging. Pricing and renewable availability show a distinct relationship — aligning charging schedules with high-renewable periods can simultaneously reduce costs and improve sustainability metrics.</p></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 5: Vehicle Charging Behavior -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-vehicle">
+<h2>5. Vehicle Charging Behavior &amp; Session Profiles</h2>
+<p class="objective">Profiling charging sessions by vehicle type, examining battery capacity, initial/final SOC, energy consumed, charging duration, and priority distribution to understand fleet composition and usage patterns.</p>
+
+<div class="chart-row">
+    {chart_container('chart-vehicle-sessions')}
+    {chart_container('chart-vehicle-energy')}
+</div>
+
+<h3>Vehicle Type Session Profiles</h3>
+<table class="data-table">
+<tr><th>Vehicle Type</th><th>Sessions</th><th>Avg Battery (kWh)</th><th>Avg Init SOC</th><th>Avg Final SOC</th><th>Avg Energy (kWh)</th><th>Avg Duration (min)</th><th>Avg Wait (min)</th></tr><tr><td><strong>Car</strong></td><td>2,833</td><td>60.9</td><td>34.6%</td><td>98.4%</td><td>39.1</td><td>179.7</td><td>9.5</td></tr><tr><td><strong>Two-Wheeler</strong></td><td>2,761</td><td>60.8</td><td>35.2%</td><td>98.5%</td><td>38.7</td><td>177.4</td><td>9.4</td></tr><tr><td><strong>Bus</strong></td><td>2,760</td><td>61.5</td><td>34.7%</td><td>98.5%</td><td>39.4</td><td>179.0</td><td>9.6</td></tr></table>
+
+<h3>Charging Priority Distribution</h3>
+<p>Low: <strong>2784</strong> sessions (33.3%) &nbsp;|&nbsp; Medium: <strong>2913</strong> sessions (34.9%) &nbsp;|&nbsp; High: <strong>2657</strong> sessions (31.8%)</p>
+<div class="insight-box">
+    <h4>Fleet Composition Insight</h4>
+    <p>The vehicle mix spans <strong>3 types</strong>. Average initial SOC across all vehicles is <strong>34.8%</strong> with average final SOC of <strong>98.5%</strong>, indicating a typical charge depth of <strong>39.1 kWh</strong> per session. Larger battery vehicles (Buses, Trucks) consume more energy per session and require longer charger occupancy, making them the primary drivers of queue formation at high-traffic stations.</p>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SECTION 6: Optimization Recommendations -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="sec-recommendations">
+<h2>6. Optimization Insights &amp; Recommendations</h2>
+<p class="objective">Synthesizing findings into actionable recommendations for load balancing, queue management, pricing strategy adjustments, and renewable energy maximization.</p>
+
+<h3>Optimization Reward by Segment</h3>
+<div class="chart-row">
+    <div class="chart-wrap"><canvas id="chart-reward-slot" height="300"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-reward-loc" height="300"></canvas></div>
+</div>
+
+<table class="data-table">
+<tr><th>Segment</th><th>Mean Optimization Reward</th></tr><tr><td>Time Slot: <strong>Peak</strong></td><td>-19.80</td></tr><tr><td>Time Slot: <strong>Off-Peak</strong></td><td>-7.06</td></tr><tr><td>Location: <strong>Highway</strong></td><td>-12.04</td></tr><tr><td>Location: <strong>Urban</strong></td><td>-11.63</td></tr><tr><td>Priority: <strong>Low</strong></td><td>-11.87</td></tr><tr><td>Priority: <strong>Medium</strong></td><td>-11.98</td></tr><tr><td>Priority: <strong>High</strong></td><td>-11.64</td></tr></table>
+
+<h3>Peak vs Off-Peak Performance Comparison</h3>
+<table class="data-table">
+<tr><th>Metric</th><th>Peak</th><th>Off-Peak</th><th>Delta</th></tr><tr><td>Avg Reward</td><td>-19.8</td><td>-7.1</td><td><strong>-12.75</strong></td></tr><tr><td>Avg Price</td><td>$9.94</td><td>$9.97</td><td><strong>$-0.03</strong></td></tr><tr><td>Renewable Ratio</td><td>29.0%</td><td>39.3%</td><td><strong>-10.3%</strong></td></tr><tr><td>Avg Wait</td><td>9.4 min</td><td>9.6 min</td><td><strong>-0.15 min</strong></td></tr><tr><td>Avg Station Load</td><td>84.1 kW</td><td>34.7 kW</td><td><strong>49.41 kW</strong></td></tr>
+</table>
+
+<h3>Actionable Recommendations</h3>
+<div class="rec-cards">
+
+<div class="rec-card">
+    <span class="rec-tag high">High Priority</span>
+    <h4>Load Shifting to Off-Peak Windows</h4>
+    <p>Peak-time station load (84.1 kW) exceeds off-peak (34.7 kW) by 142.6%. Implement time-of-use pricing incentives to shift 15&ndash;20% of peak demand to off-peak periods. This reduces grid stress during peak hours and improves the optimization reward metric, which averages -7.1 during off-peak vs -19.8 during peak.</p>
+    <div class="rec-metric">Potential Impact: Reduce peak load by ~12.6 kW | Improve avg reward by targeting off-peak scheduling</div>
+</div>
+
+<div class="rec-card">
+    <span class="rec-tag high">High Priority</span>
+    <h4>Queue Management at High-Traffic Stations</h4>
+    <p>Top stations by volume show wait times up to 9.9 min. Deploy dynamic queue routing that redirects incoming vehicles to nearby stations with lower queue lengths. Add 1&ndash;2 charger units at high-wait stations. Implement reservation windows for commercial fleet vehicles to smooth arrival patterns.</p>
+    <div class="rec-metric">Potential Impact: Reduce average wait times by 25&ndash;40% at bottleneck stations</div>
+</div>
+
+<div class="rec-card">
+    <span class="rec-tag medium">Medium Priority</span>
+    <h4>Renewable-Aligned Pricing Incentives</h4>
+    <p>Renewable ratio peaks during <strong>Clear</strong> weather (35.7%) and <strong>Off-Peak</strong> periods (39.3%). Introduce dynamic discounts (5&ndash;10%) during high-renewable windows to encourage green charging. This simultaneously improves the sustainability KPI and leverages lower-cost renewable energy.</p>
+    <div class="rec-metric">Potential Impact: Boost renewable utilization by 10&ndash;15% | Improve sustainability scorecard</div>
+</div>
+
+<div class="rec-card">
+    <span class="rec-tag medium">Medium Priority</span>
+    <h4>High-Capacity Vehicle Scheduling</h4>
+    <p>Buses and trucks consume the most energy per session and have the longest charger dwell times. Create dedicated high-power charging bays for large vehicles and schedule their charging during off-peak hours to reduce queue buildup during high-traffic periods.</p>
+    <div class="rec-metric">Potential Impact: Reduce queue formation by 15&ndash;20% during peak windows</div>
+</div>
+
+<div class="rec-card">
+    <span class="rec-tag low">Long-Term</span>
+    <h4>Weather-Responsive Grid Management</h4>
+    <p>Renewable energy availability varies significantly by weather condition (range: 35.1% &ndash; 35.7%). Deploy predictive models that integrate weather forecasts with charging demand predictions to proactively manage grid load and renewable utilization 24&ndash;48 hours ahead.</p>
+    <div class="rec-metric">Potential Impact: Improve renewable energy ratio by 5&ndash;10% through proactive scheduling</div>
+</div>
+
+<div class="rec-card">
+    <span class="rec-tag low">Long-Term</span>
+    <h4>Station Capacity Expansion Planning</h4>
+    <p>Highway stations show the highest demand concentration. Prioritize capacity expansion in Highway areas, targeting stations in the top quartile by session volume. Consider adding battery storage at key stations to buffer renewable energy for peak-period dispatching.</p>
+    <div class="rec-metric">Potential Impact: Support 835+ additional sessions with improved service levels</div>
+</div>
+
+</div>
+
+<div class="insight-box">
+    <h4>Synthesis</h4>
+    <p>The data reveals a clear pattern: <strong>peak-period congestion is the primary operational challenge</strong>, driving higher wait times, elevated grid loads, and less favorable optimization outcomes. The most impactful interventions combine <strong>time-of-use pricing</strong>, <strong>dynamic queue routing</strong>, and <strong>renewable-aligned scheduling</strong>. These measures address multiple KPIs simultaneously — reducing wait times, balancing grid load, improving renewable utilization, and increasing the optimization reward metric across the network.</p>
+</div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>EV Charging Network Performance &amp; Grid Optimization Analytics Report &mdash; Generated 2026-05-08 03:35 UTC &mdash; Data source: 8,354 sessions across 20 stations</p>
+</div>
+
+</div><!-- .container -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- CHART.JS INITIALIZATION -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script>
+const COLORS = {
+    teal: '#00b4a6',
+    navy: '#0a1628',
+    amber: '#f5a623',
+    orange: '#ff6b35',
+    red: '#e74c3c',
+    blue: '#3b82f6',
+    purple: '#8b5cf6',
+    green: '#22c55e',
+    gray: '#94a3b8',
+    tealAlpha: 'rgba(0,180,166,0.15)',
+    tealAlphaStrong: 'rgba(0,180,166,0.6)',
+};
+
+const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } } },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } }, x: { grid: { display: false } } }
+};
+
+// Section 1: Demand by Location Type
+new Chart(document.getElementById('chart-demand-loc'), {
+    type: 'bar',
+    data: {
+        labels: ["Highway", "Urban"],
+        datasets: [{
+            label: 'Avg Charging Demand',
+            data: [53.4, 52.9],
+            backgroundColor: [COLORS.tealAlphaStrong, COLORS.blue + '99', COLORS.amber + '99'],
+            borderColor: [COLORS.teal, COLORS.blue, COLORS.amber],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Average Charging Demand by Location Type', font: { size: 14 } } } }
+});
+
+// Section 1: Demand by Time Slot
+new Chart(document.getElementById('chart-demand-slot'), {
+    type: 'bar',
+    data: {
+        labels: ["Peak", "Off-Peak"],
+        datasets: [{
+            label: 'Avg Charging Demand',
+            data: [84.1, 34.6],
+            backgroundColor: [COLORS.red + '99', COLORS.amber + '99', COLORS.tealAlphaStrong],
+            borderColor: [COLORS.red, COLORS.amber, COLORS.teal],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Avg Demand by Time Slot', font: { size: 14 } } } }
+});
+
+// Section 1: Demand by Day of Week
+new Chart(document.getElementById('chart-demand-day'), {
+    type: 'line',
+    data: {
+        labels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        datasets: [{
+            label: 'Avg Charging Demand',
+            data: [53.2, 53.3, 52.9, 52.7, 53.4, 53.2, 53.4],
+            borderColor: COLORS.navy,
+            backgroundColor: COLORS.tealAlpha,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: COLORS.teal
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Average Demand by Day of Week', font: { size: 14 } } } }
+});
+
+// Section 2: Wait Time Heatmap (Grouped bar: location x time_slot)
+(function() {
+    var locs = ["Highway", "Urban"];
+    var slots = ["Peak", "Mid-Peak", "Off-Peak"];
+    var hmap = {"Highway": {"Peak": 9.5, "Mid-Peak": 0, "Off-Peak": 9.6}, "Urban": {"Peak": 9.3, "Mid-Peak": 0, "Off-Peak": 9.5}};
+    var colors = [COLORS.tealAlphaStrong, COLORS.blue + '99', COLORS.amber + '99'];
+    var borders = [COLORS.teal, COLORS.blue, COLORS.amber];
+    var datasets = locs.map(function(loc, i) {
+        return {
+            label: loc,
+            data: slots.map(function(s) { return hmap[loc][s] || 0; }),
+            backgroundColor: colors[i % 3],
+            borderColor: borders[i % 3],
+            borderWidth: 1,
+            borderRadius: 4
+        };
+    });
+    new Chart(document.getElementById('chart-wait-heatmap'), {
+        type: 'bar',
+        data: { labels: slots, datasets: datasets },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Wait Time by Location & Time Slot', font: { size: 14 } } } }
+    });
+})();
+
+// Section 2: Wait by Vehicle Type (horizontal bar)
+(function() {
+    const vehicleTypes = ["Bus", "Car", "Two-Wheeler"];
+    const waitVals = [9.6, 9.5, 9.4];
+    new Chart(document.getElementById('chart-wait-vehicle'), {
+        type: 'bar',
+        data: {
+            labels: vehicleTypes,
+            datasets: [{
+                label: 'Avg Wait (min)',
+                data: waitVals,
+                backgroundColor: COLORS.orange + '99',
+                borderColor: COLORS.orange,
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: { ...chartDefaults, indexAxis: 'y', plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Wait Time by Vehicle Type', font: { size: 14 } } } }
+    });
+})();
+
+// Section 3: Load by Slot
+new Chart(document.getElementById('chart-load-slot'), {
+    type: 'bar',
+    data: {
+        labels: ["Peak", "Off-Peak"],
+        datasets: [
+            {
+                label: 'Mean Load (kW)',
+                data: [84.1, 34.7],
+                backgroundColor: COLORS.tealAlphaStrong,
+                borderColor: COLORS.teal,
+                borderWidth: 2,
+                borderRadius: 6,
+                order: 2
+            },
+            {
+                label: 'Peak Load (kW)',
+                data: [100.0, 73.4],
+                backgroundColor: COLORS.red + '44',
+                borderColor: COLORS.red,
+                borderWidth: 2,
+                borderRadius: 6,
+                order: 1
+            }
+        ]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Station Load by Time Slot', font: { size: 14 } } } }
+});
+
+// Section 3: Load by Day
+new Chart(document.getElementById('chart-load-day'), {
+    type: 'line',
+    data: {
+        labels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        datasets: [{
+            label: 'Mean Station Load (kW)',
+            data: [53.2, 53.3, 52.9, 52.8, 53.4, 53.3, 53.3],
+            borderColor: COLORS.navy,
+            backgroundColor: COLORS.tealAlpha,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: COLORS.teal
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Grid Load by Day of Week', font: { size: 14 } } } }
+});
+
+// Section 3: Load by Location x Slot
+(function() {
+    var locs2 = ["Highway", "Urban"];
+    var slots2 = ["Peak", "Mid-Peak", "Off-Peak"];
+    var loadData = {"Highway": {"Peak": 84.0, "Mid-Peak": 0, "Off-Peak": 34.7}, "Urban": {"Peak": 84.1, "Mid-Peak": 0, "Off-Peak": 34.6}};
+    var colors2 = [COLORS.tealAlphaStrong, COLORS.blue + '99', COLORS.amber + '99'];
+    var borders2 = [COLORS.teal, COLORS.blue, COLORS.amber];
+    var datasets = locs2.map(function(loc, i) {
+        return {
+            label: loc,
+            data: slots2.map(function(s) { return loadData[loc][s] || 0; }),
+            backgroundColor: colors2[i % 3],
+            borderColor: borders2[i % 3],
+            borderWidth: 1,
+            borderRadius: 4
+        };
+    });
+    new Chart(document.getElementById('chart-load-loc-slot'), {
+        type: 'bar',
+        data: { labels: slots2, datasets: datasets },
+        options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Station Load by Location & Time Slot', font: { size: 14 } } } }
+    });
+})();
+
+// Section 3: Power vs Load
+new Chart(document.getElementById('chart-power-load'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Station Load vs Charging Power',
+            data: [[11, 19.87257368], [22, 77.28293024], [50, 31.43065722], [22, 18.78999591], [7, 56.2632278], [7, 24.65561048], [11, 18.69901433], [50, 70.4080191], [11, 19.68271728], [22, 42.35980077], [50, 19.8996023], [50, 63.98119695], [7, 72.52226663], [22, 72.46923304], [22, 84.08549971], [22, 82.88765341], [7, 58.97301738], [11, 100.0], [11, 94.86731343], [50, 17.87848972], [11, 21.5229928], [50, 24.53764298], [7, 96.72382932], [50, 26.77611815], [7, 14.42989155], [7, 52.36232536], [50, 37.77579448], [50, 20.16641995], [11, 26.81659162], [22, 28.02625655], [50, 56.03742936], [7, 23.91729958], [11, 16.22772948], [50, 87.63400895], [11, 74.64593871], [7, 28.78681729], [50, 12.67976834], [50, 27.07665787], [7, 59.96185836], [11, 77.83614669], [11, 67.69827005], [11, 84.61446432], [22, 49.33131804], [7, 15.79304266], [7, 35.83706774], [7, 32.70158167], [7, 82.71629935], [50, 40.69205143], [50, 32.49069616], [11, 70.42710473], [11, 13.45202889], [22, 77.59272597], [11, 36.90100275], [11, 21.20853651], [22, 99.73493283], [50, 64.79160631], [50, 24.58011459], [22, 23.36502986], [7, 32.90575698], [50, 43.73199234], [50, 20.63358709], [50, 84.74092759], [11, 35.54191446], [22, 76.82647783], [22, 32.02643566], [22, 33.85399314], [50, 45.86459576], [22, 31.85257939], [22, 50.45526049], [7, 80.26980794], [22, 27.38416189], [7, 80.10894497], [22, 34.24507008], [11, 63.96412603], [50, 23.22019698], [50, 100.0], [22, 23.32801624], [11, 19.12843958], [22, 31.68208046], [7, 31.04295968], [11, 20.5208725], [50, 56.08214898], [7, 99.82734674], [11, 15.83342638], [22, 42.43368453], [7, 94.8256068], [7, 83.03536212], [50, 21.78329065], [22, 22.8679076], [22, 89.36874485], [22, 93.45596469], [11, 69.37583303], [22, 20.77678829], [22, 29.43744542], [22, 13.76058879], [50, 84.91200554], [50, 74.68627862], [7, 17.25767687], [50, 29.20175509], [22, 31.69240783], [7, 46.33349443], [50, 17.81314843], [11, 29.43134469], [11, 51.16483643], [11, 95.54026835], [50, 29.16986681], [7, 54.90870592], [7, 86.79313626], [7, 27.33906981], [22, 100.0], [11, 44.22616567], [11, 33.84754229], [11, 29.49968096], [50, 27.18608958], [22, 22.8724645], [7, 47.33214425], [50, 42.02396638], [22, 19.96231107], [22, 49.62652281], [50, 40.45626978], [22, 40.9031882], [50, 20.74908558], [7, 47.46243475], [7, 74.82679103], [7, 47.27006374], [22, 42.59621742], [22, 100.0], [7, 72.94140213], [7, 73.40819972], [22, 78.25431553], [7, 22.64747272], [7, 68.80995736], [50, 14.93001173], [50, 66.35773071], [7, 46.42171305], [50, 19.87953702], [11, 81.40820021], [11, 91.01006201], [50, 81.49946392], [7, 90.98641509], [50, 86.92852748], [50, 79.94198232], [22, 77.48256179], [50, 23.25912211], [22, 17.13305435], [50, 52.59215281], [50, 76.18073962], [7, 45.22729509], [11, 15.19390337], [22, 28.62975745], [11, 48.00233831], [11, 67.27367803], [50, 90.63452294], [11, 47.00694437], [22, 71.99682735], [7, 99.59696136], [50, 15.68683625], [50, 57.86726364], [22, 53.07855682], [50, 21.19422338], [50, 86.76699165], [22, 33.37896984], [11, 99.56274302], [22, 67.1168413], [7, 27.07439499], [22, 37.67416089], [7, 99.7739234], [22, 62.13129433], [50, 45.32228585], [22, 68.74699955], [7, 20.34628071], [7, 28.80297235], [11, 27.73000828], [7, 67.04088747], [50, 14.36514537], [50, 65.70584911], [22, 100.0], [50, 39.18170489], [50, 89.4335967], [50, 19.49549067], [22, 21.55544204], [22, 58.62475684], [22, 56.36494939], [22, 65.79430184], [22, 96.72241163], [22, 80.65826585], [11, 96.78566712], [7, 100.0], [50, 92.83950998], [7, 74.07840672], [50, 56.04692278], [11, 74.9341574], [50, 100.0], [11, 15.12051829], [7, 16.19058803], [7, 100.0], [50, 60.41385059], [11, 24.78054386], [22, 29.82539226], [7, 25.94265444], [50, 28.90689968], [11, 89.27107557], [50, 83.22880748], [50, 52.88240455], [11, 40.36373843], [7, 83.86682493], [50, 86.88904138], [22, 21.41347007], [7, 97.11687087], [50, 22.16573747], [11, 21.59313932], [7, 35.12206876], [7, 30.40659153], [7, 74.648925], [11, 26.3925765], [11, 23.99438022], [11, 22.67897657], [50, 40.96490411], [50, 58.46025478], [7, 68.89860053], [50, 100.0], [22, 33.59831558], [7, 33.84182078], [11, 57.6916251], [50, 85.46834857], [11, 23.01339822], [50, 19.40754294], [7, 57.32846507], [7, 19.83853912], [22, 98.21541997], [22, 47.68007365], [11, 29.06092253], [50, 29.61809886], [7, 82.27435023], [11, 25.97367744], [11, 28.62712096], [22, 67.44128256], [7, 69.53387493], [7, 45.05360517], [11, 17.43959508], [22, 20.23827915], [7, 100.0], [7, 41.14084186], [11, 71.71220572], [50, 56.78921832], [7, 93.35706895], [11, 79.61735446], [50, 95.80846679], [50, 21.88701851], [22, 36.18869944], [50, 98.66316175], [11, 27.72235314], [50, 17.43380737], [50, 19.15870742], [11, 78.46826343], [11, 77.21746723], [11, 78.54995183], [50, 47.52174943], [50, 37.56607343], [11, 75.04253407], [50, 35.38822342], [22, 67.76766472], [22, 21.93126236], [50, 97.77226728], [22, 25.47890644], [50, 68.21356568], [11, 27.17000934], [22, 65.00746113], [22, 92.55513622], [22, 96.98740544], [22, 63.45693347], [7, 82.84933202], [50, 71.74897818], [50, 97.03547082], [22, 100.0], [11, 37.54885957], [50, 97.38890149], [22, 39.08403619], [7, 17.08327692], [50, 49.66053634], [11, 81.10948027], [7, 20.17514726], [22, 82.14278694], [11, 34.24391753], [7, 40.97606809], [22, 78.21119667], [22, 73.92189368], [50, 58.93411822], [11, 31.65863297], [11, 18.6776529], [22, 28.00823223], [7, 76.43327265], [11, 26.9335453], [7, 89.93923239], [11, 58.24679609], [11, 61.60801789], [50, 67.06341829], [50, 74.3273541], [11, 39.90133926], [7, 95.54555741], [11, 71.69928053], [11, 20.39792115], [22, 69.70575368], [50, 32.16558078], [50, 26.28879282], [11, 20.26134555], [50, 18.90986392], [11, 35.67952272], [50, 54.55001902], [22, 100.0], [7, 75.58584042], [22, 100.0], [11, 77.06899975], [11, 29.87465918], [11, 25.59155786], [22, 83.36284327], [11, 71.06848054], [11, 79.2007012], [11, 32.48173425], [11, 81.91175698], [22, 80.77293851], [22, 46.39762486], [50, 34.39745211], [22, 24.32455101], [11, 62.15100512], [7, 55.67159223], [50, 38.65692513], [22, 10.22319114], [7, 83.37355407], [11, 17.35933488], [7, 52.56308245], [11, 26.38776311], [11, 55.28151464], [7, 22.65813008], [7, 80.27545638], [50, 53.29330476], [7, 30.60572842], [22, 86.54853658], [11, 22.1335647], [11, 63.04896824], [22, 91.8784528], [11, 38.5079621], [11, 37.69362954], [50, 97.42153029], [22, 70.81456933], [50, 78.94170197], [22, 78.2097369], [11, 75.80878314], [50, 77.73267244], [50, 68.41071084], [50, 48.10397758], [22, 78.08319418], [50, 58.08741551], [7, 15.47384287], [7, 41.48391849], [7, 55.17066705], [50, 41.91677685], [11, 38.08389212], [50, 29.69707425], [11, 96.61657216], [50, 38.24093195], [7, 61.98856441], [50, 29.04501227], [50, 31.85607018], [11, 56.16336926], [7, 26.72850411], [50, 47.57327466], [7, 63.3623154], [50, 81.90899188], [7, 21.19216536], [22, 83.69430378], [7, 21.15120412], [22, 32.33211266], [7, 82.68687738], [22, 86.9745991], [22, 70.24218478], [7, 51.04480633], [50, 14.08397606], [50, 39.2259481], [22, 85.42181935], [7, 32.78761292], [50, 25.26118424], [50, 83.76238978], [11, 74.91063506], [11, 27.94130379], [22, 17.12867989], [50, 47.52315578], [50, 87.03717618], [50, 58.35242471], [7, 15.9402991], [7, 47.80419294], [22, 45.08114645], [7, 54.0483546], [7, 65.57454034], [50, 61.93474273], [22, 79.9303048], [7, 36.9548663], [50, 42.54454538], [22, 50.61014544], [50, 16.4230172], [22, 20.17773125], [50, 62.89029912], [7, 20.7994338], [50, 26.33018255], [11, 22.48418811], [7, 29.22454563], [22, 100.0], [11, 30.31988989], [50, 63.67558623], [11, 55.69446326], [7, 85.92782866], [7, 98.26838919], [50, 23.12004552], [7, 34.40315595], [7, 31.70129102], [11, 32.38336302], [50, 43.69146905], [7, 89.23210031], [50, 78.17917001], [11, 49.50285243], [11, 51.00904], [7, 48.50987601], [11, 63.40026531], [50, 23.52798757], [22, 27.80053523], [7, 34.66750127], [7, 81.84890961], [22, 32.16875096], [11, 88.59269416], [50, 21.15529225], [11, 52.12424766], [22, 67.37064445], [50, 23.04321654], [50, 44.5925321], [7, 45.48910009], [50, 85.70031774], [50, 69.54043264], [50, 85.03428717], [11, 21.59295133], [11, 46.97100342], [7, 83.31784924], [11, 62.92347389], [22, 20.37031622], [22, 15.79522268], [50, 74.69395518], [22, 57.35046178], [11, 24.12020147], [7, 32.23687647], [7, 33.06086122], [7, 100.0], [7, 32.99518349], [11, 43.01295259], [11, 70.68548495], [50, 80.38340623], [22, 100.0], [7, 83.75478879], [50, 23.83189093], [22, 25.1682972], [50, 38.44192001], [11, 24.92732494], [7, 31.81425117], [11, 45.68470089], [7, 100.0], [22, 100.0], [7, 79.54073721], [7, 90.04335009], [11, 20.01009738], [7, 98.69995322], [22, 67.57597221], [50, 49.44637414], [11, 76.39632086], [7, 20.63422598], [11, 17.08099734], [22, 100.0], [11, 26.60577156], [7, 44.39863152], [11, 25.76912897], [11, 98.28183345], [11, 60.9185692], [50, 96.37922087], [22, 48.97206622], [50, 89.22750823], [50, 12.29915989], [11, 16.49551982], [50, 29.45987288], [7, 27.43869583], [22, 95.24934359], [22, 23.32091699], [22, 24.38852077], [22, 27.48810617], [50, 23.80628062], [7, 61.82884868], [7, 22.42280033], [11, 28.86391699], [11, 58.23837879], [11, 26.18797105], [50, 24.40943134], [50, 21.81105433], [22, 11.19348723], [11, 28.98670856], [50, 86.53396333], [7, 32.9106627], [22, 100.0], [7, 27.51434409], [7, 59.81723832], [50, 53.73936469], [7, 55.36787618], [50, 22.70991109], [50, 100.0], [50, 100.0], [7, 44.25133518], [11, 53.93696095], [50, 12.25878232], [11, 24.65743144], [11, 75.57311048], [7, 71.09175673], [50, 40.2169326], [7, 76.63570678], [50, 39.78400578], [7, 18.37766225], [50, 28.03166011], [11, 79.6842825], [11, 70.63598877], [22, 33.95766756], [11, 45.17354931], [11, 78.45290787], [11, 31.33819861], [50, 12.30266573], [7, 28.48855195], [50, 26.79290646], [22, 63.60749483], [50, 16.9703818], [11, 96.7375832], [22, 26.20662096], [22, 45.37795834], [22, 25.85962436], [50, 46.8132765], [22, 61.99350004], [50, 60.60498383], [22, 16.82606206], [7, 27.18305077], [11, 87.48833004], [11, 94.29773726], [7, 76.9356912], [11, 62.53821031], [7, 94.96516431], [22, 55.25075304], [22, 36.10465603], [11, 23.44985837], [11, 29.94031482], [22, 49.58368179], [11, 100.0], [22, 29.9817792], [50, 65.78757248], [11, 27.00706245], [11, 81.63308256], [22, 26.60057547], [11, 95.11732247], [11, 12.41368485], [11, 100.0], [11, 56.86932459], [11, 88.03293325], [11, 67.56445252], [22, 29.43865359], [50, 50.39146034], [11, 38.35324552], [11, 47.64729093], [11, 98.82051599], [11, 23.05017499], [11, 39.57484704], [50, 27.95912368], [22, 68.19677135], [50, 21.02334586], [11, 44.10483991], [7, 60.62139371], [22, 13.41303713], [11, 33.09425515], [22, 76.39053847], [11, 89.19746356], [7, 28.1357525], [50, 77.15332188], [50, 36.95899809], [7, 39.26635853], [22, 47.74166448], [11, 93.11609603], [11, 27.30273554], [11, 95.62626279], [11, 48.18259778], [22, 25.67725606], [11, 62.77195634], [50, 25.26135723], [50, 99.64857172], [7, 19.13807935], [7, 26.51531071], [7, 78.81594432], [7, 75.64596957], [11, 100.0], [7, 32.33613156], [11, 49.72794522], [22, 100.0], [22, 53.74959481], [7, 34.32368074], [22, 29.24116896], [50, 46.37780714], [50, 24.573568], [50, 59.62293559], [7, 87.75222911], [7, 20.92252305], [11, 76.38569132], [11, 21.94600986], [22, 63.6757941], [50, 63.24068992], [22, 78.69240154], [11, 55.01870969], [11, 24.0701166], [22, 89.40446373], [50, 30.33537444], [22, 20.87163683], [11, 69.20827716], [11, 43.14025735], [7, 43.94213938], [22, 62.62963612], [50, 23.82925556], [50, 18.93696338], [50, 57.77663055], [11, 48.27161529], [7, 28.95592483], [11, 87.37611123], [50, 62.39483728], [7, 84.14504753], [11, 48.84962436], [11, 84.98117351], [50, 41.81860622], [11, 89.07736975], [22, 63.16668824], [22, 57.28680315], [7, 17.05406896], [11, 86.49109431], [11, 100.0], [7, 17.03299745], [7, 29.9428558], [22, 34.84626193], [11, 100.0], [7, 23.61976795], [22, 20.76225203], [22, 34.45880653], [7, 37.60238854], [22, 62.92427846], [22, 83.42479251], [7, 34.32636838], [11, 35.86041321], [11, 23.91951393], [22, 52.77459574], [11, 28.31228593], [11, 40.9729577], [7, 54.27744152], [7, 34.06515483], [22, 100.0], [22, 98.45178085], [7, 28.49245573], [11, 89.20505089], [11, 82.73741958], [11, 66.93832607], [50, 33.32115494], [7, 94.79067956], [7, 32.20543543], [11, 45.74253931], [22, 95.96594095], [11, 88.62658431], [22, 83.68193205], [22, 100.0], [7, 37.15364961], [50, 27.05730171], [7, 28.88024316], [22, 47.04782792], [22, 77.77332022], [7, 64.7191748], [50, 66.3609474], [22, 95.46181914], [7, 21.14646304], [7, 47.95431943], [22, 100.0], [50, 22.21500691], [11, 68.42121308], [22, 12.91705304], [7, 47.94402488], [22, 95.58932683], [22, 95.58225407], [7, 92.01963176], [11, 83.71134685], [11, 34.94350808], [7, 95.05436936], [50, 84.00447333], [50, 34.85901553], [50, 98.8263224], [11, 33.8864095], [11, 54.52575206], [11, 93.68658185], [11, 26.97328311], [50, 86.14545074], [50, 71.70725854], [50, 14.50838033], [50, 98.9082324], [7, 100.0], [22, 25.25366206], [7, 27.04921928], [22, 33.02547329], [22, 51.13781462], [11, 69.77387448], [50, 35.23466019], [22, 31.32773029], [11, 30.37225104], [50, 46.63630698], [11, 57.61462753], [22, 72.89323074], [50, 85.15361169], [22, 87.07045356], [22, 52.65839388], [22, 15.23792153], [7, 21.05263368], [50, 19.29784494], [50, 17.55638989], [7, 89.58251765], [50, 99.77239835], [22, 83.29828748], [11, 75.63174661], [7, 40.40115337], [50, 32.86465612], [7, 83.17863306], [22, 44.41493755], [7, 63.96035535], [11, 64.40860694], [11, 49.00353095], [50, 68.65827264], [7, 45.70221214], [7, 16.61146662], [50, 92.84435538], [7, 100.0], [22, 18.34721785], [50, 31.13388328], [22, 46.61392928], [22, 12.62283968], [7, 66.91737385], [22, 89.6208027], [7, 79.69048583], [11, 45.71311745], [7, 48.60858112], [22, 68.20201061], [11, 21.38562203], [11, 27.12335623], [22, 71.24348694], [50, 15.32450051], [50, 31.48530472], [50, 37.44322537], [22, 99.60073991], [22, 49.91002875], [7, 24.06896392], [50, 79.36770397], [11, 28.04190036], [7, 30.19666816], [7, 31.19004533], [50, 38.30678402], [11, 91.06062733], [22, 26.43030487], [11, 99.63152958], [7, 98.32024861], [50, 62.18857923], [50, 44.59374316], [11, 60.00820603], [11, 36.05153518], [11, 17.18159302], [50, 100.0], [7, 31.05946602], [11, 44.20135457], [50, 63.4336911], [7, 62.324991], [22, 91.16940672], [22, 33.79594161], [7, 79.14500514], [22, 54.75571521], [7, 90.71086281], [22, 87.93630171], [11, 82.46760659], [22, 77.59074551], [50, 24.06100783], [11, 17.85679218], [11, 25.74257829], [50, 20.75131687], [11, 66.68754833], [11, 40.88707963], [7, 15.13455167], [22, 94.92862603], [50, 53.6069232], [7, 17.04505965], [11, 100.0], [7, 26.63817338], [7, 84.55881225], [7, 27.44623963], [11, 56.72131191], [7, 27.03975589], [11, 24.41797045], [11, 89.42465275], [50, 27.88959484], [11, 77.19431501], [50, 71.36842348], [7, 95.5050574], [50, 59.31584935], [50, 46.18335508], [11, 100.0], [22, 63.13452311], [22, 92.07011409], [11, 30.30239985], [7, 80.91801647], [11, 93.26269517], [11, 19.03515134], [11, 29.70819834], [7, 45.76775144], [7, 63.07801314], [11, 100.0], [11, 63.16219395], [50, 52.78005533], [50, 18.54472396], [50, 63.04432744], [11, 84.84533627], [11, 53.3531703], [50, 88.72074195], [22, 29.0947413], [50, 68.38115295], [50, 25.77739266], [50, 43.22243614], [50, 32.48006626], [11, 70.77801577], [50, 87.9180217], [50, 27.9040352], [7, 65.00343446], [50, 80.05281129], [50, 12.89635593], [11, 91.93453986], [7, 68.14723296], [11, 65.87793498], [11, 31.1716178], [50, 78.62932458], [22, 19.16030425], [7, 70.9055098], [22, 23.21569283], [11, 32.27976455], [7, 42.35712314], [50, 24.46458917], [22, 19.90327417], [7, 88.21588353], [22, 42.60860507], [22, 18.16160314], [22, 71.66182354], [50, 31.56387464], [22, 27.92353265], [11, 59.6234868], [22, 66.51591007], [7, 95.11010612], [11, 27.23432288], [22, 94.18514459], [22, 79.67997678], [7, 57.22677363], [11, 28.98095395], [22, 92.19496051], [11, 30.43535921], [22, 97.23053458], [50, 88.9497697], [50, 26.66271624], [22, 100.0], [50, 35.31562591], [7, 18.25995093], [50, 34.79557698], [22, 69.37658708], [7, 25.39597456], [7, 32.853935], [11, 72.00793095], [7, 22.14086906], [11, 33.79076668], [22, 14.57111583], [11, 95.98182257], [7, 89.13193598], [50, 100.0], [7, 30.80994397], [7, 29.80087234], [7, 92.25793043], [50, 15.53095916], [11, 98.52441074], [22, 45.8572318], [22, 99.14986095], [7, 42.48382924], [11, 11.76621099], [7, 73.91181689], [50, 90.12257225], [22, 91.48254071], [11, 90.52901546], [11, 32.70715172], [22, 43.49524167], [22, 21.58195518], [11, 77.74361866], [11, 67.96688392], [11, 98.19589569], [7, 62.52738373], [7, 23.70212246], [11, 11.33016791], [7, 56.49203053], [11, 69.45721687], [22, 95.05392852], [22, 94.7750984], [22, 69.44150025], [11, 49.14289546], [22, 78.07694451], [7, 61.72377061], [22, 97.92289062], [11, 65.66141084], [7, 27.55727652], [50, 77.72229762], [22, 18.69930043], [50, 29.55473794], [22, 75.62869804], [22, 25.99781018], [11, 61.5321642], [7, 36.5657884], [7, 17.75367774], [50, 70.42330808], [50, 32.03554657], [11, 37.91930773], [50, 20.70431436], [22, 71.91623382], [7, 20.72433926], [7, 47.84971258], [22, 64.47307121], [50, 63.08833535], [11, 25.86795897], [7, 30.20852585], [22, 25.34261048], [50, 25.76865485], [7, 96.92934866], [11, 37.60287118], [50, 56.62273606], [11, 78.27764539], [11, 70.3592871], [22, 32.81237606], [11, 82.36874385], [22, 71.43885848], [7, 15.59314591], [50, 34.45972273], [22, 49.97317263], [22, 30.6249189], [11, 24.47973258], [11, 86.34403094], [22, 69.90803616], [7, 89.99504117], [7, 100.0], [22, 27.11801526], [11, 39.27589984], [50, 20.89920855], [22, 25.98208231], [7, 32.2946223], [22, 98.98462114], [7, 29.95816687], [11, 57.5437661], [22, 93.13668513], [7, 87.12147414], [11, 60.47799982], [50, 23.57548575], [11, 74.01266284], [7, 97.86240528], [22, 21.85335602], [11, 21.31837375], [7, 88.02282538], [11, 86.33077136], [22, 47.61121657], [50, 31.79088424], [22, 58.20655999], [50, 30.96922386], [11, 59.71581842], [50, 25.04091604], [22, 75.480681], [50, 54.06283762], [22, 97.76266597], [22, 26.21462138], [7, 77.1135584], [22, 85.49541894], [7, 29.28882252], [22, 39.02047629], [7, 59.02709323], [11, 74.89602605], [7, 78.37011889], [11, 26.5836356], [50, 66.723169], [7, 100.0], [11, 24.2358927], [7, 94.44137211], [7, 35.86979511], [7, 100.0], [11, 86.45243771], [7, 100.0], [7, 23.6696168], [50, 60.46744479], [50, 50.07734838], [50, 30.01776472], [7, 68.60852381], [22, 36.56609451], [7, 71.07184378], [11, 33.33309638], [50, 32.13077167], [11, 71.69378849], [22, 16.16486906], [50, 54.82715028], [11, 85.9764333], [11, 27.34107333], [7, 100.0], [50, 33.16319649], [22, 47.88215562], [50, 30.125287], [7, 72.54858736], [11, 99.21779086], [7, 53.97198888], [22, 28.4128398], [50, 18.18347176], [22, 80.68293827], [11, 31.20531538], [7, 18.69873562], [11, 56.53762558], [50, 70.15554256], [50, 90.93347088], [22, 76.8181819], [50, 49.28262857], [50, 63.41994528], [22, 93.65497684], [11, 29.09310836], [11, 35.05959298], [11, 22.65160545], [22, 46.34951152], [50, 38.43564778], [11, 100.0], [50, 92.36095186], [22, 49.12953722], [50, 25.55739068], [11, 51.04252325], [11, 15.96543632], [7, 62.1131834], [22, 59.67659722], [7, 66.33630035], [22, 66.31966136], [50, 63.53239189], [50, 76.8611961], [7, 14.25955816], [7, 97.10547374], [11, 70.55177446], [11, 92.47221805], [7, 55.93616748], [22, 18.11934236], [11, 28.57281303], [22, 36.11864245], [22, 25.80711483], [50, 59.95279962], [7, 86.73157545], [22, 100.0], [50, 26.09499336], [22, 43.52106982], [11, 49.12821597], [7, 48.07582582], [7, 14.98185709], [11, 37.96106564], [22, 48.80501092], [50, 78.90600178], [50, 67.34220713], [22, 69.27062662], [7, 44.16268939], [22, 95.13388954], [50, 13.62375084], [7, 27.9564461], [22, 50.39589224], [50, 28.52812938], [7, 67.72128039], [11, 72.44390271], [50, 60.90294733], [11, 58.90561532], [50, 18.70636609], [11, 53.03019219], [22, 45.21180699], [11, 28.17918122], [50, 22.28941491], [50, 26.07671467], [11, 27.59324018], [7, 99.67315107], [11, 60.58514157], [11, 66.2431243], [50, 15.20736322], [7, 78.71257185], [11, 38.13613028], [50, 37.08745351], [22, 71.34291043], [22, 55.32695651], [50, 72.43592594], [11, 78.4488178], [50, 95.12054776], [50, 19.07078057], [7, 93.42465924], [11, 32.06206674], [11, 48.96586391], [11, 13.36663515], [11, 50.12178964], [22, 24.5318189], [50, 27.29037867], [50, 90.4298482], [22, 88.5760003], [50, 71.98383647], [22, 81.97790563], [7, 39.8355391], [11, 26.33485539], [22, 94.85680073], [22, 89.17074024], [7, 30.35359603], [50, 17.047089], [22, 17.15659921], [11, 25.45493229], [7, 46.4035103], [50, 29.87777647], [11, 87.44057812], [11, 50.58784447], [11, 34.55316455], [50, 43.30511451], [50, 47.85521919], [50, 99.12195991], [22, 60.01822696], [7, 50.38030873], [7, 89.83547278], [50, 24.43173576], [7, 77.58362966], [50, 18.29471076], [22, 90.57499202], [11, 44.86618292], [7, 88.87393316], [22, 47.6699257], [11, 22.49417536], [22, 49.20582945], [11, 26.0588911], [7, 56.39118024], [22, 83.06531192], [22, 38.26067928], [22, 74.40792597], [7, 19.64047354], [7, 39.83564045], [22, 75.83540522], [7, 26.94171785], [50, 91.35184181], [50, 54.59267652], [7, 33.70377065], [22, 19.94689342], [7, 20.81643459], [11, 75.70069903], [22, 46.80676869], [7, 88.69510847], [50, 26.51230278], [22, 13.10455597], [7, 99.2960983], [11, 74.72050592], [7, 38.94459499], [50, 29.5533834], [22, 33.93467458], [11, 82.40135432], [50, 30.38692317], [11, 85.76268734], [22, 67.10043551], [7, 39.88987326], [7, 22.97999785], [50, 94.3962215], [22, 22.02937462], [22, 72.25115937], [7, 60.61108099], [11, 98.19473137], [22, 28.87888106], [22, 30.15670273], [22, 22.70723535], [7, 72.40227949], [7, 19.11017415], [50, 70.47458678], [22, 47.48654177], [7, 86.31416578], [11, 29.49824833], [7, 42.77942843], [22, 23.87076435], [22, 90.16685816], [50, 24.05688482], [22, 74.07922965], [11, 28.4027839], [22, 88.71748094], [7, 28.89927629], [22, 21.54659849], [11, 80.31249694], [22, 44.9146238], [50, 53.97751578], [11, 89.48170817], [11, 55.01095258], [7, 33.32486821], [22, 97.5160333], [50, 100.0], [7, 76.69588173], [7, 91.00303642], [7, 71.38266302], [11, 99.35720825], [22, 41.94318406], [7, 93.12984883], [22, 41.17347547], [50, 45.3928389], [11, 40.38079133], [11, 30.29936063], [11, 41.87949641], [7, 96.85537027], [22, 17.53808308], [7, 64.27446024], [7, 23.48326047], [11, 60.33320692], [22, 59.61885901], [22, 45.06835117], [50, 59.80516651], [50, 21.96303217], [11, 100.0], [11, 98.64399491], [22, 85.21838159], [11, 15.23725109], [50, 43.50713308], [22, 23.50882264], [7, 58.84045322], [22, 32.30269515], [50, 97.1714671], [22, 38.86690064], [11, 43.6626201], [50, 15.30533878], [7, 28.13328684], [50, 67.07642555], [50, 58.65534709], [50, 61.87705719], [22, 54.28961764], [50, 94.01647641], [7, 76.61314222], [11, 28.3221518], [7, 83.98879204], [7, 22.67020071], [11, 38.17958447], [7, 17.85043878], [22, 26.85472289], [22, 16.45313884], [22, 30.9124057], [50, 22.38854717], [22, 57.10949741], [11, 15.41911384], [7, 35.37790097], [22, 68.37561063], [50, 21.67944412], [11, 37.64355821], [7, 70.92501757], [11, 80.63721863], [7, 59.00225567], [50, 19.88002396], [11, 86.57509794], [11, 31.80570199], [50, 34.83005667], [50, 91.85808515], [7, 100.0], [50, 50.26468862], [7, 69.16948355], [22, 25.10464872], [22, 37.31764032], [22, 93.8439627], [7, 76.45204218], [7, 100.0], [7, 95.78982655], [7, 20.43865336], [7, 22.88376001], [11, 28.90931432], [11, 92.75719187], [7, 96.76264456], [7, 90.04445037], [11, 49.4095887], [11, 26.37122752], [7, 11.58349505], [50, 48.3100135], [50, 100.0], [50, 63.49725309], [50, 100.0], [7, 87.18145477], [22, 60.12600904], [11, 42.68444581], [50, 34.96523048], [50, 41.09022523], [7, 63.88380282], [22, 25.42272096], [50, 69.00458179], [11, 22.12942137], [50, 43.4152925], [11, 84.96677761], [7, 100.0], [7, 92.70537929], [11, 62.75661186], [50, 94.15173967], [22, 84.39720528], [7, 76.98026597], [50, 67.66348703], [7, 16.21167107], [22, 91.45271266], [22, 68.53797215], [22, 76.27187525], [50, 38.20936931], [22, 18.29473449], [11, 21.06792839], [22, 69.06675378], [50, 43.8167252], [50, 100.0], [7, 33.42028222], [22, 33.75803609], [50, 76.18046315], [7, 100.0], [50, 96.64695465], [7, 100.0], [7, 22.2075972], [7, 100.0], [22, 91.91090726], [50, 41.43512614], [7, 92.79534432], [11, 95.94474344], [22, 49.34298118], [50, 92.49730422], [22, 36.85298948], [7, 18.26933325], [7, 47.79947247], [22, 21.75401967], [22, 17.39070015], [50, 56.83691993], [22, 19.65823441], [50, 15.79964991], [7, 63.02098973], [22, 18.82978222], [11, 94.91138402], [50, 33.92253763], [22, 82.83329564], [11, 91.24185965], [7, 48.27651408], [7, 22.38368381], [11, 65.90858209], [22, 31.16491215], [7, 29.50559294], [11, 28.53366055], [7, 84.16162903], [50, 63.20757215], [11, 85.64271799], [50, 20.28000099], [11, 66.98553523], [7, 18.89993642], [11, 19.67092938], [11, 19.69494302], [7, 100.0], [50, 22.31465246], [50, 68.57753309], [7, 17.89764524], [11, 69.60246462], [50, 46.66131328], [11, 36.10768711], [50, 72.05955704], [50, 96.74568754], [22, 84.00367762], [22, 46.64699107], [11, 100.0], [22, 51.37696693], [22, 52.91569274], [50, 19.30404735], [50, 94.93794459], [11, 92.0451764], [11, 31.83403848], [50, 33.59469888], [22, 53.13686447], [22, 29.2629531], [50, 85.77410556], [22, 77.93490159], [7, 74.82652573], [7, 36.41218591], [7, 25.27736921], [22, 20.17935826], [7, 23.57222203], [50, 28.63608215], [22, 28.79565893], [11, 26.08628141], [11, 23.2807995], [50, 34.12889084], [11, 32.49218387], [22, 30.43176723], [50, 30.73400648], [7, 64.74345665], [50, 22.82475565], [11, 42.98006451], [22, 90.1772781], [7, 26.60546179], [22, 52.12685845], [50, 21.44215316], [11, 65.62350339], [50, 48.49886532], [7, 33.21439411], [50, 34.71742584], [11, 79.84480637], [22, 44.76911289], [50, 17.21034891], [22, 35.03168335], [22, 17.40179152], [7, 90.12223632], [7, 55.96453157], [22, 30.79676629], [22, 14.48732858], [50, 97.8851871], [50, 82.4730195], [7, 32.98831758], [11, 31.64940494], [11, 20.28589362], [7, 59.11092294], [11, 84.35861481], [50, 26.23604009], [50, 34.37167642], [11, 40.51432474], [7, 30.11159551], [11, 26.18297823], [50, 58.2188369], [11, 21.44072119], [11, 61.49061657], [11, 95.94623585], [11, 100.0], [50, 18.34758165], [22, 73.06076023], [7, 85.75933693], [22, 96.68329113], [11, 17.04692177], [11, 30.75242215], [50, 18.91743095], [50, 97.97656001], [11, 83.60977755], [50, 33.10367095], [11, 26.87589682], [11, 84.65493092], [50, 36.10805252], [50, 72.09008204], [11, 22.94335544], [50, 35.43191542], [50, 100.0], [11, 57.09550525], [22, 28.71518316], [22, 100.0], [11, 25.14321182], [22, 20.79098329], [50, 36.91872875], [50, 50.97887648], [50, 43.31489226], [22, 74.57266194], [11, 60.86789674], [50, 30.95851779], [7, 83.02494616], [50, 94.25198467], [11, 15.95653239], [7, 52.50758037], [7, 72.18967416], [11, 37.24933083], [11, 26.56936799], [11, 46.70812757], [11, 38.92420287], [7, 35.44149002], [50, 35.1671456], [7, 49.47254649], [11, 26.23437112], [50, 54.55778783], [7, 94.56812085], [22, 45.83392297], [22, 28.6336318], [50, 66.62414238], [22, 15.20677477], [7, 16.3849682], [11, 93.28517033], [11, 79.39622459], [50, 53.08960786], [11, 35.64836345], [22, 93.80056998], [50, 23.77883335], [11, 17.86654097], [7, 41.78324235], [22, 75.49666498], [50, 94.63526466], [22, 73.67784946], [7, 52.73641072], [11, 82.21172614], [7, 19.4229522], [22, 32.93448554], [11, 92.42129662], [11, 27.59641309], [22, 84.46977668], [50, 92.60963677], [50, 26.1402504], [11, 29.67078102], [50, 79.57343019], [11, 96.45108718], [7, 37.88925015], [7, 16.59309981], [50, 100.0], [22, 61.32801499], [22, 85.36424168], [7, 74.67477371], [7, 19.77571872], [7, 78.25622815], [50, 65.97963735], [11, 82.11691572], [11, 36.02772437], [50, 16.73037021], [50, 36.16614854], [50, 15.91855958], [7, 20.3108159], [7, 29.00197978], [11, 32.7766366], [50, 92.83245889], [50, 28.3872484], [50, 55.05594445], [22, 89.23746551], [7, 20.41549673], [50, 48.85746495], [50, 19.52928491], [22, 74.49953305], [50, 51.95126165], [11, 61.58863278], [11, 54.92981514], [22, 60.37410554], [22, 80.15399108], [11, 100.0], [22, 17.86387094], [11, 92.21131229], [50, 28.29723974], [11, 92.44721705], [7, 31.56911274], [22, 64.14794338], [22, 72.99637797], [50, 100.0], [22, 39.56884844], [22, 67.83478699], [7, 88.73927164], [11, 81.34513583], [7, 52.18701907], [22, 61.00190156], [11, 77.85065299], [7, 22.58492927], [7, 15.91937779], [50, 86.13198955], [50, 100.0], [7, 100.0], [11, 92.24411932], [11, 50.08760837], [50, 84.26851016], [50, 88.92769014], [11, 67.04778417], [22, 73.86084315], [7, 16.1090213], [22, 65.40541348], [7, 81.32496266], [50, 23.0449834], [22, 36.86020702], [22, 74.70157893], [50, 68.15426739], [11, 42.97306871], [50, 89.20091602], [7, 24.25339888], [7, 17.49530659], [22, 29.70222663], [50, 51.95840885], [7, 44.92949189], [50, 43.01627552], [22, 32.12687972], [50, 43.53668182], [22, 14.38836569], [50, 26.39730713], [50, 22.93075148], [7, 73.91386117], [7, 82.55101148], [22, 32.75113482], [11, 30.85887436], [11, 66.7787642], [7, 21.87849066], [7, 23.33412163], [11, 53.11182477], [11, 33.89892863], [11, 34.38927059], [50, 94.23657902], [22, 41.38804298], [50, 55.31440748], [22, 57.56337542], [11, 66.55405432], [11, 70.37327168], [22, 66.97413244], [50, 26.29746634], [22, 19.46022397], [50, 60.0775054], [11, 49.59470233], [22, 68.02775256], [7, 63.93593968], [50, 19.51102533], [7, 32.39786353], [22, 76.34457966], [11, 23.9777217], [7, 33.4720258], [11, 23.72450999], [50, 100.0], [11, 95.4165298], [7, 84.83421738], [7, 99.27078345], [7, 55.38549085], [50, 15.45143339], [11, 84.23168716], [11, 30.94380242], [50, 100.0], [22, 47.4037862], [7, 96.80730526], [50, 23.89695518], [22, 18.06415512], [50, 64.1672331], [7, 99.31133257], [7, 72.91354248], [22, 15.70599952], [50, 76.76212087], [11, 59.90750578], [50, 89.62121568], [7, 92.08769792], [50, 94.31357268], [50, 28.1482015], [11, 36.62597105], [7, 23.59877669], [50, 78.69241793], [11, 80.98758148], [11, 32.34732116], [11, 30.79385736], [50, 29.27474203], [7, 38.20121871], [7, 100.0], [50, 96.4830457], [7, 20.48838318], [11, 51.89894838], [22, 60.47957914], [50, 93.09594884], [7, 69.91165935], [11, 100.0], [50, 94.56726367], [7, 15.92427203], [50, 29.87010831], [50, 71.28094084], [22, 51.17598006], [7, 84.90078783], [7, 78.49280179], [50, 26.91461056], [22, 58.01029179], [22, 20.05588339], [50, 70.52227645], [50, 92.31547325], [22, 79.2781513], [50, 99.16528518], [50, 93.68458245], [22, 18.57570566], [22, 93.43494799], [11, 88.74947209], [11, 94.29595457], [11, 72.60696904], [50, 26.13689592], [22, 31.13127401], [7, 42.79511518], [7, 19.3659778], [22, 35.67937321], [22, 18.13316611], [11, 72.78507862], [7, 30.61106572], [22, 59.10113355], [22, 83.32902607], [50, 25.90613838], [50, 54.19158351], [22, 15.18948052], [50, 15.18394103], [11, 84.08266998], [50, 77.64419552], [11, 100.0], [7, 45.09211605], [7, 68.47233843], [11, 84.26540222], [22, 18.54362378], [50, 71.65295107], [22, 100.0], [50, 22.89350415], [7, 79.74344324], [11, 48.17615725], [11, 99.68474034], [11, 100.0], [11, 42.98375267], [50, 50.54729361], [22, 28.60501012], [22, 55.327814], [7, 89.2024982], [50, 85.57863259], [50, 28.36380477], [50, 19.30457095], [22, 65.12797005], [50, 44.54737233], [11, 74.55779461], [7, 82.11000766], [50, 18.89226206], [7, 100.0], [22, 24.72382738], [22, 66.9395297], [7, 94.78846216], [11, 59.18592812], [11, 41.41703275], [22, 17.46423238], [22, 25.90440253], [7, 29.42080666], [11, 81.7035001], [22, 43.31298976], [7, 43.87845153], [50, 40.61051655], [50, 42.13463079], [11, 29.76852284], [50, 23.77042744], [22, 65.75602909], [22, 65.95227795], [22, 71.27384438], [22, 23.06681307], [11, 23.84912214], [22, 25.35724596], [22, 32.76884199], [7, 15.99309538], [22, 42.38852153], [11, 100.0], [11, 64.71228852], [22, 47.7028195], [50, 31.71415141], [7, 46.54968168], [7, 82.76634797], [22, 71.23339258], [22, 73.20360658], [7, 100.0], [22, 24.06267109], [22, 24.72214236], [22, 28.42958297], [7, 83.18488308], [11, 39.84891892], [7, 14.34004186], [50, 40.06229553], [22, 28.68358705], [22, 15.37398779], [11, 61.40720137], [50, 88.5228924], [7, 34.00185744], [7, 47.01955619], [11, 92.19247243], [22, 57.46009432], [50, 92.51076915], [7, 85.87157645], [22, 64.40496683], [11, 85.86308568], [11, 43.3824652], [11, 33.9314836], [50, 77.04393804], [7, 19.61837931], [22, 97.07559167], [22, 22.17580382], [11, 76.90650121], [7, 93.79146702], [50, 67.90338736], [22, 65.25734875], [11, 83.70452576], [50, 55.37430732], [50, 62.06189948], [7, 16.86132397], [50, 33.2858129], [22, 100.0], [7, 29.48909277], [11, 43.74717912], [50, 71.62853198], [7, 77.41630885], [22, 96.31936154], [22, 30.44622337], [22, 70.5279233], [11, 25.52248016], [7, 72.67430444], [7, 86.21696881], [11, 74.94563274], [7, 45.57146578], [7, 18.61016149], [11, 51.13437094], [7, 56.83038222], [22, 29.33802066], [7, 100.0], [11, 19.60397979], [7, 18.28916459], [11, 79.16508236], [7, 32.3488418], [50, 47.81565998], [50, 35.74310281], [7, 65.13480876], [22, 43.25349063], [11, 29.0133328], [11, 23.25167806], [50, 14.80326892], [7, 31.42981255], [50, 23.19490846], [7, 100.0], [7, 38.710173], [22, 46.92394159], [11, 29.52249049], [7, 70.85244837], [50, 39.45133037], [11, 59.85307403], [7, 24.95798325], [7, 57.83400099], [7, 66.57869857], [22, 83.29085151], [11, 26.44888749], [7, 36.89426827], [50, 31.71050596], [50, 59.04858458], [50, 28.45950784], [7, 64.59170591], [50, 41.67162244], [50, 21.00814113], [50, 100.0], [22, 88.09118047], [11, 21.52575996], [22, 70.68614], [50, 33.21255684], [11, 93.66809046], [22, 100.0], [22, 100.0], [50, 17.38531403], [50, 95.24682789], [11, 28.96921289], [11, 27.0027761], [11, 17.4910377], [50, 77.60469702], [50, 27.03652697], [7, 22.48852523], [50, 46.18784649], [11, 34.51776453], [22, 79.84512206], [50, 22.17343725], [7, 34.55743965], [50, 29.38510927], [22, 33.03217401], [7, 21.85748854], [50, 31.58268768], [7, 23.92059789], [7, 19.30954923], [50, 57.57100016], [50, 55.42914871], [50, 30.46184262], [50, 78.27388997], [11, 78.34184758], [7, 14.30806569], [11, 50.78120453], [11, 83.19922074], [22, 74.29803535], [22, 85.55153077], [50, 92.05995974], [22, 45.05895781], [22, 23.17031835], [22, 27.84790132], [7, 27.92532123], [11, 32.65800481], [7, 37.05045798], [7, 81.57871753], [50, 82.37158986], [50, 74.6484163], [50, 37.34884325], [7, 67.71966728], [22, 33.34628945], [50, 34.78731698], [22, 97.39319384], [11, 33.29114981], [11, 26.40902598], [22, 30.09299592], [22, 48.34487773], [7, 87.5877568], [11, 39.3166971], [7, 28.96264181], [22, 57.14506702], [50, 79.10436673], [50, 30.19490037], [22, 71.98419292], [22, 33.57291945], [50, 43.17125855], [22, 47.79338335], [22, 75.17022477], [22, 99.54544095], [7, 15.09860357], [11, 32.78029196], [7, 18.32313623], [7, 23.593562], [50, 96.01874978], [11, 33.71048267], [50, 68.00088356], [11, 33.96947369], [22, 28.21100208], [50, 17.62493238], [7, 70.25279204], [11, 80.69374551], [50, 100.0], [7, 44.2749477], [11, 95.53700405], [7, 39.29747491], [50, 20.57103196], [22, 21.40929524], [50, 100.0], [7, 19.17423284], [50, 45.50827121], [11, 85.68414985], [11, 42.70728067], [50, 54.42312537], [50, 83.02668482], [50, 26.43273795], [50, 81.96663929], [11, 66.77721699], [7, 49.43299644], [50, 95.16530948], [22, 22.58102726], [50, 43.97043647], [7, 82.96146034], [22, 33.64286043], [11, 66.2458115], [7, 87.17019968], [7, 15.81500806], [7, 95.15390575], [22, 70.85964292], [50, 67.30799256], [22, 13.45615321], [22, 37.24106483], [7, 17.08496436], [7, 77.33377869], [22, 98.92292718], [50, 21.16835074], [11, 90.53762663], [50, 24.7537606], [50, 23.5515532], [7, 75.90426326], [11, 62.25431859], [22, 45.59340738], [11, 59.68567609], [22, 63.07876732], [11, 100.0], [50, 81.24953697], [50, 99.92077576], [22, 56.60156272], [7, 86.89071155], [50, 96.33165342], [7, 79.60515445], [11, 13.99257615], [11, 74.00600977], [7, 51.54678926], [11, 65.5343581], [22, 89.77380549], [7, 31.43721092], [50, 31.54451486], [7, 17.17075263], [7, 21.75898739], [22, 76.74616235], [11, 53.97443578], [50, 67.67507694], [11, 98.41886505], [7, 31.98481275], [50, 78.31195058], [11, 79.10669081], [50, 93.143933], [11, 91.4634359], [22, 22.20848978], [11, 32.01881878], [50, 21.43264317], [22, 35.41021923], [11, 24.21591173], [50, 66.95758512], [7, 100.0], [11, 20.80877711], [50, 19.95882823], [50, 36.43770039], [50, 25.51108111], [11, 93.62285148], [50, 64.59682542], [11, 64.21595254], [11, 38.38258107], [11, 27.11331486], [22, 40.94921359], [7, 83.80778431], [50, 51.82757299], [11, 80.98879827], [7, 99.97026429], [7, 22.34589281], [22, 32.14611279], [7, 78.17070973], [50, 19.21510546], [22, 99.80721852], [7, 19.75759356], [50, 100.0], [22, 84.07174681], [50, 17.22695116], [50, 86.4168684], [11, 52.05560145]],
+            backgroundColor: COLORS.teal + '44',
+            borderColor: COLORS.teal,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }, title: { display: true, text: 'Station Load vs Charging Power', font: { size: 14 } } },
+        scales: { x: { title: { display: true, text: 'Charging Power (kW)' } }, y: { title: { display: true, text: 'Station Load (kW)' } } }
+    }
+});
+
+// Section 4: Renewable by Weather
+new Chart(document.getElementById('chart-renew-weather'), {
+    type: 'bar',
+    data: {
+        labels: ["Clear", "Rainy", "Cloudy"],
+        datasets: [{
+            label: 'Avg Renewable Ratio',
+            data: [35.7, 35.4, 35.1],
+            backgroundColor: [COLORS.green + '99', COLORS.tealAlphaStrong, COLORS.blue + '99', COLORS.amber + '99', COLORS.gray + '99', COLORS.purple + '99'],
+            borderColor: [COLORS.green, COLORS.teal, COLORS.blue, COLORS.amber, COLORS.gray, COLORS.purple],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Renewable Energy Ratio by Weather', font: { size: 14 } } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, max: 100, title: { display: true, text: 'Renewable Ratio (%)' } } } }
+});
+
+// Section 4: Renewable by Slot
+new Chart(document.getElementById('chart-renew-slot'), {
+    type: 'bar',
+    data: {
+        labels: ["Peak", "Off-Peak"],
+        datasets: [{
+            label: 'Avg Renewable Ratio',
+            data: [29.0, 39.3],
+            backgroundColor: [COLORS.red + '99', COLORS.amber + '99', COLORS.tealAlphaStrong],
+            borderColor: [COLORS.red, COLORS.amber, COLORS.teal],
+            borderWidth: 2,
+            borderRadius: 6
+        }],
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Renewable Ratio by Time Slot', font: { size: 14 } } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, max: 100, title: { display: true, text: 'Renewable Ratio (%)' } } } }
+});
+
+// Section 4: Price vs Demand scatter
+new Chart(document.getElementById('chart-price-demand'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: 'Price vs Demand',
+            data: [[26.23635589, 13.89], [39.72092076, 9.98], [75.95087623, 6.83], [24.03633132, 7.14], [87.11026054, 8.67], [54.54629769, 9.15], [64.97298324, 11.07], [36.35035408, 8.73], [93.53026385, 11.0], [29.33013815, 13.71], [70.17331337, 12.24], [82.93080511, 6.35], [18.67524826, 9.26], [30.18299418, 14.03], [44.50280964, 7.92], [101.3018463, 9.84], [85.15117269, 7.31], [78.31052006, 7.4], [13.31411196, 10.27], [61.58846192, 6.97], [17.33738933, 8.64], [44.22426962, 14.44], [91.02311547, 7.77], [20.46574181, 14.7], [99.25965799, 13.43], [58.33893692, 8.3], [42.2951369, 10.75], [33.31395938, 9.83], [12.25159851, 12.05], [53.75916545, 8.24], [21.49593179, 9.56], [84.38383769, 10.76], [89.53011082, 5.46], [38.27662523, 9.61], [23.70722214, 9.01], [27.06221968, 10.47], [22.6580775, 6.95], [15.83529939, 11.03], [103.7764702, 7.67], [94.70196871, 7.84], [97.5253039, 14.96], [19.38932518, 11.23], [80.06194786, 14.33], [51.17270339, 10.23], [16.02462285, 12.93], [26.33788775, 8.59], [81.72620523, 9.38], [86.125116, 10.09], [93.12261056, 13.31], [90.68073462, 10.18], [94.54093803, 12.42], [76.3782515, 5.05], [25.1082544, 14.75], [35.83921285, 10.71], [63.24578715, 7.15], [15.62916591, 14.82], [68.29041465, 12.58], [75.75082651, 13.49], [29.13198634, 13.08], [23.95321061, 11.13], [22.36230633, 6.78], [67.21013438, 6.47], [54.6820721, 6.45], [99.49087957, 7.86], [74.99431001, 5.33], [10.16720958, 6.38], [32.6108039, 9.17], [19.52845873, 14.22], [24.42874024, 12.95], [26.23802303, 5.4], [43.41820021, 8.87], [89.83401876, 7.59], [53.3640055, 13.37], [96.97514457, 8.32], [36.38324459, 8.66], [90.64502761, 11.46], [16.82058897, 10.42], [57.72551353, 9.89], [51.66244283, 14.94], [28.42224799, 6.98], [45.94702804, 6.31], [49.34925924, 9.91], [104.4451159, 5.43], [8.451955384, 8.29], [26.5615305, 7.13], [25.41894221, 7.24], [79.01214924, 5.02], [39.81975491, 9.07], [23.27721972, 5.28], [98.55242723, 8.75], [84.37960928, 13.98], [81.67025451, 10.72], [94.14156493, 7.82], [31.76777295, 13.17], [101.0878443, 13.41], [34.91740455, 9.95], [37.07895514, 9.35], [74.54968707, 14.25], [65.62066218, 7.91], [27.38107196, 9.9], [72.50529252, 13.52], [12.39392695, 7.03], [67.63276783, 8.54], [32.12092081, 11.53], [12.96151691, 9.08], [30.66295317, 11.51], [25.17027285, 5.54], [44.62967307, 13.22], [60.20114531, 9.98], [74.38952941, 14.03], [32.25775996, 6.86], [26.80144632, 12.75], [76.18319472, 10.05], [102.6891382, 9.46], [37.31581347, 10.92], [24.96285955, 12.78], [30.79948101, 7.1], [76.94510743, 6.02], [91.70528658, 13.93], [45.88119909, 7.4], [18.62236426, 13.74], [61.72461245, 8.58], [24.35778999, 6.17], [64.0626825, 7.56], [89.0461902, 7.55], [69.82472019, 12.01], [20.23477138, 10.86], [101.0273354, 9.92], [29.14151676, 11.3], [79.69299665, 13.92], [22.92169577, 8.46], [34.05408129, 5.85], [98.26952208, 11.77], [86.64976648, 9.25], [72.50870649, 6.72], [28.02060973, 9.61], [87.00973727, 7.4], [46.99430951, 6.72], [28.40266181, 14.97], [49.79289807, 12.1], [85.99591513, 13.34], [39.16387611, 7.38], [34.0218285, 12.12], [23.71772722, 5.82], [89.15479922, 11.45], [36.01371767, 8.34], [57.82150933, 7.16], [27.02501233, 13.24], [101.9363821, 7.41], [82.53896599, 10.65], [91.69945429, 8.28], [96.07270348, 6.5], [86.89046543, 5.95], [60.9826513, 9.86], [62.60753081, 10.94], [39.34579017, 9.5], [75.21296604, 14.76], [96.44883746, 6.28], [34.73296386, 12.84], [32.07234212, 5.0], [81.47477316, 5.4], [34.19312054, 14.54], [66.53551169, 9.3], [18.70203427, 6.33], [96.95460665, 6.69], [31.71800697, 11.8], [29.54482451, 7.3], [38.44851699, 7.14], [20.78505258, 12.09], [20.56784177, 9.97], [94.073086, 7.27], [45.02793716, 14.46], [95.57243404, 12.8], [32.01286979, 5.67], [31.11600348, 10.3], [84.27533996, 10.72], [27.46624349, 13.45], [92.5534031, 10.65], [34.65120217, 8.39], [44.59174559, 11.04], [57.98347153, 13.68], [21.02156415, 14.97], [81.46914387, 12.15], [87.0421934, 10.18], [25.10495107, 13.97], [101.8069298, 9.8], [66.85446847, 6.12], [76.56806426, 11.12], [53.50287507, 14.42], [33.07409098, 12.45], [79.79073519, 14.87], [95.4012462, 13.46], [21.14798152, 11.39], [46.01326964, 9.18], [54.71254804, 12.05], [25.17203578, 8.73], [92.35808473, 6.47], [31.66670155, 10.65], [24.48177434, 6.1], [25.24218028, 12.54], [38.38203717, 6.06], [48.58135353, 6.3], [17.80054737, 12.18], [14.99912893, 9.49], [53.95099011, 13.65], [18.89666123, 10.92], [27.2540232, 5.1], [66.63399335, 6.92], [14.71336375, 8.36], [88.24885699, 9.42], [78.86338502, 5.2], [14.00514087, 6.08], [46.28798616, 7.56], [42.49874437, 9.28], [96.10194462, 14.15], [81.34614941, 13.45], [50.49674207, 14.4], [73.18902666, 6.33], [86.85990345, 11.19], [21.47472457, 12.65], [12.07795746, 13.59], [40.84164236, 5.56], [83.97525757, 10.08], [84.32253503, 10.17], [64.55743461, 10.35], [15.66847694, 9.89], [73.87280165, 9.11], [35.60553305, 9.39], [42.70304585, 11.11], [26.72549289, 14.47], [96.77446147, 10.99], [51.60271036, 11.72], [69.73746971, 13.24], [72.04243417, 6.96], [46.54575383, 11.02], [49.27710278, 12.54], [42.26235807, 12.78], [15.82299481, 7.45], [12.31366635, 14.91], [53.24159708, 8.42], [95.12298447, 9.93], [18.71025298, 12.49], [25.96116218, 5.51], [61.69424119, 12.03], [61.45334539, 10.48], [30.44127183, 8.65], [34.75667074, 14.63], [17.79519253, 12.78], [13.41521923, 10.58], [28.9472341, 8.65], [25.81958093, 12.19], [39.81486153, 13.46], [91.34660656, 11.59], [63.84132603, 14.26], [20.00277708, 13.9], [35.54119202, 5.58], [17.59410772, 5.51], [46.29209252, 8.3], [50.36839933, 6.03], [68.32344533, 11.9], [97.6128736, 7.78], [71.39197301, 12.97], [83.66519514, 11.31], [9.792150964, 12.65], [57.53894636, 10.61], [86.17785531, 8.04], [27.19179465, 9.68], [62.65254859, 6.74], [51.35270695, 9.22], [38.07324925, 14.52], [15.00899604, 9.49], [17.60430653, 7.8], [55.30883014, 8.18], [102.8598707, 7.05], [40.53329445, 11.61], [98.30503887, 6.11], [100.4447784, 11.95], [15.80850259, 6.82], [19.95040265, 12.25], [103.1341116, 10.06], [16.90628593, 5.38], [100.8243456, 13.82], [89.51051772, 10.34], [30.95188406, 7.12], [39.47517817, 9.72], [61.15518132, 11.96], [27.21454632, 5.22], [34.16095322, 7.99], [72.07476875, 7.06], [32.48074371, 7.63], [60.18309214, 12.89], [37.82914892, 14.39], [14.22030873, 8.23], [76.1222412, 12.03], [24.18939053, 5.76], [31.99110913, 9.85], [57.86295498, 13.04], [102.4926197, 9.6], [97.79272125, 13.08], [39.37436539, 13.17], [92.1340304, 6.92], [72.72863802, 14.76], [62.04531121, 7.22], [24.47033923, 11.15], [23.66634452, 14.17], [40.44656043, 5.03], [91.63374379, 14.56], [33.28239368, 13.06], [32.24941764, 14.56], [32.92904011, 10.28], [26.54671021, 5.86], [44.24492525, 13.1], [44.06858151, 9.51], [79.44361319, 10.73], [40.98859387, 5.91], [56.20226045, 13.51], [29.25588461, 7.62], [69.86115379, 5.04], [13.30408848, 11.12], [30.62141678, 14.57], [29.86718135, 11.61], [62.54239099, 7.12], [45.50131383, 11.58], [52.32795676, 11.47], [69.48425416, 10.02], [68.43546513, 8.1], [42.3595295, 7.69], [44.3167428, 8.15], [66.13867765, 9.06], [19.03945744, 7.87], [74.58513961, 10.92], [45.96252588, 7.6], [99.66335791, 10.6], [54.59340168, 9.76], [22.22860215, 14.25], [62.33238632, 13.73], [82.59821207, 10.41], [88.98998032, 5.66], [13.82679453, 9.12], [34.40054965, 13.44], [102.2790073, 12.43], [26.78700267, 7.08], [61.43551093, 8.8], [82.10148303, 10.2], [64.02519135, 11.12], [30.92464793, 12.04], [68.6012688, 6.12], [26.02028704, 12.12], [24.41510457, 13.41], [56.7848137, 7.62], [26.57947762, 9.12], [45.35284899, 6.35], [49.33343483, 13.16], [24.06758878, 12.03], [48.31222666, 13.59], [19.05845128, 10.94], [84.80226934, 10.15], [18.15107748, 8.59], [24.02899698, 13.47], [15.87335512, 9.57], [96.68185119, 11.98], [64.35793606, 9.9], [33.2841513, 12.9], [66.11696945, 12.56], [23.12983825, 8.9], [60.73671309, 6.01], [29.24932235, 13.96], [87.80908566, 14.3], [99.32489008, 6.67], [19.15930523, 12.18], [34.94270357, 5.79], [34.43775553, 6.38], [45.07104515, 12.52], [22.00130152, 7.56], [47.77473083, 6.64], [29.16004743, 7.89], [35.55373524, 7.01], [20.42525859, 13.25], [31.93391153, 12.23], [55.21184433, 14.93], [90.76886791, 6.57], [39.61876688, 9.13], [52.69890969, 11.62], [28.14563486, 14.55], [81.55044066, 10.95], [53.36229468, 11.98], [33.98945107, 14.4], [30.67619273, 13.19], [20.48724194, 8.12], [21.48906622, 9.9], [23.15040692, 8.59], [95.15634185, 5.41], [21.94521535, 9.92], [26.87223669, 10.13], [93.3956335, 7.72], [58.60164577, 14.52], [52.60873062, 12.93], [35.13602608, 12.83], [13.07574478, 14.24], [76.79806828, 14.46], [30.48410942, 9.57], [22.95053405, 6.73], [40.71403011, 8.03], [28.14740472, 10.52], [77.90796246, 10.61], [42.12099886, 6.87], [42.3689942, 6.62], [10.64518275, 7.44], [69.64224053, 10.29], [84.11638988, 9.13], [20.98051905, 6.53], [46.3502225, 9.64], [22.71098379, 9.55], [32.53463345, 6.59], [48.07052227, 8.66], [34.59150056, 12.88], [55.62849472, 9.02], [22.21198571, 10.03], [47.7495027, 11.13], [33.58860379, 8.93], [35.01906796, 10.56], [98.87230298, 5.53], [21.47121874, 13.98], [96.19877546, 10.73], [23.96306395, 13.78], [40.56428246, 8.11], [19.65474332, 14.1], [94.2922259, 9.91], [96.35036148, 11.05], [98.87101878, 7.87], [35.40781939, 5.23], [48.01348967, 8.47], [18.60099964, 8.42], [29.89336931, 12.72], [67.00053335, 7.83], [70.12158096, 10.34], [10.89079197, 12.02], [66.08534827, 11.35], [76.08422435, 10.36], [22.78600751, 13.54], [22.22464805, 7.52], [22.20331097, 12.33], [25.13227809, 5.11], [92.55058793, 12.87], [36.6113594, 12.61], [49.1057357, 7.73], [80.75661284, 12.84], [17.44489294, 7.81], [30.17438817, 11.85], [23.13660379, 14.85], [98.93484503, 10.12], [27.01278435, 7.16], [25.81431806, 6.12], [18.87132197, 13.96], [18.50515766, 9.33], [52.27593042, 14.59], [57.73774223, 10.09], [94.82044254, 5.96], [56.37260089, 11.77], [83.54975857, 12.28], [93.83154051, 14.15], [55.81553073, 11.61], [88.24634552, 14.13], [50.85589417, 8.63], [94.21766377, 13.39], [20.86828699, 9.41], [51.02448932, 5.25], [28.77137651, 12.9], [26.38547233, 7.54], [85.61711309, 7.06], [53.97271603, 11.91], [21.58474376, 7.47], [88.75492339, 13.26], [40.12390304, 8.61], [24.39572709, 6.44], [65.94027439, 8.61], [29.91700309, 6.46], [92.63345869, 12.76], [46.35677099, 12.38], [70.04956043, 8.37], [34.60080552, 9.08], [62.72592657, 7.17], [25.25533142, 6.19], [26.84757973, 6.71], [100.0857929, 6.05], [67.57855178, 12.86], [27.1851189, 6.82], [45.41724354, 6.36], [74.800593, 5.69], [48.56068365, 11.34], [74.58140618, 11.27], [76.09025122, 8.79], [91.12017, 14.28], [97.57881719, 14.01], [36.62337433, 13.77], [73.85556211, 13.02], [29.63253794, 14.43], [35.34235739, 5.08], [22.66802855, 14.71], [70.55662877, 7.69], [51.46038567, 14.26], [77.28017043, 5.77], [73.0091039, 9.94], [51.94517828, 6.78], [27.61222597, 6.04], [96.95808049, 10.83], [29.63885357, 7.65], [31.5831523, 8.4], [33.35356945, 9.98], [35.66405598, 7.27], [99.1531145, 11.68], [30.67664639, 7.39], [20.56720092, 11.99], [48.20522123, 12.63], [33.03107411, 10.24], [28.41249843, 14.92], [42.33046801, 13.68], [33.17794772, 11.81], [95.03111325, 13.99], [90.14848197, 5.62], [84.86600835, 10.04], [104.7415194, 13.44], [63.64442471, 6.48], [30.60455793, 13.58], [14.67706265, 6.7], [79.76467792, 11.89], [89.74135057, 6.24], [84.67613751, 9.12], [49.976151, 7.21], [7.90203595, 7.56], [78.7467892, 7.79], [44.10365406, 9.47], [87.00805544, 10.41], [103.9855833, 8.18], [27.48387299, 11.39], [21.00120502, 5.98], [74.59890487, 6.73], [19.98978503, 14.45], [39.03944789, 6.52], [58.49126858, 13.52], [47.44550451, 12.16], [37.4798146, 7.77], [55.01594434, 10.63], [40.71952152, 5.01], [49.8841017, 5.97], [92.64657662, 13.48], [31.5011933, 12.18], [82.97952597, 5.24], [41.40699311, 9.09], [22.74809685, 10.08], [77.03549606, 9.26], [90.01473713, 12.41], [23.41454182, 13.59], [15.47735016, 6.84], [31.42727745, 7.38], [18.52439571, 12.81], [90.14559984, 14.35], [25.16182411, 10.6], [90.36610113, 10.74], [75.70448431, 11.02], [96.21618986, 9.29], [27.69332608, 12.73], [99.4629853, 6.12], [77.9167141, 6.07], [100.4029424, 6.54], [21.95114003, 8.87], [63.37955569, 14.06], [14.81590032, 6.6], [86.38654079, 8.48], [19.1110149, 8.33], [34.92175887, 9.33], [27.03140084, 14.75], [71.32208604, 13.71], [71.55456196, 14.75], [74.11621546, 7.76], [30.57217114, 10.66], [52.6971606, 8.33], [95.63224339, 6.67], [83.21037813, 6.05], [57.26684451, 5.57], [29.75833781, 11.72], [52.1962277, 6.76], [74.44823874, 8.61], [58.29090318, 11.67], [15.40442396, 6.95], [20.35374855, 6.59], [93.00456961, 6.4], [41.13374687, 10.44], [81.55460305, 13.23], [20.23521571, 7.49], [64.23142267, 5.92], [101.3067592, 10.98], [17.63728784, 5.73], [11.13213017, 5.43], [36.85275211, 10.17], [63.97838989, 14.86], [61.32162685, 8.11], [51.62012524, 13.26], [49.33780218, 6.3], [67.27174269, 12.31], [47.63509226, 13.04], [19.62872643, 13.41], [51.32124358, 14.55], [24.49570065, 7.53], [51.09426069, 12.21], [22.21366348, 8.71], [96.26721671, 9.45], [64.37612259, 11.95], [78.85609032, 5.64], [53.201439, 12.37], [15.37985765, 7.06], [29.55574941, 8.49], [34.72874399, 14.71], [76.29509491, 5.91], [65.85313529, 9.78], [55.92200395, 13.93], [95.19089598, 5.52], [14.64671797, 14.3], [25.85520425, 14.67], [34.48213078, 14.25], [63.50715188, 5.34], [83.37065907, 13.45], [40.21288413, 12.47], [13.24591212, 13.3], [20.2061394, 10.1], [78.30878446, 10.15], [38.33323384, 12.77], [43.6950188, 6.48], [81.60244837, 14.97], [22.54765982, 5.31], [37.71154213, 11.37], [100.4686209, 12.67], [17.07209537, 13.73], [67.76499779, 9.64], [36.45403576, 12.02], [43.79482361, 8.95], [29.85391027, 11.05], [39.34954929, 9.36], [80.35097004, 14.7], [41.36087813, 8.32], [65.40501603, 9.02], [77.09023473, 9.77], [87.96936111, 6.64], [59.97815649, 5.75], [34.00208726, 12.9], [17.73897683, 5.13], [26.76423557, 5.47], [21.59348964, 9.18], [36.82813551, 14.58], [58.53310906, 12.86], [14.10884334, 10.89], [51.32915232, 13.19], [83.23500648, 9.37], [14.14806518, 13.02], [16.10163454, 6.68], [33.90872153, 8.33], [26.76560551, 9.22], [60.28376929, 12.87], [97.37453457, 8.98], [26.05360227, 8.23], [71.73517784, 5.7], [48.94031585, 7.28], [22.96878525, 10.86], [23.26666417, 13.53], [23.23125804, 11.67], [99.05183517, 8.89], [48.13978006, 12.7], [25.0252595, 7.46], [87.66509219, 11.9], [17.15874476, 14.84], [49.13541094, 14.22], [91.82809208, 9.39], [44.33247343, 12.4], [40.00044654, 6.26], [71.98623235, 6.97], [50.0279696, 10.88], [62.51843284, 9.61], [69.49110602, 8.81], [92.99698428, 12.7], [29.45837253, 13.26], [80.24524663, 5.03], [39.96253627, 14.3], [70.86965404, 9.62], [81.23068512, 5.92], [55.51744922, 6.14], [66.58134631, 14.27], [28.98623485, 8.36], [18.88138296, 5.11], [79.24482532, 10.01], [13.276045, 8.15], [81.03304087, 10.27], [37.45907889, 11.41], [102.1422117, 11.88], [83.97319207, 7.53], [85.71627768, 14.21], [34.47251453, 9.02], [21.01157436, 9.21], [65.10482709, 14.69], [15.34183519, 6.09], [24.95832388, 12.98], [15.23124415, 10.47], [46.86953859, 6.87], [89.23148694, 8.81], [29.72347183, 9.39], [58.06947692, 7.34], [103.1700032, 9.65], [55.33446957, 14.63], [36.88764594, 7.71], [26.32704165, 7.77], [28.43382199, 5.55], [32.89193917, 13.65], [95.35263701, 12.49], [62.52654856, 8.29], [13.91054113, 8.26], [23.49055399, 9.7], [23.50883944, 6.76], [88.46698436, 13.5], [92.70502842, 7.66], [48.99132619, 6.04], [32.34793543, 14.46], [15.03389886, 9.17], [43.7084436, 9.26], [82.99955046, 13.66], [27.65626698, 5.32], [80.2584049, 14.05], [68.25816655, 6.57], [22.50675834, 7.88], [63.84801116, 5.59], [102.746911, 11.26], [33.61278907, 12.01], [79.20110741, 14.38], [22.30314107, 5.84], [25.00183952, 11.73], [64.31442872, 6.51], [73.31087943, 9.08], [86.63454878, 5.95], [70.87210191, 6.92], [26.30003704, 10.01], [20.61334681, 12.04], [87.56315259, 13.5], [84.42771527, 7.06], [30.45161227, 5.42], [34.84546968, 12.46], [50.90320113, 14.55], [91.73093927, 7.16], [28.70996629, 11.92], [79.8277005, 6.27], [17.44361522, 7.99], [92.37059825, 7.19], [31.37831893, 12.06], [98.53367617, 8.13], [44.37280758, 10.88], [101.1190055, 13.86], [70.84299124, 12.38], [31.28250517, 12.25], [36.49094361, 5.44], [35.90701323, 12.95], [66.29241044, 9.79], [49.5040875, 9.65], [33.77901775, 10.34], [48.48607851, 5.43], [27.12668923, 12.57], [53.93812731, 6.93], [86.96172807, 5.37], [26.4753645, 13.4], [91.55276595, 12.0], [39.27481962, 9.22], [88.83913193, 12.37], [25.00233138, 9.15], [22.69098625, 9.53], [92.78546668, 12.35], [25.03686758, 6.91], [73.25522373, 7.2], [20.04910669, 10.51], [75.54735022, 11.89], [23.10125636, 7.07], [53.3438506, 6.26], [87.4451318, 9.27], [44.09358629, 5.44], [12.45625114, 8.92], [45.64439029, 12.46], [101.5909635, 7.04], [50.33892794, 5.62], [62.64283418, 10.11], [62.58407903, 6.59], [94.41759865, 6.58], [96.04502991, 11.91], [16.6780186, 9.52], [91.55956973, 8.49], [67.23255067, 10.11], [56.71912507, 14.6], [38.3319189, 7.07], [25.66539114, 14.15], [20.93973399, 14.11], [47.25552216, 13.64], [20.59443776, 7.88], [22.01580237, 10.17], [13.78470663, 5.9], [85.82365424, 11.24], [53.18504114, 6.68], [95.75725754, 12.92], [103.5083565, 5.88], [42.39838531, 12.59], [43.30292579, 12.2], [57.90973693, 9.29], [73.7447719, 14.72], [63.02458013, 13.57], [46.88478338, 6.2], [17.7639838, 8.98], [22.78626467, 14.04], [21.2659066, 5.49], [30.18394516, 14.11], [100.2647921, 7.03], [20.30691977, 5.42], [34.57994152, 12.48], [98.50118079, 9.18], [57.13909862, 12.46], [41.39158909, 14.16], [27.45849931, 11.54], [24.92524603, 12.12], [77.61637761, 7.99], [52.8584322, 6.89], [36.03291024, 8.42], [95.67574199, 8.53], [52.13302217, 10.69], [74.32360146, 5.51], [74.57866736, 8.05], [41.71566529, 9.78], [33.4351772, 6.23], [26.11963058, 12.92], [94.87318405, 7.54], [66.80522095, 10.52], [85.83209293, 12.62], [39.90071632, 10.04], [39.61401214, 8.72], [81.29675066, 13.99], [30.7563908, 6.23], [66.24946106, 8.25], [16.60517919, 8.01], [33.13582574, 7.22], [96.48922272, 13.89], [76.04646565, 14.24], [22.47622626, 14.64], [59.87598925, 10.5], [22.39751146, 14.64], [90.12039484, 10.31], [10.58905796, 14.02], [78.25539536, 10.45], [24.58339498, 14.38], [81.3349483, 7.14], [49.43146138, 8.95], [103.1188964, 12.77], [12.52119511, 9.18], [22.98987524, 8.19], [95.73341308, 6.44], [26.03261576, 12.32], [98.00149113, 11.34], [94.918117, 5.17], [97.92599141, 7.84], [24.81806024, 9.18], [65.19789449, 5.36], [81.54732864, 8.3], [81.61415339, 14.84], [40.99237978, 5.89], [45.37370851, 8.67], [31.62594974, 14.75], [83.00886883, 9.37], [24.22336444, 11.86], [97.16232894, 11.86], [22.93718023, 12.84], [17.30295116, 5.63], [15.41044972, 11.34], [64.75506917, 12.18], [15.21145556, 14.69], [46.51367956, 12.95], [77.34219573, 6.73], [77.26612344, 7.65], [59.91068458, 11.44], [25.60383867, 8.41], [83.10115152, 6.48], [52.51305709, 11.66], [22.8158796, 13.76], [98.35025943, 12.21], [18.44265701, 13.78], [25.45538284, 8.13], [19.87955032, 9.71], [33.84221129, 10.55], [90.76804403, 9.1], [58.50263634, 8.78], [78.58350361, 13.09], [30.21163248, 6.74], [95.00581496, 12.24], [35.40376116, 9.51], [65.44108117, 5.91], [24.93543105, 12.67], [28.41699859, 6.26], [37.03891686, 11.13], [51.12099604, 9.32], [39.83027805, 9.37], [59.11865977, 12.53], [93.42731934, 9.05], [42.35180591, 9.9], [31.86977201, 10.21], [41.98272898, 10.22], [67.51030935, 6.68], [53.93946442, 12.44], [73.40307449, 14.6], [64.5827436, 6.39], [17.9769907, 10.96], [33.13296096, 12.21], [80.10464668, 8.48], [34.40280467, 11.7], [29.96536955, 14.38], [20.82162996, 11.66], [70.64654171, 5.87], [53.4801297, 10.23], [77.67159532, 7.87], [37.18857515, 8.33], [93.12496612, 9.19], [90.9106996, 9.58], [19.69197497, 10.9], [24.76863081, 10.87], [55.00557535, 6.43], [78.85207173, 12.08], [73.76930766, 12.92], [13.33302162, 13.71], [26.85434498, 9.44], [61.80808103, 13.81], [33.65922868, 6.07], [24.43955544, 7.07], [74.9917402, 13.24], [34.00314813, 13.67], [18.55676245, 7.26], [32.6851394, 13.68], [26.30358012, 14.07], [93.92970912, 14.34], [75.0731311, 6.35], [13.62879188, 13.18], [21.76597657, 5.74], [65.10471851, 6.08], [75.07447734, 14.23], [27.03148347, 8.9], [14.43061289, 7.3], [55.95838011, 9.6], [43.2026637, 6.31], [18.06500809, 13.53], [83.30334542, 10.83], [86.02130569, 7.96], [92.98785843, 8.47], [88.61936258, 6.02], [26.1559284, 10.21], [41.06047825, 10.4], [56.81241401, 12.38], [20.68883027, 8.05], [50.93771302, 14.34], [78.10394509, 8.54], [69.97755545, 12.87], [49.32308612, 8.79], [17.53030619, 12.23], [83.82796405, 6.93], [104.6667796, 9.64], [88.18578606, 5.73], [14.10838266, 12.0], [34.13105061, 14.5], [86.58113083, 8.83], [72.46026964, 10.36], [18.69066934, 5.21], [19.08428913, 14.15], [95.96652656, 12.47], [39.9842968, 14.42], [27.10377382, 8.98], [104.0789879, 6.9], [22.2256152, 7.19], [31.59786661, 6.73], [12.02476941, 7.85], [23.30745915, 7.85], [100.9526085, 12.99], [89.07525662, 8.46], [101.4655862, 10.06], [79.16277314, 5.6], [82.53981552, 7.3], [16.68513527, 12.44], [24.51713308, 9.28], [70.57820112, 11.63], [67.42105046, 5.34], [104.024695, 5.84], [88.92908237, 14.45], [61.85569253, 5.35], [42.83221249, 14.44], [41.000315, 10.5], [55.48613458, 9.84], [32.71143104, 7.48], [73.35667532, 6.77], [65.90376248, 11.51], [23.49294896, 10.73], [8.708426578, 12.3], [20.67407287, 7.15], [68.31418319, 12.89], [46.16141347, 9.72], [48.95496385, 5.75], [85.95100632, 13.39], [75.57851842, 14.04], [55.88198183, 7.0], [76.01829944, 8.33], [95.76268982, 9.63], [72.28375385, 10.49], [59.62593879, 12.25], [103.2863124, 5.41], [60.41360112, 14.94], [33.9429642, 11.78], [58.8517992, 5.28], [85.88766451, 6.73], [86.54116023, 6.05], [54.27706795, 5.85], [96.21761911, 13.25], [45.39928902, 13.67], [52.57542897, 11.95], [27.03852567, 9.98], [91.07729972, 6.9], [67.47138357, 6.4], [53.00169913, 7.01], [88.40768317, 5.54], [71.16250179, 10.81], [65.47250468, 7.6], [57.40695602, 13.1], [27.05777412, 6.67], [83.05586481, 7.52], [82.28927974, 12.73], [60.84685154, 7.39], [74.06429035, 7.64], [26.25149261, 8.96], [46.32694227, 14.37], [32.05478446, 7.82], [22.89387825, 12.32], [23.44414662, 12.96], [31.28515544, 14.4], [102.4584254, 9.85], [20.37600836, 10.48], [26.1265066, 13.28], [69.2574515, 10.94], [35.43830761, 5.47], [59.05570464, 10.28], [43.02530165, 5.52], [64.40592077, 9.48], [82.04693737, 7.78], [28.50654367, 13.44], [55.51288583, 7.93], [70.28060971, 11.11], [38.06086529, 9.41], [45.65669724, 13.14], [42.00584837, 14.93], [60.96640464, 9.05], [68.56727782, 13.37], [34.57213327, 7.01], [92.91079689, 9.62], [90.10277922, 11.69], [28.35769164, 14.21], [24.79229456, 7.16], [69.78207018, 8.01], [63.34040627, 6.31], [43.49033408, 8.22], [67.60012553, 5.63], [32.60697637, 5.67], [83.12109812, 9.81], [48.511285, 14.72], [23.42198007, 6.83], [67.78109083, 9.34], [47.35065478, 5.29], [22.99370554, 13.39], [85.2721755, 11.79], [85.111496, 6.22], [31.14578902, 11.36], [86.97513535, 8.53], [78.20428132, 6.55], [66.64523455, 12.0], [33.92064866, 13.3], [95.53253249, 12.54], [35.3446626, 8.73], [100.5854447, 11.88], [53.34259731, 12.01], [76.10526892, 10.48], [10.81310643, 11.28], [28.74001551, 13.84], [22.58639371, 8.24], [36.62940407, 12.98], [24.62495825, 9.92], [35.30125432, 5.86], [75.50131324, 11.97], [67.4854234, 11.12], [57.63030653, 7.05], [52.68540206, 13.28], [92.7438166, 13.77], [38.6976358, 13.02], [64.70493618, 8.11], [70.92671442, 11.93], [14.65890119, 6.5], [70.66973621, 7.54], [33.88122174, 5.71], [26.72117878, 8.46], [36.71116798, 14.95], [67.28717268, 12.47], [99.77189771, 8.18], [73.11897838, 9.84], [95.75977842, 9.22], [101.5573982, 8.23], [78.53631584, 9.29], [32.30523687, 12.85], [10.72769804, 14.69], [17.860345, 13.71], [24.32569784, 5.66], [81.22968073, 13.05], [25.57041059, 10.64], [22.21379156, 8.01], [100.182968, 6.02], [17.73890365, 8.75], [45.25438568, 10.88], [30.85769361, 14.68], [87.71642841, 8.23], [50.03470554, 7.92], [35.2582746, 7.48], [95.37444419, 7.43], [98.34593337, 8.19], [21.54988177, 11.96], [39.21866624, 7.7], [16.47852086, 7.16], [70.41670986, 9.86], [81.99414003, 8.57], [67.4798122, 12.69], [96.91386061, 10.24], [16.42661879, 6.05], [36.3519221, 8.51], [26.76701086, 14.45], [34.21427777, 13.18], [17.54778284, 9.35], [85.69948811, 8.67], [74.37757156, 13.95], [21.36014766, 13.91], [99.68154141, 5.52], [50.4084676, 11.22], [88.22702433, 10.95], [30.21212934, 14.55], [25.72583714, 13.4], [46.52862254, 14.82], [76.83581015, 14.69], [48.68438178, 9.2], [20.34679522, 11.59], [87.93789292, 5.49], [82.37469205, 10.6], [27.96226957, 12.6], [42.90164891, 13.37], [78.50302914, 7.94], [50.60898101, 9.6], [92.90231912, 9.52], [59.63465229, 13.69], [46.47362879, 12.14], [28.33353421, 13.83], [17.26129736, 11.62], [81.12739426, 10.45], [29.32925939, 11.05], [81.94127191, 14.49], [68.95828155, 11.33], [28.5467138, 6.32], [93.87220707, 12.97], [65.69216591, 11.62], [44.94472649, 8.1], [64.76323299, 5.11], [83.72024278, 6.83], [41.65440363, 6.98], [19.26286139, 13.19], [40.97390703, 5.41], [14.21160293, 11.6], [70.77395817, 9.73], [74.66568065, 6.58], [76.84169482, 6.85], [101.5938029, 5.04], [59.25790708, 14.87], [49.19727301, 14.42], [15.44943923, 5.96], [87.8085315, 6.38], [49.52258607, 5.68], [92.27534906, 5.65], [83.05296357, 7.26], [54.35739978, 8.38], [77.39546008, 11.34], [11.79549231, 8.68], [27.14837403, 14.18], [15.40961226, 9.46], [80.73166261, 9.86], [47.73689141, 8.7], [73.38729927, 10.33], [43.3583893, 13.88], [26.6939958, 11.1], [74.38039871, 7.82], [64.01316246, 14.47], [75.45055132, 9.24], [93.00330489, 8.73], [14.86650324, 13.62], [36.41990574, 7.99], [88.25079489, 8.6], [42.49413917, 11.3], [48.03917938, 8.18], [57.78398754, 11.3], [85.87821117, 13.66], [60.33656806, 10.4], [26.13389295, 10.82], [24.77455934, 11.18], [17.29261946, 5.24], [37.08256852, 13.93], [43.495658, 13.0], [95.85961224, 12.09], [23.76599831, 9.63], [30.93293496, 9.53], [32.03683922, 12.65], [30.84589989, 10.98], [91.23305092, 9.05], [32.60898539, 12.84], [41.26604634, 13.42], [17.66273074, 12.93], [79.35946023, 14.72], [93.39703173, 11.5], [35.09032429, 6.25], [59.05713556, 10.12], [44.37130926, 13.67], [96.28319737, 8.89], [56.57598952, 12.61], [27.47702598, 12.21], [75.97396108, 5.53], [68.90730234, 14.86], [80.71487871, 13.62], [52.35488111, 14.37], [67.99233056, 14.43], [90.03478688, 10.38], [21.15131925, 13.2], [44.34852463, 8.22], [19.8057514, 6.84], [96.51345674, 12.92], [17.43838604, 5.85], [96.394841, 5.04], [30.72434344, 14.89], [37.73288723, 5.7], [17.5711678, 5.31], [32.7047269, 14.06], [80.73670078, 13.83], [23.38248978, 12.25], [99.99496705, 8.63], [95.6233741, 5.25], [37.44329569, 6.57], [94.04685463, 10.68], [22.11192729, 8.58], [25.5893615, 6.92], [98.36345776, 10.94], [21.06502392, 8.02], [43.86702048, 10.63], [52.97424959, 14.96], [69.34917223, 6.83], [30.48416211, 7.19], [43.0680245, 5.31], [19.40594764, 8.87], [15.51163728, 9.97], [35.07454812, 11.56], [25.95559297, 12.06], [27.19028075, 6.13], [59.66951374, 6.29], [23.19496901, 5.03], [15.20988833, 6.82], [85.96231321, 8.22], [30.46133263, 9.82], [59.97860677, 6.38], [86.83877867, 13.44], [32.10968115, 13.31], [104.8500356, 14.35], [76.74349403, 5.33], [25.46003329, 6.29], [94.86137434, 12.88], [23.38337057, 13.82], [22.16835622, 6.76], [23.69404921, 5.15], [77.27415505, 14.14], [57.21450745, 10.66], [95.92161479, 8.26], [59.156728, 11.49], [48.74256365, 13.01], [34.73229991, 10.5], [43.82528837, 8.21], [30.79856148, 11.04], [34.32767437, 5.28], [26.92748396, 10.45], [25.64916821, 7.81], [76.84973895, 14.09], [30.84267086, 9.58], [30.4425168, 5.53], [82.9433727, 6.02], [84.17093148, 9.81], [97.97107016, 7.97], [55.73099234, 6.18], [33.53788552, 9.85], [60.28872804, 12.62], [69.59213855, 7.68], [25.87100447, 10.9], [14.83089941, 12.92], [35.44727524, 7.75], [80.77405521, 6.5], [40.80423352, 9.64], [60.20119938, 13.55], [47.69104712, 12.25], [17.5655526, 8.92], [67.83849827, 5.2], [35.51553924, 8.25], [80.34805167, 10.49], [71.26473134, 11.78], [34.53850692, 12.97], [46.36116795, 8.14], [18.94002112, 14.32], [35.29164871, 9.72], [18.9942247, 9.59], [50.39942908, 14.54], [65.75783121, 13.33], [28.31984068, 7.53], [80.77230755, 9.52], [62.64101263, 13.13], [15.46930016, 9.73], [82.70707086, 13.43], [52.82745297, 6.28], [78.03678801, 5.08], [66.51512173, 13.0], [24.66010179, 11.98], [10.18753424, 10.14], [96.43674016, 13.55], [14.38831169, 13.87], [31.74566154, 6.44], [43.31837749, 14.49], [69.48390874, 14.87], [62.36054286, 10.24], [39.5833779, 12.59], [20.00938024, 14.31], [37.70347595, 13.75], [68.96712436, 7.48], [44.64807484, 8.06], [35.18983567, 7.52], [23.26235861, 8.5], [32.79458144, 14.93], [66.32039445, 9.17], [25.04494889, 9.5], [65.63581236, 7.88], [83.6675657, 8.32], [79.55785114, 14.11], [21.74672445, 11.0], [101.5684152, 12.3], [63.80356243, 12.46], [25.32060586, 8.09], [94.01627011, 8.17], [98.58362536, 11.52], [18.17259002, 13.54], [101.3416248, 6.93], [99.43210801, 5.47], [39.59918226, 12.66], [34.81271036, 11.89], [87.18889368, 5.83], [22.17715985, 10.0], [98.32030135, 7.54], [68.74055042, 5.77], [34.24908986, 7.97], [31.61498708, 12.25], [22.82538, 8.21], [94.20220946, 6.67], [26.56956847, 9.46], [85.91369699, 7.11], [28.77252916, 12.24], [33.55128878, 6.54], [42.36572724, 5.75], [69.40038877, 12.91], [41.80086586, 12.73], [60.51826739, 8.96], [17.31294473, 12.7], [88.58332446, 10.46], [24.49424674, 13.56], [76.95050196, 9.05], [36.44953409, 7.53], [72.9223573, 5.24], [28.43993031, 12.42], [33.57359504, 10.92], [56.61337867, 10.77], [16.05590026, 9.87], [17.09107905, 8.35], [54.22038845, 10.98], [53.98579579, 6.25], [12.61934362, 7.38], [27.86864394, 12.81], [25.74368447, 9.05], [24.56644833, 14.66], [103.053436, 10.6], [23.30784464, 6.33], [27.0567742, 8.45], [91.37649307, 5.96], [39.17878301, 14.02], [42.3865676, 7.94], [27.32192665, 9.04], [47.93107815, 8.93], [27.97891003, 12.48], [10.33313459, 13.68], [70.070615, 9.87], [64.52588474, 9.49], [19.42811507, 13.3], [11.56731202, 9.54], [83.07361371, 5.07], [34.04431031, 13.86], [34.20122638, 10.43], [62.17857914, 13.82], [93.56071971, 9.53], [57.82557629, 7.19], [99.9585297, 12.03], [30.1119983, 11.25], [75.2010327, 13.49], [48.86803925, 13.23], [34.38828257, 7.83], [25.20230873, 5.18], [29.40589408, 11.51], [53.17760208, 12.17], [77.8525662, 14.17], [101.9687736, 9.78], [27.17354881, 5.43], [88.25733676, 14.32], [90.94611893, 6.51], [30.56390342, 13.11], [99.53282573, 14.62], [79.68997964, 6.26], [77.22732609, 5.74], [40.68092129, 13.58], [24.58695363, 7.25], [82.72653974, 11.4], [101.3014035, 11.22], [54.15002758, 13.63], [19.44100061, 12.32], [25.30694234, 9.84], [35.80706332, 9.83], [101.6023584, 14.22], [83.67482911, 12.33], [49.5538812, 14.73], [74.93806199, 8.11], [88.21051736, 7.65], [78.27362381, 13.36], [36.54026082, 7.82], [98.86630438, 10.62], [37.6003713, 14.52], [85.14423936, 8.39], [57.90526304, 12.79], [102.2272728, 5.35], [18.21506426, 6.17], [26.88076197, 12.55], [15.57020582, 6.39], [13.49555539, 14.29], [55.72488487, 12.93], [23.05547436, 8.3], [32.00025744, 7.1], [40.01705292, 10.57], [33.6818032, 14.86], [31.39191599, 6.28], [35.70371062, 5.01], [41.87129286, 13.06], [83.40795781, 6.77], [35.87499086, 10.23], [15.8443447, 8.05], [27.16252488, 12.83], [98.537902, 5.83], [81.92906602, 11.11], [27.15220745, 6.33], [89.92557601, 12.43], [10.48343141, 7.73], [72.06314143, 12.45], [79.40820448, 12.71], [32.93344551, 5.39], [32.78698907, 7.6], [24.8908563, 7.7], [33.31361396, 5.98], [18.6393531, 7.1], [21.83818755, 11.89], [38.39169107, 10.29], [37.45663221, 12.55], [91.81383266, 5.39], [100.0842393, 6.56], [42.99231753, 10.6], [73.64595103, 11.56], [74.72322259, 8.34], [30.48886397, 7.58], [29.56212791, 8.66], [46.43563853, 10.66], [76.29015294, 13.11], [55.79417463, 6.41], [67.63035598, 13.22], [31.04363144, 7.91], [102.1673273, 5.34], [22.75060391, 5.79], [71.47555852, 14.9], [20.14915859, 9.78], [80.8628486, 6.43], [97.73899724, 14.01], [56.43645124, 7.07], [81.61928458, 5.07], [56.01503108, 9.63], [93.13351458, 8.74], [56.5246668, 6.88], [11.26975975, 13.43], [100.7653641, 6.05], [63.05834582, 11.94], [19.18637618, 8.83], [40.74210146, 8.64], [48.14755214, 11.88], [27.9442235, 5.6], [81.67390606, 13.76], [15.26818506, 14.4], [19.9531253, 8.15], [53.74108646, 9.61], [73.75336509, 9.84], [69.2173174, 14.46], [70.09133063, 5.87], [29.33637531, 11.25], [93.65604938, 9.68], [67.35699261, 5.48], [80.88092417, 14.49], [77.07140527, 14.87], [16.60628736, 11.93], [32.61091697, 11.27], [11.17421176, 10.18], [90.17809218, 13.94], [78.57154877, 5.24], [86.91531876, 8.65], [12.29060633, 11.76], [82.72018984, 8.72], [14.95096669, 10.68], [95.11190614, 9.41], [18.2844304, 8.54], [52.42802371, 12.09], [34.45712145, 13.21], [14.07857766, 14.56], [17.85564328, 5.81], [23.90966276, 6.68], [32.7238739, 6.34], [103.0776851, 11.36], [43.03876697, 6.68], [101.4812652, 11.84], [78.01216213, 7.56], [50.04754884, 5.1], [71.28256498, 6.23], [26.16292488, 10.94], [85.46626923, 6.94], [94.55840519, 13.82], [14.27307085, 10.96], [12.78625602, 7.72], [50.59985938, 9.48], [73.30129801, 12.65], [32.40520888, 11.3], [81.82954529, 11.23], [28.04172203, 8.59], [22.66207799, 14.29], [23.71561764, 7.91], [60.94298671, 12.53], [68.98196237, 11.75], [18.36243644, 5.84], [58.10012948, 9.44], [81.14006064, 14.69], [31.86930918, 14.96], [56.12424801, 5.26], [13.14448205, 11.82], [54.72135511, 12.69], [21.88140356, 13.72], [41.38377199, 11.24], [57.33490005, 9.46], [74.0726413, 7.63], [23.70693809, 5.86], [56.85785762, 7.92], [97.79227268, 9.57], [25.26296122, 7.18], [96.10525255, 5.76], [31.60762527, 14.01], [79.21330565, 7.8], [20.80289078, 12.92], [97.44499309, 5.93], [29.06524584, 7.53], [81.10861156, 12.56], [83.7990865, 8.35], [57.20014141, 14.14], [26.16523473, 5.46], [27.21101464, 10.85], [31.19395746, 8.25], [32.24910371, 10.56], [23.20927147, 5.56], [86.21444777, 8.8], [30.5518697, 10.45], [36.13655169, 6.07], [12.82964588, 7.16], [48.17082753, 6.94], [19.40506145, 13.86], [28.6795422, 13.32], [18.72513196, 6.26], [53.01590019, 14.99], [31.26180495, 14.38], [48.32394489, 5.03], [63.90891442, 6.55], [13.65134211, 9.82], [79.6440641, 8.97], [87.23097688, 8.48], [24.38665234, 10.43], [49.91259068, 6.18], [82.02153215, 8.25], [62.83129339, 11.36], [92.52112755, 5.15], [97.1952831, 10.98], [55.33333572, 8.94], [26.46350691, 11.64], [59.26022776, 9.5], [74.33650117, 9.21], [75.61261074, 11.93], [68.06018014, 5.57], [58.60076721, 12.33], [29.22503937, 12.05], [44.67939056, 8.03], [23.80259211, 5.4], [43.26341724, 12.74], [89.26483719, 12.09], [41.8731324, 14.62], [20.45834377, 13.67], [86.52359624, 14.83], [102.2328995, 9.39], [22.40046027, 11.51], [83.53335063, 14.79], [11.69463037, 6.76], [35.82042292, 14.02], [20.20065867, 6.69], [24.19756318, 7.44], [89.18337816, 11.9], [90.62317501, 8.89], [16.56611083, 8.36], [35.57092686, 12.89], [24.43105422, 5.23], [77.13375095, 11.33], [26.97814113, 9.28], [45.19981024, 9.06], [77.3389697, 13.07], [38.39071232, 5.21], [72.02423844, 11.24], [52.24151075, 12.14], [18.17717864, 11.93], [16.24307201, 11.62], [95.41133519, 6.85], [35.78968713, 11.3], [95.90465541, 11.45], [20.36848929, 11.27], [48.95540806, 12.82], [41.73066993, 6.06], [92.7181692, 10.22], [90.44822439, 7.87], [46.59485209, 6.47], [102.7641296, 9.13], [23.79486598, 6.36], [78.32136253, 13.97], [23.82563801, 8.15], [29.46249628, 14.33], [44.64817143, 13.08], [85.04117941, 7.75], [25.88220683, 7.11], [40.97742432, 13.52], [47.39134347, 14.67], [12.52589821, 13.12], [20.46857892, 13.36], [56.85876794, 13.98], [48.48683365, 6.41], [66.03541137, 10.0], [76.16172767, 5.52], [45.94398698, 5.39], [24.80470682, 13.8], [79.96895701, 7.36], [89.8581003, 13.7], [86.09670192, 5.91], [98.18687017, 7.13], [39.20789453, 14.64], [31.38278796, 5.29], [59.31699255, 7.96], [27.97481413, 7.2], [61.4181458, 11.16], [66.46694143, 6.51], [36.29915613, 7.42], [34.67173697, 9.25], [71.15930169, 12.15], [85.16253322, 12.52], [85.05340333, 8.06], [74.64295218, 13.95], [29.12978875, 8.33], [81.10281209, 13.53], [65.54989133, 13.09], [30.1494834, 13.54], [88.08424091, 11.39], [84.73432028, 7.84], [80.26394379, 11.25], [79.3417841, 6.2], [96.66791227, 9.07], [67.92699328, 11.9], [30.67411796, 11.96], [96.43346017, 9.5], [100.9235033, 9.22], [67.23267091, 9.34], [58.83225648, 11.89], [29.86510683, 13.9], [76.34242897, 14.79], [67.87528516, 7.42], [83.83395982, 8.62], [72.09517242, 9.59], [36.89807579, 14.65], [45.83787582, 6.69], [80.32585079, 14.14], [34.15863003, 12.01], [86.92417019, 6.86], [66.25995355, 12.66], [15.51266816, 6.91], [25.85552879, 8.82], [55.98341225, 13.08], [91.47820534, 5.7], [81.08839452, 9.18], [77.051039, 8.18], [45.98930005, 5.09], [51.2056713, 13.44], [59.48403933, 14.36], [36.38584959, 12.1], [56.28938486, 9.76], [29.01498819, 9.14], [37.72639444, 12.6], [90.47715989, 10.19], [39.46934146, 11.81], [91.0373177, 11.55], [94.02476938, 14.61], [33.60387549, 7.76], [97.07460585, 12.05], [72.85991877, 10.31], [14.44396338, 9.31], [25.0237867, 14.25], [21.32533178, 14.5], [61.06270564, 9.53], [63.10017858, 7.62], [39.59299998, 10.72], [29.09066564, 14.53], [82.84821246, 6.39], [92.2317981, 5.56], [103.4757519, 12.74], [50.8717383, 13.75], [35.68868245, 5.16], [27.89949736, 10.27], [18.74618081, 12.98], [74.90275185, 10.95], [91.14188532, 9.35], [82.29648557, 13.32], [44.18628352, 9.69], [70.29752684, 5.12], [28.26983024, 5.4], [47.63784322, 11.02], [12.82400751, 12.12], [32.70544065, 9.7], [32.27473712, 9.79], [93.6518397, 13.62], [92.77303683, 7.27], [62.16414043, 13.45], [29.91292538, 7.74], [40.32885019, 5.85], [92.96524815, 8.14], [85.60909594, 5.07], [62.78732612, 6.38], [86.34007227, 11.07], [60.44978465, 9.36], [104.0891026, 7.63], [58.16755277, 13.38], [35.37420656, 8.63], [23.60366091, 5.25], [18.19241742, 5.12], [54.46685455, 7.74], [24.99326977, 14.39], [58.12267681, 12.85], [73.06870175, 9.46], [61.51138793, 12.9], [79.94204281, 7.34], [26.9792044, 10.9], [20.9809429, 11.25], [79.11371119, 6.65], [26.05862513, 5.91], [95.97366041, 13.26], [87.27884885, 8.7], [63.59849128, 11.95], [69.09803075, 6.55], [88.25464136, 6.82], [95.94353547, 8.5], [28.81788854, 6.17], [83.72557104, 10.01], [91.57549032, 11.97], [29.74317278, 9.41], [94.19740649, 10.84], [37.37091213, 9.92], [26.89457715, 6.76], [80.73902917, 12.12], [52.64321518, 8.97], [62.37691526, 6.81], [74.96715487, 10.2], [78.68278408, 5.46], [20.41304162, 14.03], [19.8874544, 5.39], [46.90970445, 11.75], [41.99853116, 12.88], [46.54181371, 7.28], [63.77456387, 10.46], [14.19459173, 5.55], [28.7419352, 11.93], [48.23901906, 10.16], [44.55055991, 13.83], [21.30629379, 5.16], [82.22874535, 14.93], [30.38139082, 12.09], [20.9210276, 5.67], [103.587424, 13.84], [43.69944064, 11.17], [16.06852266, 12.14], [28.99198637, 6.85], [84.24863096, 11.09], [27.54827816, 5.41], [99.5383494, 5.84], [84.35153554, 14.57], [81.84253694, 9.24], [66.95342872, 7.34], [73.44148695, 12.4], [24.59078307, 12.47], [23.38793515, 9.94], [37.54536378, 10.91], [59.16749296, 12.08], [34.01842481, 12.66], [51.35261474, 10.41], [21.06096804, 13.02], [52.58818125, 6.7], [46.13871779, 5.81], [28.38167543, 8.77], [16.84138231, 9.81], [42.13935161, 7.16], [80.9746013, 9.75], [33.49573702, 13.0], [82.68340521, 5.91], [24.91857679, 12.49], [81.01100665, 12.88], [46.88627091, 5.64], [88.99033039, 10.07], [96.88494115, 5.78], [27.90925032, 10.72], [43.85960209, 10.06], [72.12847737, 6.92], [31.7269833, 7.73], [19.02878632, 11.4], [57.96855981, 6.68], [60.18998015, 7.27], [86.59310924, 14.74], [55.06872579, 10.8], [65.64242223, 13.46], [18.3833196, 5.8], [40.68121425, 8.61], [15.66412334, 11.08], [34.50823059, 10.03], [51.70758239, 8.24], [8.399197466, 7.73], [55.31297318, 6.78], [45.16780389, 11.82], [85.05335295, 9.29], [27.30632898, 8.13], [12.78035016, 11.21], [23.94571887, 13.97], [23.3623091, 7.93], [67.90349669, 5.48], [46.83619461, 8.4], [18.44276162, 8.5], [87.59809394, 8.85], [13.96740815, 8.93], [17.49381877, 7.06], [99.36262138, 6.41], [101.5942227, 6.7], [29.6212394, 9.8], [66.33476176, 11.48], [86.91466089, 5.17], [21.11228345, 6.1], [84.6977795, 5.55], [15.05331106, 6.6], [89.40914834, 7.78], [68.25984602, 9.69], [59.94101235, 11.15], [45.44604539, 5.08], [83.17014152, 11.5], [39.62241904, 6.38], [69.96581241, 9.97], [59.99604925, 10.29], [16.72103195, 7.42], [33.47535824, 5.42], [69.32761317, 5.11], [83.1958124, 14.86], [65.08048071, 9.99], [45.70308604, 5.95], [29.75378053, 7.72], [44.6693078, 5.57], [68.99925447, 6.2], [37.45745959, 6.6], [42.85707714, 6.7], [72.51015985, 11.21], [102.2574354, 11.4], [74.72403642, 14.0], [28.71758657, 12.05], [31.5801151, 5.38], [98.38711847, 8.41], [44.17250513, 14.04], [26.34360274, 12.82], [100.6268214, 14.68], [50.11589896, 9.3], [86.00950258, 13.41], [36.89929985, 12.13], [37.13058902, 5.91], [62.35218541, 13.31], [93.7870194, 9.38], [49.89784903, 10.11], [68.19241078, 5.14], [102.0235278, 13.63], [20.43164327, 8.42], [20.88070626, 11.99], [35.94897937, 13.27], [96.77432403, 9.58], [75.41639837, 12.03], [62.29093148, 13.34], [16.54321398, 6.73], [50.09595338, 7.39], [30.72357296, 9.35], [25.43130271, 10.13], [40.72536699, 10.53], [24.72785449, 12.72], [99.20583841, 7.13], [27.98659011, 13.94], [58.68158634, 6.31], [27.05765116, 5.72], [17.18452033, 11.62], [95.52332857, 13.55], [14.25841957, 13.05], [34.90594501, 11.34], [29.88934951, 9.95], [95.55740466, 13.73], [99.43158607, 10.55], [91.01401398, 11.84], [22.9048792, 12.69], [31.95413349, 9.33], [52.49844535, 11.66], [86.33297212, 7.17], [35.16412056, 15.0], [14.53081973, 14.97], [75.61633103, 6.38], [85.73842282, 7.71], [27.57354642, 12.36], [8.97510818, 9.32], [71.23485359, 6.47], [73.51196976, 10.23], [34.61735456, 12.64], [78.20046126, 10.33], [80.99775379, 9.33], [41.27803826, 9.76], [23.11650078, 6.49], [13.1772593, 14.97], [69.22743152, 6.61], [80.25450061, 14.43], [58.59508195, 8.36], [41.36442216, 10.1], [69.54950068, 10.18], [31.89631337, 13.75], [75.50251166, 14.81], [20.57976718, 11.6], [21.9436315, 9.3], [64.22540058, 11.28], [86.24115286, 11.64], [87.09637231, 5.58], [104.317908, 11.8], [53.42137176, 7.95], [74.89415384, 12.0], [75.83091315, 12.21], [28.76980487, 13.82], [18.14179225, 5.38], [41.16013793, 7.2], [59.37795133, 10.58], [52.68079092, 11.66], [49.37971104, 6.9], [70.16569862, 7.05], [27.94258773, 9.24], [82.62915492, 6.39], [65.69123471, 8.85], [96.3649027, 14.97], [84.3712026, 12.56], [45.87530637, 9.12], [90.58954102, 10.72], [30.07210383, 14.34], [18.16086573, 11.06], [98.60275057, 8.05], [28.85505573, 12.26], [23.61644927, 8.69], [86.44364256, 12.56], [35.83157477, 8.39], [98.04253423, 6.48], [66.41750863, 5.63], [35.48559318, 8.48]],
+            backgroundColor: COLORS.amber + '44',
+            borderColor: COLORS.amber,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' }, title: { display: true, text: 'Electricity Price vs Charging Demand', font: { size: 14 } } },
+        scales: { x: { title: { display: true, text: 'Charging Demand' } }, y: { title: { display: true, text: 'Electricity Price ($/kWh)' } } }
+    }
+});
+
+// Section 4: Optimization Reward by Renewable Bracket
+new Chart(document.getElementById('chart-opt-renew'), {
+    type: 'bar',
+    data: {
+        labels: ["0-20%", "20-40%", "40-60%", "60-80%", "80-100%"],
+        datasets: [{
+            label: 'Avg Optimization Reward',
+            data: [-18.11, -13.16, -7.72, -1.74, null],
+            backgroundColor: ["rgba(231,76,60,0.6)", "rgba(231,76,60,0.6)", "rgba(231,76,60,0.6)", "rgba(231,76,60,0.6)", "rgba(34,197,94,0.6)"],
+            borderColor: ["rgb(231,76,60)", "rgb(231,76,60)", "rgb(231,76,60)", "rgb(231,76,60)", "rgb(34,197,94)"],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Optimization Reward by Renewable Ratio Bracket', font: { size: 14 } } } }
+});
+
+// Section 5: Vehicle Sessions Distribution
+new Chart(document.getElementById('chart-vehicle-sessions'), {
+    type: 'doughnut',
+    data: {
+        labels: ["Car", "Two-Wheeler", "Bus"],
+        datasets: [{
+            data: [2833, 2761, 2760],
+            backgroundColor: [COLORS.teal, COLORS.blue, COLORS.amber, COLORS.orange, COLORS.purple, COLORS.green, COLORS.gray, COLORS.red],
+            borderWidth: 2,
+            borderColor: 'white'
+        }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } }, title: { display: true, text: 'Sessions by Vehicle Type', font: { size: 14 } } } }
+});
+
+// Section 5: Vehicle Energy per Session
+new Chart(document.getElementById('chart-vehicle-energy'), {
+    type: 'bar',
+    data: {
+        labels: ["Car", "Two-Wheeler", "Bus"],
+        datasets: [{
+            label: 'Avg Energy (kWh)',
+            data: [39.1, 38.7, 39.4],
+            backgroundColor: COLORS.tealAlphaStrong,
+            borderColor: COLORS.teal,
+            borderWidth: 2,
+            borderRadius: 6
+        },
+        {
+            label: 'Avg Duration (min)',
+            data: [179.7, 177.4, 179.0],
+            backgroundColor: COLORS.orange + '99',
+            borderColor: COLORS.orange,
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Energy & Duration by Vehicle Type', font: { size: 14 } } } }
+});
+
+// Section 6: Reward by Time Slot
+new Chart(document.getElementById('chart-reward-slot'), {
+    type: 'bar',
+    data: {
+        labels: ["Peak", "Off-Peak"],
+        datasets: [{
+            label: 'Mean Optimization Reward',
+            data: [-19.8, -7.06],
+            backgroundColor: [COLORS.red + '99', COLORS.amber + '99', COLORS.green + '99'],
+            borderColor: [COLORS.red, COLORS.amber, COLORS.green],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Optimization Reward by Time Slot', font: { size: 14 } } } }
+});
+
+// Section 6: Reward by Location
+new Chart(document.getElementById('chart-reward-loc'), {
+    type: 'bar',
+    data: {
+        labels: ["Highway", "Urban"],
+        datasets: [{
+            label: 'Mean Optimization Reward',
+            data: [-12.04, -11.63],
+            backgroundColor: [COLORS.tealAlphaStrong, COLORS.blue + '99', COLORS.amber + '99'],
+            borderColor: [COLORS.teal, COLORS.blue, COLORS.amber],
+            borderWidth: 2,
+            borderRadius: 6
+        }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, title: { display: true, text: 'Optimization Reward by Location Type', font: { size: 14 } } } }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Biomedical Research Landscape 2024–2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--bg:#f6f8fb;--card:#fff;--ink:#1b2a3a;--muted:#5f7288;--primary:#1f77b4;--accent:#2ca02c;--warn:#ff7f0e;--border:#d9e2ec}
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+    .header,.card{background:var(--card);border:1px solid var(--border);border-radius:12px}
+    .header{padding:24px;margin-bottom:16px}
+    h1{margin:0 0 8px;font-size:30px}
+    .sub{color:var(--muted);margin:0}
+    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0}
+    .kpi{padding:14px}.kpi h3{margin:0;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+    .kpi .v{font-size:28px;font-weight:700;margin-top:8px}
+    .section{padding:20px;margin:12px 0}
+    h2{margin:0 0 8px;font-size:22px}
+    p,li{line-height:1.5}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    canvas{background:#fff;border:1px solid var(--border);border-radius:10px;padding:8px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left}
+    th{background:#f0f4f8}
+    .note{font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Biomedical Research Landscape 2024–2026</h1>
+    <p class="sub">Publication trends, topic dynamics, geographic distribution, and open-access evolution based on PubMed-indexed biomedical abstracts.</p>
+  </div>
+
+  <div class="grid" id="kpis"></div>
+
+  <div class="card section">
+    <h2>Key Takeaways & Strategic Implications</h2>
+    <ol id="takeaways"></ol>
+    <p class="note">Interpretation note: the source brief documents a temporal skew toward 2024 due to indexing lag; 2025–2026 values represent partial-window visibility and should be used directionally for acceleration signals.</p>
+  </div>
+
+  <div class="card section">
+    <h2>Publication Volume & Temporal Distribution</h2>
+    <div class="two">
+      <canvas id="pubMonthly"></canvas>
+      <canvas id="pubYearly"></canvas>
+    </div>
+    <p id="pubNarr"></p>
+  </div>
+
+  <div class="card section">
+    <h2>Geographic Landscape of Biomedical Research</h2>
+    <div class="two">
+      <canvas id="countryTop"></canvas>
+      <canvas id="countryYear"></canvas>
+    </div>
+    <p id="geoNarr"></p>
+  </div>
+
+  <div class="card section">
+    <h2>Research Topic & MeSH Keyword Analysis</h2>
+    <div class="two">
+      <canvas id="topicTop"></canvas>
+      <canvas id="topicEmerging"></canvas>
+    </div>
+    <p id="topicNarr"></p>
+  </div>
+
+  <div class="card section">
+    <h2>Open Access Adoption & Journal Landscape</h2>
+    <div class="two">
+      <canvas id="oaMonthly"></canvas>
+      <canvas id="journalTop"></canvas>
+    </div>
+    <p id="oaNarr"></p>
+  </div>
+
+  <div class="card section">
+    <h2>Research Type Distribution & Collaboration Indicators</h2>
+    <div class="two">
+      <canvas id="typeDist"></canvas>
+      <canvas id="authorsType"></canvas>
+    </div>
+    <h3>Median Authors by High-Volume Countries</h3>
+    <table id="countryAuthorsTbl"></table>
+  </div>
+</div>
+
+<script>
+async function load(){
+  const d = await (await fetch('./metrics.json')).json();
+  const pct = v => (v*100).toFixed(1)+'%';
+  const num = v => v.toLocaleString();
+
+  const yearMap = Object.fromEntries(d.yearly.map(x=>[x.pub_year,x.count]));
+  const kpis = [
+    ['Total Publications', num(d.total_publications)],
+    ['2024 / 2025 / 2026', `${num(yearMap[2024]||0)} / ${num(yearMap[2025]||0)} / ${num(yearMap[2026]||0)}`],
+    ['Open Access Rate (overall)', pct(d.oa_yearly.reduce((a,b)=>a+b.oa_rate,0)/d.oa_yearly.length)],
+    ['Median Authors per Publication', d.median_authors.toFixed(1)],
+    ['Top 10 Countries Share', pct(d.top10_share)]
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(([k,v])=>`<div class="card kpi"><h3>${k}</h3><div class="v">${v}</div></div>`).join('');
+
+  const monthlyLabels=d.monthly.map(x=>x.month_year), monthlyVals=d.monthly.map(x=>x.count);
+  new Chart(pubMonthly,{type:'line',data:{labels:monthlyLabels,datasets:[{label:'Publications',data:monthlyVals,borderColor:'#1f77b4',tension:.25}]}});
+  new Chart(pubYearly,{type:'bar',data:{labels:d.yearly.map(x=>x.pub_year),datasets:[{label:'Publications',data:d.yearly.map(x=>x.count),backgroundColor:'#4e79a7'}]}});
+
+  const c=d.country_top10;
+  new Chart(countryTop,{type:'bar',data:{labels:c.map(x=>x.country),datasets:[{label:'Publication count',data:c.map(x=>x.count),backgroundColor:'#59a14f'}]},options:{indexAxis:'y'}});
+  const top5=c.slice(0,5).map(x=>x.country);
+  const years=[...new Set(d.country_year.map(x=>x.pub_year))].sort();
+  const datasets=top5.map((ct,i)=>({label:ct,data:years.map(y=>{const f=d.country_year.find(r=>r.pub_year===y&&r.country===ct);return f?f.count:0}),borderColor:['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd'][i],tension:.25}));
+  new Chart(countryYear,{type:'line',data:{labels:years,datasets}});
+
+  new Chart(topicTop,{type:'bar',data:{labels:d.topic_top15.slice(0,10).map(x=>x.major_topic),datasets:[{label:'Count',data:d.topic_top15.slice(0,10).map(x=>x.count),backgroundColor:'#76b7b2'}]},options:{indexAxis:'y'}});
+  new Chart(topicEmerging,{type:'bar',data:{labels:d.emerging_topics.map(x=>x.major_topic),datasets:[{label:'Avg MoM Growth',data:d.emerging_topics.map(x=>x.mom_growth*100),backgroundColor:'#f28e2b'}]}});
+
+  new Chart(oaMonthly,{type:'line',data:{labels:d.oa_monthly.map(x=>x.month_year),datasets:[{label:'Open Access Rate %',data:d.oa_monthly.map(x=>x.oa_rate*100),borderColor:'#e15759',tension:.2}]}});
+  new Chart(journalTop,{type:'bar',data:{labels:d.journal_top15.slice(0,10).map(x=>x.journal),datasets:[{label:'Publication count',data:d.journal_top15.slice(0,10).map(x=>x.count),backgroundColor:'#9c755f'}]},options:{indexAxis:'y'}});
+
+  new Chart(typeDist,{type:'doughnut',data:{labels:d.type_counts.map(x=>x.research_type),datasets:[{data:d.type_counts.map(x=>x.count),backgroundColor:['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1']}]}});
+  new Chart(authorsType,{type:'bar',data:{labels:d.author_by_type.map(x=>x.research_type),datasets:[{label:'Median authors',data:d.author_by_type.map(x=>x.median_authors),backgroundColor:'#2ca02c'}]},options:{indexAxis:'y'}});
+
+  document.getElementById('countryAuthorsTbl').innerHTML = '<tr><th>Country</th><th>Median Authors</th><th>Publication Count</th></tr>' + d.author_by_country.map(x=>`<tr><td>${x.country}</td><td>${Number(x.median_authors).toFixed(1)}</td><td>${num(x.count)}</td></tr>`).join('');
+
+  const topEmerging = d.emerging_topics.slice(0,3).map(x=>`${x.major_topic} (${(x.mom_growth*100).toFixed(1)}% avg MoM)`).join('; ');
+  document.getElementById('takeaways').innerHTML = [
+    `Output is front-loaded in 2024 (${num(yearMap[2024]||0)} publications), with lower 2025–2026 volumes likely reflecting indexing-window incompleteness rather than reduced research activity. Strategic decisions should weight monthly trend slopes more than annual totals for the latest period.`,
+    `Open-access diffusion is policy-relevant and measurable month-by-month; the dataset supports continuous tracking of OA rate progression for funder compliance and dissemination strategy calibration.`,
+    `Top-10 countries contribute ${pct(d.top10_share)} of all records, indicating concentrated global production with clear hubs for partnership and funding leverage.`,
+    `Emerging topic momentum (fastest average MoM growth among sufficiently active topics) identifies acceleration signals beyond absolute popularity. Current leaders include ${topEmerging}.`,
+    `Collaboration intensity is substantial (median ${d.median_authors.toFixed(1)} authors per publication), with variation by research type and country suggesting differentiated team-science models.`
+  ].map(x=>`<li>${x}</li>`).join('');
+
+  document.getElementById('pubNarr').textContent = `Monthly publication counts show the primary activity concentration in 2024, then taper into 2025–early 2026 as expected from indexing lag. This pattern should be interpreted as a visibility artifact, so near-term monitoring should prioritize month-over-month trajectory and topic acceleration signals.`;
+  document.getElementById('geoNarr').textContent = `The top contributor countries account for a dominant share of output. Year-over-year country lines for the top producers help separate structural leadership from short-term indexing effects and can inform bilateral funding or talent programs.`;
+  document.getElementById('topicNarr').textContent = `Topic prevalence remains important for baseline portfolio planning, but growth velocity highlights where new demand and scientific opportunity may be forming. The emerging-topic chart reports average recent month-over-month growth for topics with sufficient historical volume to reduce noise.`;
+  document.getElementById('oaNarr').textContent = `Open-access rate is presented as a monthly time series to support compliance and policy trend assessment. Journal concentration indicates where publication pipelines are most active, useful for dissemination strategy and negotiations.`;
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Intentional Homicide Trends: A Multi-Dimensional Analysis (1990–2023)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f8fafc; --surface: #ffffff; --surface-alt: #f1f5f9;
+    --text: #1e293b; --text-muted: #64748b; --text-light: #94a3b8;
+    --border: #e2e8f0; --primary: #1e40af; --primary-light: #3b82f6;
+    --accent: #7c3aed; --success: #059669; --danger: #dc2626;
+    --warning: #d97706; --info: #0284c7;
+    --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.65;
+    font-size: 15px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  .report-header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #1e40af 100%);
+    color: white; padding: 56px 0 48px; margin-bottom: 0;
+  }
+  .report-header h1 { font-size: 2.2em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .report-header .subtitle { font-size: 1.1em; opacity: 0.85; font-weight: 400; margin-bottom: 24px; }
+  .report-header .meta { display: flex; gap: 24px; font-size: 0.85em; opacity: 0.7; flex-wrap: wrap; }
+  .report-header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* KPI Dashboard */
+  .kpi-strip {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 0;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow);
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  .kpi-card {
+    text-align: center; padding: 16px 12px;
+    border-right: 1px solid var(--border);
+  }
+  .kpi-card:last-child { border-right: none; }
+  .kpi-value { font-size: 2em; font-weight: 700; color: var(--primary); line-height: 1.2; }
+  .kpi-value.danger { color: var(--danger); }
+  .kpi-value.success { color: var(--success); }
+  .kpi-value.accent { color: var(--accent); }
+  .kpi-label { font-size: 0.82em; color: var(--text-muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .kpi-detail { font-size: 0.78em; color: var(--text-light); margin-top: 4px; }
+
+  /* Sections */
+  .section { margin-bottom: 48px; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px; padding-bottom: 12px;
+    border-bottom: 2px solid var(--primary);
+  }
+  .section-number {
+    background: var(--primary); color: white;
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9em; flex-shrink: 0;
+  }
+  .section-title { font-size: 1.5em; font-weight: 700; color: var(--text); }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 28px;
+    margin-bottom: 24px; border: 1px solid var(--border);
+  }
+  .card-title { font-size: 1.05em; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  .card-subtitle { font-size: 0.85em; color: var(--text-muted); margin-bottom: 16px; }
+
+  /* Charts */
+  .chart-container { position: relative; width: 100%; margin: 16px 0; }
+  .chart-container canvas { max-height: 400px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  /* Tables */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+  .data-table th {
+    background: var(--surface-alt); padding: 10px 14px; text-align: left;
+    font-weight: 600; font-size: 0.82em; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 2px solid var(--border);
+  }
+  .data-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .data-table tr:hover { background: var(--surface-alt); }
+  .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .rank { color: var(--text-light); font-weight: 600; width: 36px; }
+
+  /* Badges */
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 0.78em; font-weight: 600;
+  }
+  .badge-danger { background: #fef2f2; color: var(--danger); }
+  .badge-success { background: #ecfdf5; color: var(--success); }
+  .badge-warning { background: #fffbeb; color: var(--warning); }
+  .badge-info { background: #f0f9ff; color: var(--info); }
+
+  /* Callout */
+  .callout {
+    padding: 16px 20px; border-radius: 8px; margin: 16px 0;
+    font-size: 0.92em; line-height: 1.6;
+  }
+  .callout-info { background: #f0f9ff; border-left: 4px solid var(--info); color: #0c4a6e; }
+  .callout-warning { background: #fffbeb; border-left: 4px solid var(--warning); color: #78350f; }
+  .callout-danger { background: #fef2f2; border-left: 4px solid var(--danger); color: #7f1d1d; }
+  .callout-success { background: #ecfdf5; border-left: 4px solid var(--success); color: #064e3b; }
+
+  /* Insights */
+  .insight-box {
+    background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+    border: 1px solid #bfdbfe; border-radius: var(--radius);
+    padding: 20px 24px; margin: 20px 0;
+  }
+  .insight-box h4 { color: var(--primary); margin-bottom: 8px; font-size: 0.95em; }
+  .insight-box p { font-size: 0.9em; color: #1e40af; }
+
+  /* Two columns */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Prose */
+  .prose { font-size: 0.95em; color: var(--text); }
+  .prose p { margin-bottom: 14px; }
+  .prose ul { margin: 12px 0 12px 20px; }
+  .prose li { margin-bottom: 6px; }
+  .prose strong { font-weight: 600; }
+
+  /* Footer */
+  .report-footer {
+    background: var(--surface-alt); border-top: 1px solid var(--border);
+    padding: 32px 0; margin-top: 48px; text-align: center;
+    font-size: 0.82em; color: var(--text-muted);
+  }
+
+  /* TOC */
+  .toc { list-style: none; padding: 0; }
+  .toc li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .toc li:last-child { border-bottom: none; }
+  .toc a { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+  .toc .toc-num { color: var(--text-light); margin-right: 8px; font-weight: 600; }
+
+  /* Sparkline-style trend indicator */
+  .trend-indicator { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-size: 0.88em; }
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="report-header">
+  <div class="container">
+    <h1>Global Intentional Homicide Trends</h1>
+    <div class="subtitle">A Multi-Dimensional Analysis (1990–2023)</div>
+    <div class="meta">
+      <span>&#128202; UNODC Crime Trends Survey</span>
+      <span>&#127758; 201 Countries & Territories</span>
+      <span>&#128197; 34-Year Span</span>
+      <span>&#128196; 22,092 Data Points</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ KPI DASHBOARD ═══ -->
+<div class="kpi-strip">
+  <div class="container">
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value">1.8</div>
+        <div class="kpi-label">Global Median Rate</div>
+        <div class="kpi-detail">Per 100k pop. (2023)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value accent">3.2x</div>
+        <div class="kpi-label">Male-to-Female Ratio</div>
+        <div class="kpi-detail">Median across 81 countries (2023)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value danger">64.2</div>
+        <div class="kpi-label">Highest National Rate</div>
+        <div class="kpi-detail">Saint Kitts and Nevis (2023)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" style="color:#dc2626">+0.2%</div>
+        <div class="kpi-label">2010s → 2020s Change</div>
+        <div class="kpi-detail">Global mean rate shift</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">42%</div>
+        <div class="kpi-label">Reporting Coverage</div>
+        <div class="kpi-detail">84 of 201 countries (2023)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TABLE OF CONTENTS ═══ -->
+<div class="container">
+  <div class="card" style="margin-bottom:40px;">
+    <div class="card-title">Table of Contents</div>
+    <ul class="toc">
+      <li><span class="toc-num">1</span> <a href="#s1">Global Homicide Rate Overview</a></li>
+      <li><span class="toc-num">2</span> <a href="#s2">Regional &amp; Country-Level Comparison</a></li>
+      <li><span class="toc-num">3</span> <a href="#s3">Gender Disparity in Homicide Victimization</a></li>
+      <li><span class="toc-num">4</span> <a href="#s4">Age Group Analysis</a></li>
+      <li><span class="toc-num">5</span> <a href="#s5">Notable Country-Level Trends &amp; Outliers</a></li>
+      <li><span class="toc-num">6</span> <a href="#s6">Data Limitations &amp; Policy Recommendations</a></li>
+    </ul>
+  </div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 1: GLOBAL OVERVIEW
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <div class="section-title">Global Homicide Rate Overview</div>
+  </div>
+
+  <div class="prose">
+    <p>This section presents the overarching trajectory of intentional homicide rates across 201 countries and territories, as reported to the United Nations Office on Drugs and Crime (UNODC) between 1990 and 2023. The data reveal a broad, long-term decline in homicide rates at the global level — but this narrative of improvement is uneven and requires careful contextual interpretation.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Global Median & Mean Homicide Rates Over Time</div>
+    <div class="card-subtitle">Rates per 100,000 population. The median is more robust to extreme outliers; divergence between mean and median signals skew from high-rate countries.</div>
+    <div class="chart-container">
+      <canvas id="globalTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Reporting Countries Over Time</div>
+      <div class="chart-container">
+        <canvas id="coverageChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Decade-over-Decade Trajectory</div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Period</th><th class="num">Mean Rate</th><th class="num">Change</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1990s</td><td class="num">8.3</td><td class="num">—</td></tr>
+          <tr><td>2000s</td><td class="num">8.5</td><td class="num"><span class="trend-indicator" style="color:#dc2626">+2.9% &#9650;</span></td></tr>
+          <tr><td>2010s</td><td class="num">7.7</td><td class="num"><span class="trend-indicator" style="color:#059669">-9.6% &#9660;</span></td></tr>
+          <tr><td>2020s (partial)</td><td class="num">7.7</td><td class="num"><span class="trend-indicator" style="color:#dc2626">+0.2% &#9650;</span></td></tr>
+        </tbody>
+      </table>
+      <div class="callout callout-info" style="margin-top:16px;">
+        <strong>Key finding:</strong> The global mean homicide rate has moved from 8.3 per 100k in the 1990s to 7.7 in the 2020s. While the overall direction is downward, the pace of decline has slowed.
+      </div>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <h4>Analytical Note</h4>
+    <p>Interpreting global trends requires caution: the set of reporting countries changes each year. Early years (1990s) have fewer reporting countries, which may skew global aggregates. The "improvement" narrative partly reflects improved data coverage from lower-rate nations joining the reporting pool. Section 6 discusses these limitations in detail.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 2: REGIONAL & COUNTRY COMPARISON
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <div class="section-title">Regional &amp; Country-Level Comparison</div>
+  </div>
+
+  <div class="prose">
+    <p>Global averages mask dramatic regional disparities. The Americas consistently record the highest homicide rates of any region, while parts of Asia, Europe, and Oceania maintain rates well below the global median. This section disaggregates the data by region and highlights the countries at both extremes.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Regional Average Homicide Rates (2023)</div>
+    <div class="chart-container">
+      <canvas id="regionalBarChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Regional Median Homicide Rate Trends</div>
+    <div class="card-subtitle">Median rates by region over time, showing long-run trajectories.</div>
+    <div class="chart-container">
+      <canvas id="regionalTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title" style="color:var(--danger);">Top 10 Highest Rates (2023)</div>
+      <table class="data-table">
+        <thead><tr><th class="rank">#</th><th>Country</th><th class="num">Rate</th></tr></thead>
+        <tbody>
+          <tr><td class="rank">1</td><td>Saint Kitts and Nevis</td><td class="num"><strong>64.2</strong></td></tr>
+          <tr><td class="rank">2</td><td>Saint Vincent and the Grenadines</td><td class="num"><strong>51.3</strong></td></tr>
+          <tr><td class="rank">3</td><td>Jamaica</td><td class="num"><strong>49.4</strong></td></tr>
+          <tr><td class="rank">4</td><td>Ecuador</td><td class="num"><strong>45.7</strong></td></tr>
+          <tr><td class="rank">5</td><td>Haiti</td><td class="num"><strong>41.2</strong></td></tr>
+          <tr><td class="rank">6</td><td>Saint Lucia</td><td class="num"><strong>39.0</strong></td></tr>
+          <tr><td class="rank">7</td><td>Honduras</td><td class="num"><strong>31.4</strong></td></tr>
+          <tr><td class="rank">8</td><td>Dominica</td><td class="num"><strong>27.1</strong></td></tr>
+          <tr><td class="rank">9</td><td>Colombia</td><td class="num"><strong>24.9</strong></td></tr>
+          <tr><td class="rank">10</td><td>Mexico</td><td class="num"><strong>24.9</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--success);">Top 10 Lowest Rates (2023)</div>
+      <table class="data-table">
+        <thead><tr><th class="rank">#</th><th>Country</th><th class="num">Rate</th></tr></thead>
+        <tbody>
+          <tr><td class="rank">1</td><td>Holy See</td><td class="num"><strong>0.0</strong></td></tr>
+          <tr><td class="rank">2</td><td>Singapore</td><td class="num"><strong>0.1</strong></td></tr>
+          <tr><td class="rank">3</td><td>Oman</td><td class="num"><strong>0.1</strong></td></tr>
+          <tr><td class="rank">4</td><td>Japan</td><td class="num"><strong>0.2</strong></td></tr>
+          <tr><td class="rank">5</td><td>Hong Kong</td><td class="num"><strong>0.4</strong></td></tr>
+          <tr><td class="rank">6</td><td>South Korea</td><td class="num"><strong>0.5</strong></td></tr>
+          <tr><td class="rank">7</td><td>Macao</td><td class="num"><strong>0.6</strong></td></tr>
+          <tr><td class="rank">8</td><td>Malta</td><td class="num"><strong>0.6</strong></td></tr>
+          <tr><td class="rank">9</td><td>Slovenia</td><td class="num"><strong>0.6</strong></td></tr>
+          <tr><td class="rank">10</td><td>Italy</td><td class="num"><strong>0.6</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout callout-danger">
+    <strong>Disparity magnitude:</strong> The gap between the highest-rate country (Saint Kitts and Nevis at 64.2) and the lowest-rate country (Holy See at 0.0) in 2023 represents a 6,416x difference — a stark reminder that geographic and socio-political context remains the dominant predictor of homicide risk.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 3: GENDER DISPARITY
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <div class="section-title">Gender Disparity in Homicide Victimization</div>
+  </div>
+
+  <div class="prose">
+    <p>Intentional homicide is profoundly gendered. Across virtually all countries and time periods in this dataset, males are disproportionately represented among victims. The male-to-female homicide rate ratio — a critical indicator of gendered violence patterns — reveals both the scale of this disparity and how it varies across geographies.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Male vs. Female Median Homicide Rates Over Time</div>
+    <div class="card-subtitle">Median rates across all reporting countries. The shaded gap illustrates the persistent gender disparity.</div>
+    <div class="chart-container">
+      <canvas id="genderTrendChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Male-to-Female Ratio Over Time</div>
+    <div class="card-subtitle">Median ratio across paired country observations by year.</div>
+    <div class="chart-container">
+      <canvas id="genderRatioChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Countries with Highest Gender Disparity (Most Recent Data)</div>
+    <div class="card-subtitle">Top 15 countries ranked by male-to-female homicide rate ratio.</div>
+    <table class="data-table">
+      <thead>
+        <tr><th class="rank">#</th><th>Country</th><th class="num">Male Rate</th><th class="num">Female Rate</th><th class="num">Ratio</th><th>Year</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="rank">1</td><td>United States Virgin Islands</td><td class="num">100.1</td><td class="num">3.7</td><td class="num"><strong>27.2x</strong></td><td>2012</td></tr>
+        <tr><td class="rank">2</td><td>Barbados</td><td class="num">14.8</td><td class="num">0.7</td><td class="num"><strong>21.7x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">3</td><td>Venezuela</td><td class="num">90.1</td><td class="num">5.1</td><td class="num"><strong>17.6x</strong></td><td>2017</td></tr>
+        <tr><td class="rank">4</td><td>Saint Kitts and Nevis</td><td class="num">125.0</td><td class="num">8.2</td><td class="num"><strong>15.2x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">5</td><td>Grenada</td><td class="num">25.5</td><td class="num">1.7</td><td class="num"><strong>14.9x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">6</td><td>Colombia</td><td class="num">47.0</td><td class="num">3.4</td><td class="num"><strong>13.6x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">7</td><td>Bahamas</td><td class="num">62.0</td><td class="num">4.8</td><td class="num"><strong>12.9x</strong></td><td>2022</td></tr>
+        <tr><td class="rank">8</td><td>Panama</td><td class="num">21.7</td><td class="num">1.7</td><td class="num"><strong>12.7x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">9</td><td>Ecuador</td><td class="num">84.5</td><td class="num">6.7</td><td class="num"><strong>12.7x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">10</td><td>Costa Rica</td><td class="num">33.1</td><td class="num">2.8</td><td class="num"><strong>12.0x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">11</td><td>Samoa</td><td class="num">11.4</td><td class="num">1.0</td><td class="num"><strong>11.7x</strong></td><td>2018</td></tr>
+        <tr><td class="rank">12</td><td>Puerto Rico</td><td class="num">27.7</td><td class="num">2.4</td><td class="num"><strong>11.6x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">13</td><td>Saint Vincent and the Grenadines</td><td class="num">92.9</td><td class="num">8.1</td><td class="num"><strong>11.5x</strong></td><td>2023</td></tr>
+        <tr><td class="rank">14</td><td>Belize</td><td class="num">51.2</td><td class="num">4.5</td><td class="num"><strong>11.4x</strong></td><td>2022</td></tr>
+        <tr><td class="rank">15</td><td>Jamaica</td><td class="num">91.5</td><td class="num">8.2</td><td class="num"><strong>11.1x</strong></td><td>2023</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight-box">
+    <h4>Policy Implication</h4>
+    <p>The median male-to-female homicide rate ratio of <strong>3.2x</strong> underscores that men — particularly young men — are the primary victims of lethal violence in most contexts. However, female homicide rates, while lower in absolute terms, often reflect intimate partner and family violence, which requires distinct policy responses. Effective strategies must address both the volume of male victimization and the structural drivers of female homicide.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 4: AGE GROUP ANALYSIS
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <div class="section-title">Age Group Analysis</div>
+  </div>
+
+  <div class="prose">
+    <p>Homicide risk is not uniformly distributed across the life course. Age-disaggregated data — where available — reveals that young adults face dramatically higher victimization rates than children or the elderly. Understanding these age profiles is essential for targeting prevention programs.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Homicide Rates by Age Group (Global Averages)</div>
+    <div class="card-subtitle">Mean and median rates across all country-year observations by age group (averaged across male and female where both available).</div>
+    <div class="chart-container">
+      <canvas id="ageBarChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Age Group Summary Statistics</div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Age Group</th><th class="num">Median Rate</th><th class="num">Mean Rate</th><th class="num">Observations</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>25–29</td><td class="num">3.1</td><td class="num">16.7</td><td class="num">589</td></tr>
+        <tr><td>20–24</td><td class="num">2.6</td><td class="num">14.9</td><td class="num">566</td></tr>
+        <tr><td>30–44</td><td class="num">2.7</td><td class="num">13.0</td><td class="num">996</td></tr>
+        <tr><td>18–19</td><td class="num">2.0</td><td class="num">12.5</td><td class="num">543</td></tr>
+        <tr><td>45–59</td><td class="num">2.4</td><td class="num">8.9</td><td class="num">980</td></tr>
+        <tr><td>60+</td><td class="num">1.7</td><td class="num">6.0</td><td class="num">980</td></tr>
+        <tr><td>15–17</td><td class="num">1.1</td><td class="num">5.7</td><td class="num">552</td></tr>
+        <tr><td>10–14</td><td class="num">0.2</td><td class="num">0.8</td><td class="num">519</td></tr>
+        <tr><td>0–9</td><td class="num">0.5</td><td class="num">0.7</td><td class="num">540</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-warning">
+    <strong>Data coverage caveat:</strong> Age-disaggregated reporting is far less complete than overall rates. Many countries only report the "ALL" age category, making cross-country age comparisons less robust than overall or sex-disaggregated analyses. The observation counts in the table above reflect this unevenness.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 5: NOTABLE TRENDS & OUTLIERS
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <div class="section-title">Notable Country-Level Trends &amp; Outliers</div>
+  </div>
+
+  <div class="prose">
+    <p>While global and regional aggregates provide useful context, the most actionable insights often emerge from individual country trajectories. This section highlights the countries that have experienced the most dramatic improvements and deteriorations in homicide rates over the observation period, as well as sudden spikes that may signal acute crises.</p>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title" style="color:var(--success);">Greatest Improvements</div>
+      <div class="card-subtitle">Countries with the largest percentage decline in homicide rate from first to last observation.</div>
+      <table class="data-table">
+        <thead><tr><th>Country</th><th class="num">From</th><th class="num">To</th><th class="num">Change</th></tr></thead>
+        <tbody>
+          <tr><td>American Samoa<br><span style="color:var(--text-light);font-size:0.8em">2001–2019</span></td><td class="num">1.8</td><td class="num">0.0</td><td class="num"><span class="badge badge-success">-100.0%</span></td></tr>
+          <tr><td>Channel Islands<br><span style="color:var(--text-light);font-size:0.8em">2005–2010</span></td><td class="num">0.7</td><td class="num">0.0</td><td class="num"><span class="badge badge-success">-100.0%</span></td></tr>
+          <tr><td>Isle of Man<br><span style="color:var(--text-light);font-size:0.8em">2011–2016</span></td><td class="num">1.2</td><td class="num">0.0</td><td class="num"><span class="badge badge-success">-100.0%</span></td></tr>
+          <tr><td>Monaco<br><span style="color:var(--text-light);font-size:0.8em">2001–2008</span></td><td class="num">3.1</td><td class="num">0.0</td><td class="num"><span class="badge badge-success">-100.0%</span></td></tr>
+          <tr><td>Singapore<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">1.6</td><td class="num">0.1</td><td class="num"><span class="badge badge-success">-95.5%</span></td></tr>
+          <tr><td>El Salvador<br><span style="color:var(--text-light);font-size:0.8em">1994–2022</span></td><td class="num">134.3</td><td class="num">7.9</td><td class="num"><span class="badge badge-success">-94.1%</span></td></tr>
+          <tr><td>Qatar<br><span style="color:var(--text-light);font-size:0.8em">1990–2022</span></td><td class="num">0.9</td><td class="num">0.1</td><td class="num"><span class="badge badge-success">-92.4%</span></td></tr>
+          <tr><td>Turkmenistan<br><span style="color:var(--text-light);font-size:0.8em">1990–2015</span></td><td class="num">8.8</td><td class="num">1.0</td><td class="num"><span class="badge badge-success">-88.5%</span></td></tr>
+          <tr><td>Oman<br><span style="color:var(--text-light);font-size:0.8em">2002–2023</span></td><td class="num">1.2</td><td class="num">0.1</td><td class="num"><span class="badge badge-success">-88.4%</span></td></tr>
+          <tr><td>Hong Kong<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">2.5</td><td class="num">0.4</td><td class="num"><span class="badge badge-success">-84.7%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--danger);">Greatest Deteriorations</div>
+      <div class="card-subtitle">Countries with the largest percentage increase in homicide rate from first to last observation.</div>
+      <table class="data-table">
+        <thead><tr><th>Country</th><th class="num">From</th><th class="num">To</th><th class="num">Change</th></tr></thead>
+        <tbody>
+          <tr><td>Haiti<br><span style="color:var(--text-light);font-size:0.8em">2007–2023</span></td><td class="num">5.2</td><td class="num">41.1</td><td class="num"><span class="badge badge-danger">+693.7%</span></td></tr>
+          <tr><td>Saint Kitts and Nevis<br><span style="color:var(--text-light);font-size:0.8em">1995–2023</span></td><td class="num">9.4</td><td class="num">64.2</td><td class="num"><span class="badge badge-danger">+578.9%</span></td></tr>
+          <tr><td>Antigua and Barbuda<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">1.6</td><td class="num">10.7</td><td class="num"><span class="badge badge-danger">+575.8%</span></td></tr>
+          <tr><td>Ecuador<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">8.5</td><td class="num">45.7</td><td class="num"><span class="badge badge-danger">+436.9%</span></td></tr>
+          <tr><td>Saint Vincent and the Grenadines<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">9.8</td><td class="num">51.3</td><td class="num"><span class="badge badge-danger">+421.7%</span></td></tr>
+          <tr><td>Morocco<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">0.4</td><td class="num">1.7</td><td class="num"><span class="badge badge-danger">+367.0%</span></td></tr>
+          <tr><td>Trinidad and Tobago<br><span style="color:var(--text-light);font-size:0.8em">2000–2022</span></td><td class="num">9.1</td><td class="num">40.4</td><td class="num"><span class="badge badge-danger">+344.8%</span></td></tr>
+          <tr><td>Costa Rica<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">4.5</td><td class="num">17.8</td><td class="num"><span class="badge badge-danger">+298.5%</span></td></tr>
+          <tr><td>Saint Lucia<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">10.2</td><td class="num">39.0</td><td class="num"><span class="badge badge-danger">+284.5%</span></td></tr>
+          <tr><td>Bermuda<br><span style="color:var(--text-light);font-size:0.8em">1990–2023</span></td><td class="num">1.7</td><td class="num">6.2</td><td class="num"><span class="badge badge-danger">+255.9%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Dramatic Single-Period Spikes</div>
+    <div class="card-subtitle">Country-year pairs with >50% rate change and >2 per 100k absolute shift within 1–2 years. These may reflect acute crises, conflicts, or reporting anomalies.</div>
+    <table class="data-table">
+      <thead><tr><th>Country</th><th>Period</th><th class="num">From</th><th class="num">To</th><th class="num">Change</th></tr></thead>
+      <tbody>
+        <tr><td>Myanmar</td><td>2020→2021</td><td class="num">3.0</td><td class="num">28.7</td><td class="num"><span class="badge badge-danger">+867.1%</span></td></tr>
+        <tr><td>Dominica</td><td>2001→2002</td><td class="num">1.5</td><td class="num">13.2</td><td class="num"><span class="badge badge-danger">+799.0%</span></td></tr>
+        <tr><td>Greenland</td><td>2011→2012</td><td class="num">1.8</td><td class="num">14.1</td><td class="num"><span class="badge badge-danger">+700.8%</span></td></tr>
+        <tr><td>American Samoa</td><td>2001→2002</td><td class="num">1.8</td><td class="num">12.3</td><td class="num"><span class="badge badge-danger">+599.9%</span></td></tr>
+        <tr><td>Tonga</td><td>2000→2001</td><td class="num">1.0</td><td class="num">5.8</td><td class="num"><span class="badge badge-danger">+496.5%</span></td></tr>
+        <tr><td>Guam</td><td>2008→2009</td><td class="num">0.6</td><td class="num">3.0</td><td class="num"><span class="badge badge-danger">+398.6%</span></td></tr>
+        <tr><td>Albania</td><td>1996→1997</td><td class="num">8.4</td><td class="num">41.3</td><td class="num"><span class="badge badge-danger">+392.9%</span></td></tr>
+        <tr><td>Seychelles</td><td>2012→2013</td><td class="num">4.0</td><td class="num">17.6</td><td class="num"><span class="badge badge-danger">+338.8%</span></td></tr>
+        <tr><td>Tajikistan</td><td>1991→1992</td><td class="num">2.7</td><td class="num">10.7</td><td class="num"><span class="badge badge-danger">+301.0%</span></td></tr>
+        <tr><td>Malawi</td><td>2005→2006</td><td class="num">1.6</td><td class="num">6.2</td><td class="num"><span class="badge badge-danger">+299.3%</span></td></tr>
+        <tr><td>Tonga</td><td>2007→2008</td><td class="num">0.9</td><td class="num">3.7</td><td class="num"><span class="badge badge-danger">+298.9%</span></td></tr>
+        <tr><td>Saint Martin (French Part)</td><td>2012→2013</td><td class="num">5.4</td><td class="num">21.4</td><td class="num"><span class="badge badge-danger">+298.5%</span></td></tr>
+        <tr><td>Malta</td><td>2011→2012</td><td class="num">0.7</td><td class="num">2.8</td><td class="num"><span class="badge badge-danger">+298.1%</span></td></tr>
+        <tr><td>Guam</td><td>2002→2003</td><td class="num">1.2</td><td class="num">4.9</td><td class="num"><span class="badge badge-danger">+298.0%</span></td></tr>
+        <tr><td>Guam</td><td>2000→2001</td><td class="num">1.2</td><td class="num">5.0</td><td class="num"><span class="badge badge-danger">+296.9%</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-warning">
+    <strong>Interpretation warning:</strong> Large percentage changes in countries with very low baseline rates can be misleading — a jump from 0.5 to 1.5 is a 200% increase but represents a small absolute shift. Conversely, even modest percentage changes in high-rate countries may correspond to thousands of additional deaths. Always consider both absolute and relative changes.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     SECTION 6: DATA LIMITATIONS & RECOMMENDATIONS
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="section" id="s6">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <div class="section-title">Data Limitations &amp; Policy Recommendations</div>
+  </div>
+
+  <div class="prose">
+    <p>Rigorous policy analysis requires transparency about data quality. This dataset — while the most comprehensive global source on intentional homicide — has significant structural limitations that directly affect how findings should be interpreted and applied.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Data Completeness & Coverage</div>
+    <div class="chart-container">
+      <canvas id="sexCoverageChart"></canvas>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Most Complete Reporting Countries</div>
+      <table class="data-table">
+        <thead><tr><th>Country</th><th class="num">Years Reported</th></tr></thead>
+        <tbody>
+          <tr><td>Finland</td><td class="num">34</td></tr>
+          <tr><td>Costa Rica</td><td class="num">34</td></tr>
+          <tr><td>Croatia</td><td class="num">34</td></tr>
+          <tr><td>Colombia</td><td class="num">34</td></tr>
+          <tr><td>Canada</td><td class="num">34</td></tr>
+          <tr><td>Brazil</td><td class="num">34</td></tr>
+          <tr><td>Bulgaria</td><td class="num">34</td></tr>
+          <tr><td>Australia</td><td class="num">34</td></tr>
+          <tr><td>Austria</td><td class="num">34</td></tr>
+          <tr><td>Germany</td><td class="num">34</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Key Data Caveats</div>
+      <div class="prose">
+        <ul>
+          <li><strong>Unbalanced panel:</strong> Not all countries report every year. The composition of reporting countries changes, meaning global aggregates are not strictly comparable across time. Early decades have fewer reporters.</li>
+          <li><strong>Sex & age disaggregation:</strong> Sex-disaggregated data is available for fewer country-year pairs than overall rates. Age-disaggregated data is sparser still, limiting the robustness of demographic analyses.</li>
+          <li><strong>United Kingdom:</strong> UK data refer to England and Wales only, as reported in the original UNODC dataset. Scotland and Northern Ireland may appear as separate entries.</li>
+          <li><strong>Territories:</strong> Some territories (e.g., Hong Kong, Puerto Rico) are reported separately and should not be double-counted with parent countries.</li>
+          <li><strong>No imputation:</strong> Missing data was not interpolated. Gaps in the time series reflect genuine absence of reporting, not estimation.</li>
+          <li><strong>Reporting quality:</strong> National statistical capacity varies. Some countries may under-report homicides due to limited forensic infrastructure, conflict conditions, or definitional differences.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Policy Recommendations</div>
+    <div class="prose">
+      <p>Based on the evidence presented in this report, we highlight the following policy-relevant findings and recommendations:</p>
+      <ul>
+        <li><strong>Targeted interventions in high-rate regions:</strong> The Americas, and parts of Africa, consistently record rates several times the global median. International cooperation frameworks and resource allocation should prioritize these regions for violence prevention programs.</li>
+        <li><strong>Gender-specific strategies:</strong> The persistent male-to-female homicide rate ratio of approximately {fmt(mf_median, 1)}x calls for dual-track approaches: violence reduction programs targeting young male populations alongside specialized services for female victims of intimate partner and family violence.</li>
+        <li><strong>Youth-focused prevention:</strong> Age-disaggregated data consistently shows peak victimization in the 15–29 and 30–44 age ranges. Evidence-based youth violence prevention, education, and economic opportunity programs should be central to national strategies.</li>
+        <li><strong>Strengthen data infrastructure:</strong> The significant gaps in reporting — particularly for sex- and age-disaggregated data — limit evidence-based policy-making. Investment in national statistical systems and standardized reporting to UNODC should be a multilateral priority.</li>
+        <li><strong>Monitor outlier trajectories:</strong> Countries showing rapid deterioration warrant immediate attention and assessment. Early warning systems incorporating homicide rate trends could help mobilize preventive responses before crises deepen.</li>
+        <li><strong>Learn from success stories:</strong> Countries that have achieved dramatic reductions in homicide rates offer potential models for replication, though context-specific factors must be carefully considered in any knowledge transfer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <h4>Final Assessment</h4>
+    <p>Is the world becoming safer from intentional homicide? The data suggest a cautiously affirmative answer at the global level — median rates have trended downward over three decades. However, this improvement is neither universal nor guaranteed. Deep regional disparities persist, gender-based patterns of victimization remain entrenched, and reporting gaps mean the full picture is incomplete. For the communities and demographics most affected, the promise of a safer world remains unrealized. Sustained, evidence-based, and context-sensitive policy action is essential to translate aggregate trends into lived safety for all.</p>
+  </div>
+</div>
+
+</div> <!-- end container -->
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="report-footer">
+  <div class="container">
+    <p><strong>Global Intentional Homicide Trends: A Multi-Dimensional Analysis (1990–2023)</strong></p>
+    <p>Data Source: UNODC Crime Trends Survey via Kaggle (lucalullo/global-homicide-rates-by-country)</p>
+    <p>Report generated: April 2026 &middot; All figures derived directly from source data without imputation</p>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CHARTS — Chart.js
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+const tsData = {ts_json};
+const genderData = {gender_ts_json};
+const regionalData = {regional_ts_json};
+const coverageData = {coverage_ts_json};
+const ageData = {age_chart_json};
+const sexCovData = {sex_coverage_json};
+const regionalLatest = {json.dumps(regional_latest, default=str)};
+
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#64748b';
+
+// ── 1. Global Trend ──
+new Chart(document.getElementById('globalTrendChart'), {{
+  type: 'line',
+  data: {{
+    labels: tsData.map(d => d.year),
+    datasets: [
+      {{
+        label: 'Median Rate',
+        data: tsData.map(d => d.median),
+        borderColor: '#1e40af',
+        backgroundColor: 'rgba(30,64,175,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        borderWidth: 2.5,
+      }},
+      {{
+        label: 'Mean Rate',
+        data: tsData.map(d => d.mean),
+        borderColor: '#7c3aed',
+        borderDash: [6,3],
+        tension: 0.3,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        fill: false,
+      }}
+    ]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{
+      legend: {{ position: 'top' }},
+      tooltip: {{
+        callbacks: {{
+          afterLabel: function(ctx) {{
+            const d = tsData[ctx.dataIndex];
+            return 'Countries reporting: ' + d.n_countries;
+          }}
+        }}
+      }}
+    }},
+    scales: {{
+      y: {{ title: {{ display: true, text: 'Rate per 100,000' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+
+// ── 2. Coverage chart ──
+new Chart(document.getElementById('coverageChart'), {{
+  type: 'bar',
+  data: {{
+    labels: coverageData.map(d => d.year),
+    datasets: [{{
+      label: 'Countries Reporting',
+      data: coverageData.map(d => d.n_countries),
+      backgroundColor: 'rgba(30,64,175,0.6)',
+      borderRadius: 3,
+    }}]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ display: false }} }},
+    scales: {{
+      y: {{ title: {{ display: true, text: '# Countries' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+
+// ── 3. Regional bar chart (latest year) ──
+new Chart(document.getElementById('regionalBarChart'), {{
+  type: 'bar',
+  data: {{
+    labels: regionalLatest.map(d => d.region),
+    datasets: [
+      {{
+        label: 'Mean Rate',
+        data: regionalLatest.map(d => d.mean),
+        backgroundColor: ['#dc2626','#d97706','#0284c7','#7c3aed','#059669','#64748b'],
+        borderRadius: 6,
+      }},
+      {{
+        label: 'Median Rate',
+        data: regionalLatest.map(d => d.median),
+        backgroundColor: ['rgba(220,38,38,0.3)','rgba(217,119,6,0.3)','rgba(2,132,199,0.3)','rgba(124,58,237,0.3)','rgba(5,150,105,0.3)','rgba(100,116,139,0.3)'],
+        borderRadius: 6,
+      }}
+    ]
+  }},
+  options: {{
+    responsive: true,
+    indexAxis: 'y',
+    plugins: {{
+      tooltip: {{
+        callbacks: {{
+          afterLabel: function(ctx) {{
+            return 'Countries: ' + regionalLatest[ctx.dataIndex].n_countries;
+          }}
+        }}
+      }}
+    }},
+    scales: {{
+      x: {{ title: {{ display: true, text: 'Rate per 100,000' }}, beginAtZero: true }}
+    }}
+  }}
+}});
+
+// ── 4. Regional trend lines ──
+const regions = [...new Set(regionalData.map(d => d.region))];
+const regionColors = {{ 'Americas': '#dc2626', 'Africa': '#d97706', 'Europe': '#1e40af', 'Asia': '#059669', 'Oceania': '#7c3aed', 'Other': '#94a3b8' }};
+const allYears = [...new Set(regionalData.map(d => d.year))].sort();
+new Chart(document.getElementById('regionalTrendChart'), {{
+  type: 'line',
+  data: {{
+    labels: allYears,
+    datasets: regions.map(r => ({{
+      label: r,
+      data: allYears.map(y => {{
+        const d = regionalData.find(x => x.region === r && x.year === y);
+        return d ? d.median : null;
+      }}),
+      borderColor: regionColors[r] || '#94a3b8',
+      tension: 0.3,
+      pointRadius: 1.5,
+      borderWidth: 2,
+      spanGaps: true,
+    }}))
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ position: 'top' }} }},
+    scales: {{
+      y: {{ title: {{ display: true, text: 'Median Rate per 100,000' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+
+// ── 5. Gender trend ──
+new Chart(document.getElementById('genderTrendChart'), {{
+  type: 'line',
+  data: {{
+    labels: genderData.map(d => d.year),
+    datasets: [
+      {{
+        label: 'Male Median',
+        data: genderData.map(d => d.male_median),
+        borderColor: '#1e40af',
+        backgroundColor: 'rgba(30,64,175,0.1)',
+        fill: '+1',
+        tension: 0.3,
+        borderWidth: 2.5,
+        pointRadius: 3,
+      }},
+      {{
+        label: 'Female Median',
+        data: genderData.map(d => d.female_median),
+        borderColor: '#dc2626',
+        backgroundColor: 'rgba(220,38,38,0.1)',
+        fill: false,
+        tension: 0.3,
+        borderWidth: 2.5,
+        pointRadius: 3,
+      }}
+    ]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ position: 'top' }} }},
+    scales: {{
+      y: {{ title: {{ display: true, text: 'Rate per 100,000' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+
+// ── 6. Gender ratio trend ──
+new Chart(document.getElementById('genderRatioChart'), {{
+  type: 'line',
+  data: {{
+    labels: genderData.map(d => d.year),
+    datasets: [{{
+      label: 'Male-to-Female Ratio',
+      data: genderData.map(d => d.ratio),
+      borderColor: '#7c3aed',
+      backgroundColor: 'rgba(124,58,237,0.1)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2.5,
+      pointRadius: 3,
+    }}]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ display: false }} }},
+    scales: {{
+      y: {{ title: {{ display: true, text: 'Ratio (Male / Female)' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+
+// ── 7. Age bar chart ──
+new Chart(document.getElementById('ageBarChart'), {{
+  type: 'bar',
+  data: {{
+    labels: ageData.map(d => d.group),
+    datasets: [
+      {{
+        label: 'Mean Rate',
+        data: ageData.map(d => d.mean),
+        backgroundColor: 'rgba(30,64,175,0.7)',
+        borderRadius: 6,
+      }},
+      {{
+        label: 'Median Rate',
+        data: ageData.map(d => d.median),
+        backgroundColor: 'rgba(124,58,237,0.5)',
+        borderRadius: 6,
+      }}
+    ]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{
+      tooltip: {{
+        callbacks: {{
+          afterLabel: function(ctx) {{
+            return 'Observations: ' + ageData[ctx.dataIndex].count;
+          }}
+        }}
+      }}
+    }},
+    scales: {{
+      y: {{ title: {{ display: true, text: 'Rate per 100,000' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Age Group' }} }}
+    }}
+  }}
+}});
+
+// ── 8. Sex coverage chart ──
+new Chart(document.getElementById('sexCoverageChart'), {{
+  type: 'line',
+  data: {{
+    labels: sexCovData.map(d => d.year),
+    datasets: [
+      {{
+        label: 'Total (Both)',
+        data: sexCovData.map(d => d.both),
+        borderColor: '#1e40af',
+        tension: 0.3, borderWidth: 2, pointRadius: 2,
+      }},
+      {{
+        label: 'Male Disaggregated',
+        data: sexCovData.map(d => d.male),
+        borderColor: '#059669',
+        tension: 0.3, borderWidth: 2, pointRadius: 2,
+      }},
+      {{
+        label: 'Female Disaggregated',
+        data: sexCovData.map(d => d.female),
+        borderColor: '#dc2626',
+        tension: 0.3, borderWidth: 2, pointRadius: 2,
+      }}
+    ]
+  }},
+  options: {{
+    responsive: true,
+    plugins: {{ legend: {{ position: 'top' }} }},
+    scales: {{
+      y: {{ title: {{ display: true, text: '# Countries Reporting' }}, beginAtZero: true }},
+      x: {{ title: {{ display: true, text: 'Year' }} }}
+    }}
+  }}
+}});
+</script>
+
+</body>
+</html>

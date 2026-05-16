@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL 2026 Ball-by-Ball Analytics Report</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161b24;
+    --surface2: #1e2535;
+    --border: #2a3347;
+    --accent: #f97316;
+    --accent2: #3b82f6;
+    --accent3: #10b981;
+    --accent4: #a855f7;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --gold: #f59e0b;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  /* ── Layout ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ── */
+  .report-header {
+    background: linear-gradient(135deg, #0d0f14 0%, #1a0a2e 50%, #0d1a2e 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 48px 0 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .report-header::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 70% 50%, rgba(249,115,22,0.08) 0%, transparent 60%);
+  }
+  .header-inner { position: relative; }
+  .header-tag { font-size: 11px; font-weight: 700; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; }
+  .header-title { font-size: 42px; font-weight: 800; line-height: 1.1; background: linear-gradient(90deg, #fff 0%, var(--accent) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .header-sub { font-size: 16px; color: var(--text-muted); margin-top: 10px; }
+  .header-meta { margin-top: 20px; display: flex; gap: 24px; flex-wrap: wrap; }
+  .header-meta span { font-size: 12px; color: var(--text-muted); }
+  .header-meta strong { color: var(--text); }
+
+  /* ── Section ── */
+  .section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .section-num { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 2px; background: rgba(249,115,22,0.1); border: 1px solid rgba(249,115,22,0.3); border-radius: 4px; padding: 2px 8px; }
+  .section-title { font-size: 22px; font-weight: 700; color: #fff; }
+
+  /* ── KPI Cards ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  @media(max-width:900px){ .kpi-grid { grid-template-columns: repeat(3,1fr); } }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .kpi-card.c1::before { background: var(--accent); }
+  .kpi-card.c2::before { background: var(--accent2); }
+  .kpi-card.c3::before { background: var(--accent3); }
+  .kpi-card.c4::before { background: var(--gold); }
+  .kpi-card.c5::before { background: var(--accent4); }
+  .kpi-val { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 6px; }
+  .kpi-card.c1 .kpi-val { color: var(--accent); }
+  .kpi-card.c2 .kpi-val { color: var(--accent2); }
+  .kpi-card.c3 .kpi-val { color: var(--accent3); }
+  .kpi-card.c4 .kpi-val { color: var(--gold); }
+  .kpi-card.c5 .kpi-val { color: var(--accent4); }
+  .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-desc { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+  /* ── Stat summary grid ── */
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+  .stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; font-size: 13px; }
+  .stat-pill strong { color: var(--accent); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--surface2); }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(odd) { background: rgba(255,255,255,0.015); }
+  tbody tr:hover { background: rgba(255,255,255,0.04); }
+  .rank { color: var(--text-muted); font-size: 12px; }
+  .highlight { color: var(--accent); font-weight: 700; }
+  .green { color: var(--accent3); font-weight: 600; }
+  .blue { color: var(--accent2); font-weight: 600; }
+  .gold { color: var(--gold); font-weight: 600; }
+  .red-val { color: var(--red); font-weight: 600; }
+
+  /* ── Charts ── */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+  @media(max-width:768px){ .chart-grid { grid-template-columns: 1fr; } }
+  .chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .chart-title { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+  svg { width: 100%; overflow: visible; }
+
+  /* ── Bar charts ── */
+  .bar-label { font-size: 11px; fill: var(--text-muted); }
+  .bar-value { font-size: 11px; fill: var(--text); font-weight: 600; }
+  .axis-line { stroke: var(--border); stroke-width: 1; }
+
+  /* ── Phase cards ── */
+  .phase-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .phase-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .phase-name { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .phase-card.pp .phase-name { color: var(--accent2); }
+  .phase-card.mid .phase-name { color: var(--accent3); }
+  .phase-card.death .phase-name { color: var(--accent); }
+  .phase-stat { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .phase-stat:last-child { border-bottom: none; }
+  .phase-stat-val { font-weight: 700; color: #fff; }
+
+  /* ── Venue badges ── */
+  .venue-name { max-width: 220px; white-space: normal; line-height: 1.3; font-size: 12px; }
+
+  /* ── Two column layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width:768px){ .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Footer ── */
+  .report-footer { background: var(--surface); border-top: 1px solid var(--border); padding: 24px 0; text-align: center; }
+  .report-footer p { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Donut SVG ── */
+  .donut-text { font-size: 11px; fill: var(--text-muted); }
+  .donut-pct { font-size: 14px; font-weight: 700; fill: #fff; }
+
+  /* ── Heatmap ── */
+  .heatmap-cell { rx: 3; ry: 3; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="report-header">
+  <div class="container header-inner">
+    <div class="header-tag">IPL 2026 · Season Analytics</div>
+    <h1 class="header-title">Ball-by-Ball Analytics Report</h1>
+    <p class="header-sub">Delivery-level insights for cricket analysts &amp; team strategists</p>
+    <div class="header-meta">
+      <span>Matches Covered: <strong>15</strong></span>
+      <span>Total Deliveries: <strong>3,284</strong></span>
+      <span>Season Stage: <strong>League Stage</strong></span>
+      <span>Data as of: <strong>April 2026</strong></span>
+      <span>Teams: <strong>10 franchises</strong></span>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ SECTION 1: TOURNAMENT OVERVIEW ══════════ -->
+<main>
+<div class="container">
+
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2 class="section-title">Tournament Overview &amp; Match Summary</h2>
+  </div>
+
+  <!-- KPI Dashboard -->
+  <div class="kpi-grid">
+    <div class="kpi-card c1">
+      <div class="kpi-val">9.83</div>
+      <div class="kpi-label">Avg Runs Per Over</div>
+      <div class="kpi-desc">Total runs ÷ total overs</div>
+    </div>
+    <div class="kpi-card c2">
+      <div class="kpi-val">21.5%</div>
+      <div class="kpi-label">Boundary Percentage</div>
+      <div class="kpi-desc">4s &amp; 6s per delivery</div>
+    </div>
+    <div class="kpi-card c3">
+      <div class="kpi-val">31.4%</div>
+      <div class="kpi-label">Dot Ball Percentage</div>
+      <div class="kpi-desc">Zero-run deliveries</div>
+    </div>
+    <div class="kpi-card c4">
+      <div class="kpi-val">17.7</div>
+      <div class="kpi-label">Extras Per Match</div>
+      <div class="kpi-desc">Bowling discipline index</div>
+    </div>
+    <div class="kpi-card c5">
+      <div class="kpi-val">12.0</div>
+      <div class="kpi-label">Wickets Per Match</div>
+      <div class="kpi-desc">Bat vs ball balance</div>
+    </div>
+  </div>
+
+  <div class="stat-row" style="margin-top:24px;">
+    <div class="stat-pill">Total Runs: <strong>5,114</strong></div>
+    <div class="stat-pill">Total Wickets: <strong>180</strong></div>
+    <div class="stat-pill">Total Matches: <strong>15</strong></div>
+    <div class="stat-pill">Venues Used: <strong>10</strong></div>
+    <div class="stat-pill">Teams: <strong>10</strong></div>
+    <div class="stat-pill">Fours: <strong>458</strong></div>
+    <div class="stat-pill">Sixes: <strong>249</strong></div>
+    <div class="stat-pill">Total Extras: <strong>266</strong></div>
+  </div>
+
+  <!-- Over-by-over run rate chart -->
+  <div class="chart-box" style="margin-top:8px;">
+    <div class="chart-title">Run Rate by Over — Season Average</div>
+    <svg viewBox="0 0 860 180" style="height:180px;">
+      <!-- y-axis labels -->
+      <text x="28" y="20" class="bar-label" text-anchor="end">13</text>
+      <text x="28" y="52" class="bar-label" text-anchor="end">11</text>
+      <text x="28" y="84" class="bar-label" text-anchor="end">9</text>
+      <text x="28" y="116" class="bar-label" text-anchor="end">7</text>
+      <text x="28" y="148" class="bar-label" text-anchor="end">5</text>
+      <!-- gridlines -->
+      <line x1="32" y1="20" x2="855" y2="20" stroke="#2a3347" stroke-width="0.5"/>
+      <line x1="32" y1="52" x2="855" y2="52" stroke="#2a3347" stroke-width="0.5"/>
+      <line x1="32" y1="84" x2="855" y2="84" stroke="#2a3347" stroke-width="0.5"/>
+      <line x1="32" y1="116" x2="855" y2="116" stroke="#2a3347" stroke-width="0.5"/>
+      <line x1="32" y1="148" x2="855" y2="148" stroke="#2a3347" stroke-width="0.5"/>
+      <!-- baseline -->
+      <line x1="32" y1="158" x2="855" y2="158" class="axis-line"/>
+      <!-- Bars: overs 0-19, data: [8.75,8.39,9.10,9.61,10.72,9.86,8.88,8.69,10.00,7.58,8.97,10.48,8.27,8.73,9.96,9.36,9.75,9.36,10.83,10.38] -->
+      <!-- Scale: min=5, max=13, range=8, height=138px -->
+      <script>
+        // Rendered statically below
+      </script>
+      <!-- over 0: 8.75 → h=((8.75-5)/8)*138=64.7 y=158-64.7=93.3 -->
+      <rect x="35"  y="93"  width="38" height="65"  fill="#f97316" opacity="0.8" rx="2"/>
+      <rect x="77"  y="97"  width="38" height="61"  fill="#f97316" opacity="0.8" rx="2"/>
+      <rect x="119" y="89"  width="38" height="69"  fill="#f97316" opacity="0.8" rx="2"/>
+      <rect x="161" y="82"  width="38" height="76"  fill="#f97316" opacity="0.8" rx="2"/>
+      <rect x="203" y="70"  width="38" height="88"  fill="#ef4444" opacity="0.85" rx="2"/>
+      <rect x="245" y="78"  width="38" height="80"  fill="#f97316" opacity="0.8" rx="2"/>
+      <!-- phase break pp|middle -->
+      <line x1="287" y1="10" x2="287" y2="158" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+      <text x="289" y="18" font-size="9" fill="#3b82f6" opacity="0.8">PP end</text>
+      <rect x="289" y="87"  width="38" height="71"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="331" y="93"  width="38" height="65"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="373" y="78"  width="38" height="80"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="415" y="106" width="38" height="52"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="457" y="87"  width="38" height="71"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="499" y="73"  width="38" height="85"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="541" y="97"  width="38" height="61"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="583" y="93"  width="38" height="65"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <rect x="625" y="79"  width="38" height="79"  fill="#3b82f6" opacity="0.8" rx="2"/>
+      <!-- phase break middle|death -->
+      <line x1="667" y1="10" x2="667" y2="158" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.6"/>
+      <text x="669" y="18" font-size="9" fill="#10b981" opacity="0.8">Death</text>
+      <rect x="669" y="82"  width="38" height="76"  fill="#10b981" opacity="0.85" rx="2"/>
+      <rect x="711" y="89"  width="38" height="69"  fill="#10b981" opacity="0.85" rx="2"/>
+      <rect x="753" y="69"  width="38" height="89"  fill="#ef4444" opacity="0.85" rx="2"/>
+      <rect x="795" y="74"  width="38" height="84"  fill="#10b981" opacity="0.85" rx="2"/>
+      <!-- x-axis labels every 5 overs -->
+      <text x="54"  y="172" class="bar-label" text-anchor="middle">1</text>
+      <text x="264" y="172" class="bar-label" text-anchor="middle">6</text>
+      <text x="308" y="172" class="bar-label" text-anchor="middle">7</text>
+      <text x="477" y="172" class="bar-label" text-anchor="middle">12</text>
+      <text x="645" y="172" class="bar-label" text-anchor="middle">15</text>
+      <text x="688" y="172" class="bar-label" text-anchor="middle">16</text>
+      <text x="814" y="172" class="bar-label" text-anchor="middle">20</text>
+      <!-- legend -->
+      <rect x="34" y="5" width="10" height="8" fill="#f97316" rx="2"/>
+      <text x="48" y="13" font-size="9" fill="#94a3b8">Powerplay</text>
+      <rect x="110" y="5" width="10" height="8" fill="#3b82f6" rx="2"/>
+      <text x="124" y="13" font-size="9" fill="#94a3b8">Middle Overs</text>
+      <rect x="200" y="5" width="10" height="8" fill="#10b981" rx="2"/>
+      <text x="214" y="13" font-size="9" fill="#94a3b8">Death Overs</text>
+      <rect x="275" y="5" width="10" height="8" fill="#ef4444" rx="2"/>
+      <text x="289" y="13" font-size="9" fill="#94a3b8">High-scoring over</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ SECTION 2: BATTING ANALYSIS ══════════ -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2 class="section-title">Batting Performance Analysis</h2>
+  </div>
+
+  <!-- Phase Summary Cards -->
+  <div class="phase-grid" style="margin-bottom:28px;">
+    <div class="phase-card pp">
+      <div class="phase-name">⚡ Powerplay (Overs 1–6)</div>
+      <div class="phase-stat"><span>RPO</span><span class="phase-stat-val">9.39</span></div>
+      <div class="phase-stat"><span>Runs</span><span class="phase-stat-val">1,698</span></div>
+      <div class="phase-stat"><span>Wickets</span><span class="phase-stat-val">50</span></div>
+      <div class="phase-stat"><span>Dot Ball %</span><span class="phase-stat-val">39.1%</span></div>
+      <div class="phase-stat"><span>Fours</span><span class="phase-stat-val">177</span></div>
+      <div class="phase-stat"><span>Sixes</span><span class="phase-stat-val">87</span></div>
+    </div>
+    <div class="phase-card mid">
+      <div class="phase-name">🏏 Middle Overs (7–15)</div>
+      <div class="phase-stat"><span>RPO</span><span class="phase-stat-val">9.06</span></div>
+      <div class="phase-stat"><span>Runs</span><span class="phase-stat-val">2,282</span></div>
+      <div class="phase-stat"><span>Wickets</span><span class="phase-stat-val">80</span></div>
+      <div class="phase-stat"><span>Dot Ball %</span><span class="phase-stat-val">27.5%</span></div>
+      <div class="phase-stat"><span>Fours</span><span class="phase-stat-val">179</span></div>
+      <div class="phase-stat"><span>Sixes</span><span class="phase-stat-val">105</span></div>
+    </div>
+    <div class="phase-card death">
+      <div class="phase-name">💀 Death Overs (16–20)</div>
+      <div class="phase-stat"><span>RPO</span><span class="phase-stat-val">9.89</span></div>
+      <div class="phase-stat"><span>Runs</span><span class="phase-stat-val">1,134</span></div>
+      <div class="phase-stat"><span>Wickets</span><span class="phase-stat-val">50</span></div>
+      <div class="phase-stat"><span>Dot Ball %</span><span class="phase-stat-val">27.6%</span></div>
+      <div class="phase-stat"><span>Fours</span><span class="phase-stat-val">102</span></div>
+      <div class="phase-stat"><span>Sixes</span><span class="phase-stat-val">56</span></div>
+    </div>
+  </div>
+
+  <!-- Top Batters Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Batter</th>
+          <th>Runs</th>
+          <th>Balls</th>
+          <th>SR</th>
+          <th>4s</th>
+          <th>6s</th>
+          <th>Boundaries</th>
+          <th>Boundary %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="rank">1</td><td><strong>Yashasvi Jaiswal</strong></td><td class="highlight">170</td><td>109</td><td class="green">155.96</td><td>19</td><td>8</td><td>27</td><td>24.8%</td></tr>
+        <tr><td class="rank">2</td><td>Sameer Rizvi</td><td class="highlight">160</td><td>106</td><td class="green">150.94</td><td>12</td><td>11</td><td>23</td><td>21.7%</td></tr>
+        <tr><td class="rank">3</td><td>Angkrish Raghuvanshi</td><td class="highlight">155</td><td>103</td><td class="green">150.49</td><td>17</td><td>6</td><td>23</td><td>22.3%</td></tr>
+        <tr><td class="rank">4</td><td>Heinrich Klaasen</td><td class="highlight">145</td><td>103</td><td>140.78</td><td>11</td><td>4</td><td>15</td><td>14.6%</td></tr>
+        <tr><td class="rank">5</td><td>Ajinkya Rahane</td><td class="highlight">124</td><td>84</td><td class="green">147.62</td><td>8</td><td>7</td><td>15</td><td>17.9%</td></tr>
+        <tr><td class="rank">6</td><td><strong>Vaibhav Sooryavanshi</strong></td><td class="highlight">122</td><td>52</td><td class="red-val">234.62</td><td>10</td><td>11</td><td>21</td><td>40.4%</td></tr>
+        <tr><td class="rank">7</td><td>Rohit Sharma</td><td class="highlight">118</td><td>72</td><td class="green">163.89</td><td>11</td><td>7</td><td>18</td><td>25.0%</td></tr>
+        <tr><td class="rank">8</td><td>Jos Buttler</td><td class="highlight">116</td><td>75</td><td class="green">154.67</td><td>11</td><td>7</td><td>18</td><td>24.0%</td></tr>
+        <tr><td class="rank">9</td><td>Devdutt Padikkal</td><td>111</td><td>56</td><td class="red-val">198.21</td><td>12</td><td>6</td><td>18</td><td>32.1%</td></tr>
+        <tr><td class="rank">10</td><td>Shubman Gill</td><td>109</td><td>75</td><td>145.33</td><td>10</td><td>5</td><td>15</td><td>20.0%</td></tr>
+        <tr><td class="rank">11</td><td>Cooper Connolly</td><td>108</td><td>68</td><td class="green">158.82</td><td>11</td><td>5</td><td>16</td><td>23.5%</td></tr>
+        <tr><td class="rank">12</td><td>Sarfaraz Khan</td><td>99</td><td>52</td><td class="red-val">190.38</td><td>16</td><td>4</td><td>20</td><td>38.5%</td></tr>
+        <tr><td class="rank">13</td><td>Ryan Rickelton</td><td>98</td><td>59</td><td class="green">166.10</td><td>6</td><td>9</td><td>15</td><td>25.4%</td></tr>
+        <tr><td class="rank">14</td><td>Sai Sudharsan</td><td>98</td><td>66</td><td>148.48</td><td>13</td><td>3</td><td>16</td><td>24.2%</td></tr>
+        <tr><td class="rank">15</td><td>Virat Kohli</td><td>97</td><td>59</td><td class="green">164.41</td><td>7</td><td>6</td><td>13</td><td>22.0%</td></tr>
+        <tr><td class="rank">16</td><td>Ishan Kishan</td><td>96</td><td>52</td><td class="red-val">184.62</td><td>11</td><td>5</td><td>16</td><td>30.8%</td></tr>
+        <tr><td class="rank">17</td><td>Nitish Reddy</td><td>96</td><td>64</td><td>150.00</td><td>7</td><td>6</td><td>13</td><td>20.3%</td></tr>
+        <tr><td class="rank">18</td><td>Dhruv Jurel</td><td>95</td><td>58</td><td class="green">163.79</td><td>9</td><td>5</td><td>14</td><td>24.1%</td></tr>
+        <tr><td class="rank">19</td><td>Rahul</td><td>93</td><td>60</td><td>155.00</td><td>11</td><td>4</td><td>15</td><td>25.0%</td></tr>
+        <tr><td class="rank">20</td><td><strong>Tim David</strong></td><td>86</td><td>37</td><td class="red-val">232.43</td><td>4</td><td>9</td><td>13</td><td>35.1%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">Min. 15 balls faced. SR highlighted red = elite striker (≥180), green = strong (140–179).</p>
+
+  <!-- Strike Rate Bar Chart -->
+  <div class="chart-grid" style="margin-top:24px;">
+    <div class="chart-box">
+      <div class="chart-title">Top 10 Run Scorers — Runs</div>
+      <svg viewBox="0 0 400 260" style="height:260px;">
+        <!-- data: Jaiswal 170, Rizvi 160, Raghuvanshi 155, Klaasen 145, Rahane 124, Sooryavanshi 122, Rohit 118, Buttler 116, Padikkal 111, Gill 109 -->
+        <!-- bar width = 320/170 per run -->
+        <g transform="translate(110,10)">
+          <line x1="0" y1="0" x2="0" y2="220" stroke="#2a3347"/>
+          <!-- rows -->
+          <rect x="0" y="2"   height="18" width="320" fill="#2a3347" opacity="0.2" rx="2"/>
+          <rect x="0" y="26"  height="18" width="301" fill="#f97316" opacity="0.75" rx="2"/>
+          <rect x="0" y="50"  height="18" width="291" fill="#f97316" opacity="0.72" rx="2"/>
+          <rect x="0" y="74"  height="18" width="272" fill="#f97316" opacity="0.70" rx="2"/>
+          <rect x="0" y="98"  height="18" width="233" fill="#f97316" opacity="0.68" rx="2"/>
+          <rect x="0" y="122" height="18" width="229" fill="#3b82f6" opacity="0.80" rx="2"/>
+          <rect x="0" y="146" height="18" width="222" fill="#f97316" opacity="0.65" rx="2"/>
+          <rect x="0" y="170" height="18" width="218" fill="#f97316" opacity="0.65" rx="2"/>
+          <rect x="0" y="194" height="18" width="209" fill="#3b82f6" opacity="0.75" rx="2"/>
+          <rect x="0" y="218" height="18" width="205" fill="#10b981" opacity="0.75" rx="2"/>
+          <!-- values -->
+          <text x="326" y="15"  class="bar-value">170</text>
+          <text x="307" y="39"  class="bar-value">160</text>
+          <text x="297" y="63"  class="bar-value">155</text>
+          <text x="278" y="87"  class="bar-value">145</text>
+          <text x="239" y="111" class="bar-value">124</text>
+          <text x="235" y="135" class="bar-value">122</text>
+          <text x="228" y="159" class="bar-value">118</text>
+          <text x="224" y="183" class="bar-value">116</text>
+          <text x="215" y="207" class="bar-value">111</text>
+          <text x="211" y="231" class="bar-value">109</text>
+        </g>
+        <!-- names -->
+        <text x="105" y="20"  class="bar-label" text-anchor="end">Y. Jaiswal</text>
+        <text x="105" y="44"  class="bar-label" text-anchor="end">S. Rizvi</text>
+        <text x="105" y="68"  class="bar-label" text-anchor="end">Raghuvanshi</text>
+        <text x="105" y="92"  class="bar-label" text-anchor="end">H. Klaasen</text>
+        <text x="105" y="116" class="bar-label" text-anchor="end">A. Rahane</text>
+        <text x="105" y="140" class="bar-label" text-anchor="end">V. Sooryavanshi</text>
+        <text x="105" y="164" class="bar-label" text-anchor="end">Rohit Sharma</text>
+        <text x="105" y="188" class="bar-label" text-anchor="end">J. Buttler</text>
+        <text x="105" y="212" class="bar-label" text-anchor="end">D. Padikkal</text>
+        <text x="105" y="236" class="bar-label" text-anchor="end">S. Gill</text>
+      </svg>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-title">Strike Rate Leaders (min 37 balls)</div>
+      <svg viewBox="0 0 400 260" style="height:260px;">
+        <!-- SR data: Sooryavanshi 234.62, Tim David 232.43, Padikkal 198.21, Sarfaraz 190.38, Ishan 184.62, Rohit 163.89, Rickelton 166.10, Cooper 158.82, Virat 164.41, Buttler 154.67 -->
+        <g transform="translate(110,10)">
+          <line x1="0" y1="0" x2="0" y2="220" stroke="#2a3347"/>
+          <!-- max 235, scale: 280/235 per unit -->
+          <rect x="0" y="2"   height="18" width="280" fill="#ef4444" opacity="0.85" rx="2"/>
+          <rect x="0" y="26"  height="18" width="277" fill="#ef4444" opacity="0.80" rx="2"/>
+          <rect x="0" y="50"  height="18" width="237" fill="#ef4444" opacity="0.75" rx="2"/>
+          <rect x="0" y="74"  height="18" width="227" fill="#ef4444" opacity="0.70" rx="2"/>
+          <rect x="0" y="98"  height="18" width="220" fill="#ef4444" opacity="0.65" rx="2"/>
+          <rect x="0" y="122" height="18" width="198" fill="#f97316" opacity="0.80" rx="2"/>
+          <rect x="0" y="146" height="18" width="196" fill="#f97316" opacity="0.78" rx="2"/>
+          <rect x="0" y="170" height="18" width="190" fill="#f97316" opacity="0.75" rx="2"/>
+          <rect x="0" y="194" height="18" width="185" fill="#f97316" opacity="0.72" rx="2"/>
+          <rect x="0" y="218" height="18" width="185" fill="#3b82f6" opacity="0.80" rx="2"/>
+          <!-- values -->
+          <text x="286" y="15"  class="bar-value">234.6</text>
+          <text x="283" y="39"  class="bar-value">232.4</text>
+          <text x="243" y="63"  class="bar-value">198.2</text>
+          <text x="233" y="87"  class="bar-value">190.4</text>
+          <text x="226" y="111" class="bar-value">184.6</text>
+          <text x="204" y="135" class="bar-value">166.1</text>
+          <text x="202" y="159" class="bar-value">163.9</text>
+          <text x="196" y="183" class="bar-value">164.4</text>
+          <text x="191" y="207" class="bar-value">158.8</text>
+          <text x="191" y="231" class="bar-value">154.7</text>
+        </g>
+        <text x="105" y="20"  class="bar-label" text-anchor="end">V. Sooryavanshi</text>
+        <text x="105" y="44"  class="bar-label" text-anchor="end">Tim David</text>
+        <text x="105" y="68"  class="bar-label" text-anchor="end">D. Padikkal</text>
+        <text x="105" y="92"  class="bar-label" text-anchor="end">Sarfaraz Khan</text>
+        <text x="105" y="116" class="bar-label" text-anchor="end">Ishan Kishan</text>
+        <text x="105" y="140" class="bar-label" text-anchor="end">Ryan Rickelton</text>
+        <text x="105" y="164" class="bar-label" text-anchor="end">Rohit Sharma</text>
+        <text x="105" y="188" class="bar-label" text-anchor="end">Virat Kohli</text>
+        <text x="105" y="212" class="bar-label" text-anchor="end">C. Connolly</text>
+        <text x="105" y="236" class="bar-label" text-anchor="end">J. Buttler</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Innings x Phase Table -->
+  <div style="margin-top:28px;">
+    <h3 style="font-size:14px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:14px;">Innings vs Phase — Run Rate Matrix</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phase</th><th>Innings 1 RPO</th><th>Innings 2 RPO</th><th>I1 Wickets</th><th>I2 Wickets</th><th>Chase Advantage</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="blue">Powerplay (1–6)</span></td><td>8.96</td><td class="green">9.85</td><td>27</td><td>23</td><td class="green">+0.89 RPO</td></tr>
+          <tr><td><span class="green">Middle (7–15)</span></td><td>8.91</td><td class="green">9.22</td><td>34</td><td>46</td><td class="green">+0.31 RPO</td></tr>
+          <tr><td><span class="highlight">Death (16–20)</span></td><td>9.79</td><td class="green">10.04</td><td>31</td><td>19</td><td class="green">+0.25 RPO</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">Chasing teams score faster in all phases. The powerplay delta (+0.89) suggests chasers play more aggressively early when target is known.</p>
+  </div>
+</section>
+
+<!-- ══════════ SECTION 3: BOWLING ANALYSIS ══════════ -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2 class="section-title">Bowling Performance Analysis</h2>
+  </div>
+
+  <div class="two-col" style="margin-bottom:24px;">
+    <!-- Wicket-takers table -->
+    <div>
+      <h3 style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Top Wicket-Takers</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Bowler</th><th>Wkts</th><th>Overs</th><th>Runs</th><th>Econ</th><th>Dot%</th></tr></thead>
+          <tbody>
+            <tr><td class="rank">1</td><td>Ravi Bishnoi</td><td class="highlight">7</td><td>9.0</td><td>82</td><td class="green">9.11</td><td>35.2%</td></tr>
+            <tr><td class="rank">2</td><td>Jacob Duffy</td><td class="highlight">6</td><td>8.0</td><td>82</td><td>10.25</td><td>39.6%</td></tr>
+            <tr><td class="rank">3</td><td>Prasidh Krishna</td><td class="highlight">6</td><td>12.0</td><td>124</td><td>10.33</td><td>37.5%</td></tr>
+            <tr><td class="rank">4</td><td>Rashid Khan</td><td>5</td><td>12.0</td><td>85</td><td class="green">7.08</td><td>33.3%</td></tr>
+            <tr><td class="rank">5</td><td>Lungi Ngidi</td><td>5</td><td>11.7</td><td>85</td><td class="green">7.29</td><td>40.0%</td></tr>
+            <tr><td class="rank">6</td><td>Mukesh Kumar</td><td>5</td><td>10.0</td><td>102</td><td>10.20</td><td class="green">46.7%</td></tr>
+            <tr><td class="rank">7</td><td>Nandre Burger</td><td>5</td><td>9.0</td><td>88</td><td>9.78</td><td>40.7%</td></tr>
+            <tr><td class="rank">8</td><td>Prince Yadav</td><td>5</td><td>11.0</td><td>104</td><td>9.45</td><td>36.4%</td></tr>
+            <tr><td class="rank">9</td><td>Anshul Kamboj</td><td>5</td><td>10.7</td><td>122</td><td class="red-val">11.44</td><td>35.9%</td></tr>
+            <tr><td class="rank">10</td><td>Vaibhav Arora</td><td>5</td><td>12.0</td><td>139</td><td class="red-val">11.58</td><td>37.5%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Economy leaders table -->
+    <div>
+      <h3 style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Best Economy (min 4 overs)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Bowler</th><th>Econ</th><th>Overs</th><th>Wkts</th><th>Dot%</th></tr></thead>
+          <tbody>
+            <tr><td class="rank">1</td><td>Mohammed Shami</td><td class="green">5.33</td><td>12.0</td><td>3</td><td class="gold">52.8%</td></tr>
+            <tr><td class="rank">2</td><td>Mohsin Khan</td><td class="green">5.75</td><td>4.0</td><td>1</td><td class="gold">50.0%</td></tr>
+            <tr><td class="rank">3</td><td>Suyash Sharma</td><td class="green">7.00</td><td>7.0</td><td>2</td><td>35.7%</td></tr>
+            <tr><td class="rank">4</td><td>Rashid Khan</td><td class="green">7.08</td><td>12.0</td><td>5</td><td>33.3%</td></tr>
+            <tr><td class="rank">5</td><td>Yuzvendra Chahal</td><td class="green">7.14</td><td>7.0</td><td>3</td><td>28.6%</td></tr>
+            <tr><td class="rank">6</td><td>Lungi Ngidi</td><td class="green">7.29</td><td>11.7</td><td>5</td><td>40.0%</td></tr>
+            <tr><td class="rank">7</td><td>Sunil Narine</td><td class="green">7.45</td><td>11.0</td><td>2</td><td>39.4%</td></tr>
+            <tr><td class="rank">8</td><td>Axar Patel</td><td class="green">7.50</td><td>10.0</td><td>2</td><td>30.0%</td></tr>
+            <tr><td class="rank">9</td><td>Jofra Archer</td><td class="green">7.60</td><td>10.0</td><td>3</td><td>46.7%</td></tr>
+            <tr><td class="rank">10</td><td>M. Siddharth</td><td class="green">7.88</td><td>8.0</td><td>2</td><td>39.6%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dismissal types donut + bar chart -->
+  <div class="chart-grid">
+    <div class="chart-box">
+      <div class="chart-title">Dismissal Type Distribution (180 wickets)</div>
+      <svg viewBox="0 0 360 200" style="height:200px;">
+        <!-- Donut: caught 131(72.8%), bowled 28(15.6%), runout 13(7.2%), lbw 6(3.3%), stumped 2(1.1%) -->
+        <!-- Donut centered at 110,100 r=70 -->
+        <!-- caught: 0 to 262° -->
+        <circle cx="110" cy="100" r="70" fill="none" stroke="#3b82f6" stroke-width="28"
+          stroke-dasharray="323.1 440.3" stroke-dashoffset="-110" opacity="0.85"/>
+        <!-- bowled: next 56.2° -->
+        <circle cx="110" cy="100" r="70" fill="none" stroke="#f97316" stroke-width="28"
+          stroke-dasharray="68.5 440.3" stroke-dashoffset="-433.1" opacity="0.85"/>
+        <!-- runout: next 25.9° -->
+        <circle cx="110" cy="100" r="70" fill="none" stroke="#ef4444" stroke-width="28"
+          stroke-dasharray="31.7 440.3" stroke-dashoffset="-501.6" opacity="0.85"/>
+        <!-- lbw: next 12° -->
+        <circle cx="110" cy="100" r="70" fill="none" stroke="#a855f7" stroke-width="28"
+          stroke-dasharray="14.7 440.3" stroke-dashoffset="-533.3" opacity="0.85"/>
+        <!-- stumped: remainder -->
+        <circle cx="110" cy="100" r="70" fill="none" stroke="#10b981" stroke-width="28"
+          stroke-dasharray="3.9 440.3" stroke-dashoffset="-548" opacity="0.85"/>
+        <!-- center -->
+        <circle cx="110" cy="100" r="42" fill="#161b24"/>
+        <text x="110" y="96" text-anchor="middle" font-size="22" font-weight="800" fill="#fff">180</text>
+        <text x="110" y="112" text-anchor="middle" font-size="10" fill="#94a3b8">wickets</text>
+        <!-- legend -->
+        <rect x="200" y="30"  width="12" height="12" fill="#3b82f6" rx="2"/>
+        <text x="218" y="41"  font-size="12" fill="#e2e8f0">Caught — 131 (72.8%)</text>
+        <rect x="200" y="55"  width="12" height="12" fill="#f97316" rx="2"/>
+        <text x="218" y="66"  font-size="12" fill="#e2e8f0">Bowled — 28 (15.6%)</text>
+        <rect x="200" y="80"  width="12" height="12" fill="#ef4444" rx="2"/>
+        <text x="218" y="91"  font-size="12" fill="#e2e8f0">Run Out — 13 (7.2%)</text>
+        <rect x="200" y="105" width="12" height="12" fill="#a855f7" rx="2"/>
+        <text x="218" y="116" font-size="12" fill="#e2e8f0">LBW — 6 (3.3%)</text>
+        <rect x="200" y="130" width="12" height="12" fill="#10b981" rx="2"/>
+        <text x="218" y="141" font-size="12" fill="#e2e8f0">Stumped — 2 (1.1%)</text>
+      </svg>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-title">Dot Ball % — Top Bowlers (economy context)</div>
+      <svg viewBox="0 0 400 220" style="height:220px;">
+        <!-- Shami 52.8, Mohsin 50.0, Mukesh 46.7, Jofra 46.7, Lungi 40.0, Burger 40.7, Nandre 40.7, Duffy 39.6, Narine 39.4, Mani 39.6 -->
+        <g transform="translate(115,8)">
+          <line x1="0" y1="0" x2="0" y2="198" stroke="#2a3347"/>
+          <!-- scale 0-60, width 255 -->
+          <rect x="0" y="2"   height="16" width="224" fill="#10b981" opacity="0.80" rx="2"/>
+          <rect x="0" y="24"  height="16" width="212" fill="#10b981" opacity="0.75" rx="2"/>
+          <rect x="0" y="46"  height="16" width="198" fill="#10b981" opacity="0.72" rx="2"/>
+          <rect x="0" y="68"  height="16" width="198" fill="#10b981" opacity="0.72" rx="2"/>
+          <rect x="0" y="90"  height="16" width="173" fill="#3b82f6" opacity="0.75" rx="2"/>
+          <rect x="0" y="112" height="16" width="172" fill="#3b82f6" opacity="0.72" rx="2"/>
+          <rect x="0" y="134" height="16" width="169" fill="#3b82f6" opacity="0.70" rx="2"/>
+          <rect x="0" y="156" height="16" width="168" fill="#3b82f6" opacity="0.68" rx="2"/>
+          <rect x="0" y="178" height="16" width="167" fill="#3b82f6" opacity="0.65" rx="2"/>
+          <!-- values -->
+          <text x="230" y="15"  class="bar-value">52.8%</text>
+          <text x="218" y="37"  class="bar-value">50.0%</text>
+          <text x="204" y="59"  class="bar-value">46.7%</text>
+          <text x="204" y="81"  class="bar-value">46.7%</text>
+          <text x="179" y="103" class="bar-value">40.9%</td>
+          <text x="178" y="125" class="bar-value">40.7%</text>
+          <text x="175" y="147" class="bar-value">40.0%</text>
+          <text x="174" y="169" class="bar-value">39.6%</text>
+          <text x="173" y="191" class="bar-value">39.4%</text>
+        </g>
+        <text x="110" y="18"  class="bar-label" text-anchor="end">Shami</text>
+        <text x="110" y="40"  class="bar-label" text-anchor="end">Mohsin Khan</text>
+        <text x="110" y="62"  class="bar-label" text-anchor="end">Mukesh Kumar</text>
+        <text x="110" y="84"  class="bar-label" text-anchor="end">Jofra Archer</text>
+        <text x="110" y="106" class="bar-label" text-anchor="end">K. Rabada</text>
+        <text x="110" y="128" class="bar-label" text-anchor="end">Nandre Burger</text>
+        <text x="110" y="150" class="bar-label" text-anchor="end">Lungi Ngidi</text>
+        <text x="110" y="172" class="bar-label" text-anchor="end">Jacob Duffy</text>
+        <text x="110" y="194" class="bar-label" text-anchor="end">Sunil Narine</text>
+      </svg>
+    </div>
+  </div>
+
+  <div style="background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent2); border-radius:8px; padding:14px 16px; margin-top:16px; font-size:13px;">
+    <strong style="color:var(--accent2);">Analyst Insight:</strong> Mohammed Shami stands out as a statistical outlier — economy of 5.33 and dot-ball rate of 52.8% over 12 overs signals elite wicket-to-wicket accuracy rarely seen in T20. Rashid Khan remains T20's premier spin threat: 5 wickets at 7.08 economy. Caught dismissals dominate at 72.8%, underlining the premium on fielding units and slip-catching setups.
+  </div>
+</section>
+
+<!-- ══════════ SECTION 4: TEAM COMPARISON ══════════ -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2 class="section-title">Team Performance Comparison</h2>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <h3 style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Team Batting — Run Rate Ranking</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Team</th><th>Total Runs</th><th>RPO</th><th>SR</th><th>4s</th><th>6s</th><th>Wkts Lost</th></tr></thead>
+          <tbody>
+            <tr><td><strong class="red-val">RCB</strong></td><td>453</td><td class="red-val">12.03</td><td class="red-val">188.9</td><td>32</td><td>31</td><td>8</td></tr>
+            <tr><td><strong>RR</strong></td><td>488</td><td class="green">10.65</td><td class="green">168.0</td><td>30</td><td>25</td><td>11</td></tr>
+            <tr><td><strong>MI</strong></td><td>509</td><td class="green">9.70</td><td class="green">154.6</td><td>23</td><td>20</td><td>20</td></tr>
+            <tr><td><strong>PBKS</strong></td><td>374</td><td>9.43</td><td>152.1</td><td>23</td><td>18</td><td>12</td></tr>
+            <tr><td><strong>KKR</strong></td><td>586</td><td>9.33</td><td>148.0</td><td>57</td><td>24</td><td>20</td></tr>
+            <tr><td><strong>GT</strong></td><td>576</td><td>9.07</td><td>143.3</td><td>55</td><td>23</td><td>18</td></tr>
+            <tr><td><strong>DC</strong></td><td>516</td><td>8.75</td><td>137.0</td><td>22</td><td>27</td><td>16</td></tr>
+            <tr><td><strong>CSK</strong></td><td>544</td><td>8.61</td><td>133.0</td><td>23</td><td>18</td><td>25</td></tr>
+            <tr><td><strong>SRH</strong></td><td>585</td><td>9.29</td><td>148.2</td><td>50</td><td>28</td><td>28</td></tr>
+            <tr><td><strong>LSG</strong></td><td>483</td><td>8.03</td><td>126.6</td><td>19</td><td>15</td><td>22</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3 style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Team Bowling — Wickets &amp; Economy</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Team</th><th>Wkts</th><th>Economy</th><th>Total Extras</th><th>Wides</th><th>No Balls</th></tr></thead>
+          <tbody>
+            <tr><td><strong class="green">RCB</strong></td><td class="green">21</td><td>9.88</td><td class="green">14</td><td>8</td><td>2</td></tr>
+            <tr><td><strong class="green">DC</strong></td><td class="green">20</td><td class="green">8.46</td><td>16</td><td>11</td><td>1</td></tr>
+            <tr><td><strong>GT</strong></td><td>19</td><td>9.33</td><td>21</td><td>20</td><td>0</td></tr>
+            <tr><td><strong>RR</strong></td><td>24</td><td>8.50</td><td>27</td><td>15</td><td>2</td></tr>
+            <tr><td><strong>SRH</strong></td><td>17</td><td>9.72</td><td>20</td><td>12</td><td>0</td></tr>
+            <tr><td><strong>KKR</strong></td><td>18</td><td>10.11</td><td>26</td><td>18</td><td>2</td></tr>
+            <tr><td><strong>CSK</strong></td><td>9</td><td class="red-val">11.11</td><td>19</td><td>9</td><td>3</td></tr>
+            <tr><td><strong>MI</strong></td><td>10</td><td>10.24</td><td>21</td><td>17</td><td>1</td></tr>
+            <tr><td><strong>PBKS</strong></td><td>13</td><td>8.37</td><td>25</td><td>20</td><td>2</td></tr>
+            <tr><td><strong class="red-val">LSG</strong></td><td>16</td><td class="green">7.95</td><td class="red-val">29</td><td class="red-val">20</td><td>0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team RPO visual bar chart -->
+  <div class="chart-box" style="margin-top:24px;">
+    <div class="chart-title">Team Batting RPO Comparison</div>
+    <svg viewBox="0 0 860 100" style="height:100px;">
+      <!-- RPO: RCB 12.03, RR 10.65, MI 9.70, PBKS 9.43, KKR 9.33, GT 9.07, SRH 9.29, DC 8.75, CSK 8.61, LSG 8.03 -->
+      <!-- scale 5-13, range 8, width 74px per team, bar max height 65 -->
+      <g transform="translate(0,8)">
+        <!-- baselines -->
+        <line x1="0" y1="72" x2="860" y2="72" stroke="#2a3347"/>
+        <line x1="0" y1="72" x2="0" y2="0" stroke="#2a3347"/>
+        <!-- bars: each 86px wide, centered text -->
+        <!-- RCB 12.03: h=(12.03-5)/8*65=57.1 -->
+        <rect x="5"   y="15" width="72" height="57" fill="#ef4444" opacity="0.85" rx="3"/>
+        <!-- RR 10.65: h=44.8 -->
+        <rect x="91"  y="27" width="72" height="45" fill="#f97316" opacity="0.85" rx="3"/>
+        <!-- MI 9.70: h=37.9 -->
+        <rect x="177" y="34" width="72" height="38" fill="#f97316" opacity="0.80" rx="3"/>
+        <!-- PBKS 9.43: h=35.8 -->
+        <rect x="263" y="36" width="72" height="36" fill="#f97316" opacity="0.78" rx="3"/>
+        <!-- SRH 9.29: h=34.6 -->
+        <rect x="349" y="38" width="72" height="34" fill="#3b82f6" opacity="0.80" rx="3"/>
+        <!-- KKR 9.33: h=34.9 -->
+        <rect x="435" y="37" width="72" height="35" fill="#3b82f6" opacity="0.80" rx="3"/>
+        <!-- GT 9.07: h=33.0 -->
+        <rect x="521" y="39" width="72" height="33" fill="#3b82f6" opacity="0.75" rx="3"/>
+        <!-- DC 8.75: h=30.5 -->
+        <rect x="607" y="42" width="72" height="30" fill="#3b82f6" opacity="0.72" rx="3"/>
+        <!-- CSK 8.61: h=29.4 -->
+        <rect x="693" y="43" width="72" height="29" fill="#3b82f6" opacity="0.70" rx="3"/>
+        <!-- LSG 8.03: h=24.7 -->
+        <rect x="779" y="47" width="72" height="25" fill="#10b981" opacity="0.75" rx="3"/>
+        <!-- RPO values -->
+        <text x="41"  y="12" font-size="10" fill="#fff" font-weight="700" text-anchor="middle">12.03</text>
+        <text x="127" y="24" font-size="10" fill="#fff" font-weight="700" text-anchor="middle">10.65</text>
+        <text x="213" y="31" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">9.70</text>
+        <text x="299" y="33" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">9.43</text>
+        <text x="385" y="35" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">9.29</text>
+        <text x="471" y="34" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">9.33</text>
+        <text x="557" y="36" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">9.07</text>
+        <text x="643" y="39" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">8.75</text>
+        <text x="729" y="40" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">8.61</text>
+        <text x="815" y="44" font-size="10" fill="#e2e8f0" font-weight="700" text-anchor="middle">8.03</text>
+        <!-- team names -->
+        <text x="41"  y="85" font-size="10" fill="#94a3b8" text-anchor="middle">RCB</text>
+        <text x="127" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">RR</text>
+        <text x="213" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">MI</text>
+        <text x="299" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">PBKS</text>
+        <text x="385" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">SRH</text>
+        <text x="471" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">KKR</text>
+        <text x="557" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">GT</text>
+        <text x="643" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">DC</text>
+        <text x="729" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">CSK</text>
+        <text x="815" y="85" font-size="10" fill="#94a3b8" text-anchor="middle">LSG</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<!-- ══════════ SECTION 5: EXTRAS & DISCIPLINE ══════════ -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <h2 class="section-title">Extras &amp; Bowling Discipline</h2>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-box">
+      <div class="chart-title">Total Extras Conceded by Bowling Team</div>
+      <svg viewBox="0 0 400 230" style="height:230px;">
+        <!-- LSG 29, RR 27, KKR 26, PBKS 25, MI 21, GT 21, SRH 20, CSK 19, DC 16, RCB 14 -->
+        <g transform="translate(55,8)">
+          <line x1="0" y1="0" x2="0" y2="202" stroke="#2a3347"/>
+          <!-- max 29, scale 310/29 -->
+          <rect x="0" y="2"   height="18" width="310" fill="#ef4444" opacity="0.85" rx="2"/><text x="316" y="15" class="bar-value">29</text>
+          <rect x="0" y="26"  height="18" width="288" fill="#ef4444" opacity="0.80" rx="2"/><text x="294" y="39" class="bar-value">27</text>
+          <rect x="0" y="50"  height="18" width="277" fill="#f97316" opacity="0.80" rx="2"/><text x="283" y="63" class="bar-value">26</text>
+          <rect x="0" y="74"  height="18" width="267" fill="#f97316" opacity="0.75" rx="2"/><text x="273" y="87" class="bar-value">25</text>
+          <rect x="0" y="98"  height="18" width="224" fill="#f97316" opacity="0.70" rx="2"/><text x="230" y="111" class="bar-value">21</text>
+          <rect x="0" y="122" height="18" width="224" fill="#f97316" opacity="0.70" rx="2"/><text x="230" y="135" class="bar-value">21</text>
+          <rect x="0" y="146" height="18" width="214" fill="#3b82f6" opacity="0.75" rx="2"/><text x="220" y="159" class="bar-value">20</text>
+          <rect x="0" y="170" height="18" width="203" fill="#3b82f6" opacity="0.72" rx="2"/><text x="209" y="183" class="bar-value">19</text>
+          <rect x="0" y="194" height="18" width="171" fill="#10b981" opacity="0.80" rx="2"/><text x="177" y="207" class="bar-value">16</text>
+        </g>
+        <text x="50" y="20"  class="bar-label" text-anchor="end">LSG</text>
+        <text x="50" y="44"  class="bar-label" text-anchor="end">RR</text>
+        <text x="50" y="68"  class="bar-label" text-anchor="end">KKR</text>
+        <text x="50" y="92"  class="bar-label" text-anchor="end">PBKS</text>
+        <text x="50" y="116" class="bar-label" text-anchor="end">MI</text>
+        <text x="50" y="140" class="bar-label" text-anchor="end">GT</text>
+        <text x="50" y="164" class="bar-label" text-anchor="end">SRH</text>
+        <text x="50" y="188" class="bar-label" text-anchor="end">CSK</text>
+        <text x="50" y="212" class="bar-label" text-anchor="end">DC</text>
+        <text x="360" y="230" class="bar-label">RCB: 14 (best)</text>
+      </svg>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-title">Extras Breakdown by Type (All Teams)</div>
+      <svg viewBox="0 0 360 220" style="height:220px;">
+        <!-- Wides 150, Leg-byes 47, No-balls 13, Byes 10 -->
+        <!-- Stacked horizontal bars, total 266 -->
+        <!-- Scale: 300px = 220 extras, so 300/220 = 1.36 per extra -->
+        <!-- Wides: 150*300/220 = 204.5 -->
+        <!-- Leg-byes: 47*300/220 = 64.1 -->
+        <!-- No-balls: 13*300/220 = 17.7 -->
+        <!-- Byes: 10*300/220 = 13.6 -->
+        <g transform="translate(30, 40)">
+          <!-- Wides -->
+          <rect x="0" y="0" width="205" height="30" fill="#ef4444" opacity="0.85" rx="3"/>
+          <text x="102" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">Wides: 150</text>
+          <!-- Leg-byes -->
+          <rect x="205" y="0" width="64" height="30" fill="#f97316" opacity="0.85" rx="3"/>
+          <text x="237" y="20" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">LB: 47</text>
+          <!-- No-balls -->
+          <rect x="269" y="0" width="18" height="30" fill="#a855f7" opacity="0.85" rx="3"/>
+          <!-- Byes -->
+          <rect x="287" y="0" width="14" height="30" fill="#3b82f6" opacity="0.85" rx="3"/>
+        </g>
+        <!-- Legend -->
+        <rect x="30" y="90" width="12" height="12" fill="#ef4444" rx="2"/>
+        <text x="48" y="101" font-size="12" fill="#e2e8f0">Wides — 150 (56.4%)</text>
+        <rect x="30" y="112" width="12" height="12" fill="#f97316" rx="2"/>
+        <text x="48" y="123" font-size="12" fill="#e2e8f0">Leg-byes — 47 (17.7%)</text>
+        <rect x="30" y="134" width="12" height="12" fill="#a855f7" rx="2"/>
+        <text x="48" y="145" font-size="12" fill="#e2e8f0">No-balls — 13 (4.9%)</text>
+        <rect x="30" y="156" width="12" height="12" fill="#3b82f6" rx="2"/>
+        <text x="48" y="167" font-size="12" fill="#e2e8f0">Byes — 10 (3.8%)</text>
+        <text x="30" y="195" font-size="11" fill="#94a3b8">Total extras: 266 across 15 matches</text>
+      </svg>
+    </div>
+  </div>
+
+  <div style="background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--red); border-radius:8px; padding:14px 16px; margin-top:16px; font-size:13px;">
+    <strong style="color:var(--red);">Discipline Alert:</strong> Wides account for 56.4% of all extras — the single largest source of free runs. LSG (29 extras), RR (27), and KKR (26) are the worst offenders. RCB concedes fewest extras (14) despite having only 2 no-balls. GT and PBKS each concede 20 wides — the joint-highest — suggesting systemic line-and-length issues, likely under pressure in death overs.
+  </div>
+</section>
+
+<!-- ══════════ SECTION 6: VENUE & MATCH PHASE INSIGHTS ══════════ -->
+<section class="section">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <h2 class="section-title">Venue &amp; Match Phase Insights</h2>
+  </div>
+
+  <div class="table-wrap" style="margin-bottom:24px;">
+    <table>
+      <thead>
+        <tr>
+          <th>Venue</th>
+          <th>Matches</th>
+          <th>RPO</th>
+          <th>Runs/Match</th>
+          <th>Wickets</th>
+          <th>4s</th>
+          <th>6s</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="venue-name">M.Chinnaswamy Stadium, Bengaluru</td>
+          <td>2</td><td class="red-val">10.90</td><td>431.5</td><td>29</td><td>67</td><td>55</td>
+          <td><span style="color:#ef4444; font-weight:700;">Batting Paradise</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Wankhede Stadium, Mumbai</td>
+          <td>1</td><td class="red-val">10.79</td><td>444.0</td><td>8</td><td>41</td><td>24</td>
+          <td><span style="color:#ef4444; font-weight:700;">High-Scoring</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">MA Chidambaram Stadium, Chennai</td>
+          <td>1</td><td>10.03</td><td>418.0</td><td>10</td><td>44</td><td>16</td>
+          <td><span style="color:#f97316; font-weight:700;">Batter-Friendly</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Narendra Modi Stadium, Ahmedabad</td>
+          <td>1</td><td>9.82</td><td>414.0</td><td>14</td><td>42</td><td>19</td>
+          <td><span style="color:#f97316; font-weight:700;">Batter-Friendly</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Barsapara Cricket Stadium, Guwahati</td>
+          <td>2</td><td>9.25</td><td>264.5</td><td>24</td><td>44</td><td>28</td>
+          <td><span style="color:#3b82f6; font-weight:700;">Balanced</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Eden Gardens, Kolkata</td>
+          <td>3</td><td>9.20</td><td>258.0</td><td>31</td><td>74</td><td>35</td>
+          <td><span style="color:#3b82f6; font-weight:700;">Balanced</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Arun Jaitley Stadium, Delhi</td>
+          <td>2</td><td>9.11</td><td>372.0</td><td>23</td><td>73</td><td>33</td>
+          <td><span style="color:#3b82f6; font-weight:700;">Balanced</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">MYS International Cricket Stadium, Mullanpur</td>
+          <td>1</td><td class="green">7.85</td><td>327.0</td><td>13</td><td>21</td><td>17</td>
+          <td><span style="color:#10b981; font-weight:700;">Bowling-Friendly</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Rajiv Gandhi International Stadium, Hyderabad</td>
+          <td>1</td><td class="green">7.80</td><td>316.0</td><td>14</td><td>31</td><td>10</td>
+          <td><span style="color:#10b981; font-weight:700;">Bowling-Friendly</span></td>
+        </tr>
+        <tr>
+          <td class="venue-name">Ekana Cricket Stadium, Lucknow</td>
+          <td>1</td><td class="green">7.50</td><td>285.0</td><td>14</td><td>21</td><td>11</td>
+          <td><span style="color:#10b981; font-weight:700;">Bowlers' Ground</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Venue RPO chart -->
+  <div class="chart-box" style="margin-bottom:24px;">
+    <div class="chart-title">Venue RPO — Batting vs Bowling Spectrum</div>
+    <svg viewBox="0 0 860 80" style="height:80px;">
+      <g transform="translate(20,16)">
+        <!-- gradient bar -->
+        <defs>
+          <linearGradient id="venueGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="50%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#ef4444"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="18" width="820" height="16" fill="url(#venueGrad)" rx="8" opacity="0.4"/>
+        <!-- Dots for venues: scale 7.5-11, range 3.5, width 820 -->
+        <!-- Lucknow 7.50: (0/3.5)*820=0 -->
+        <circle cx="0"   cy="26" r="6" fill="#10b981"/><text x="0"   y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Lucknow</text><text x="0" y="12" font-size="8" fill="#10b981" text-anchor="middle">7.50</text>
+        <!-- Hyd 7.80: (0.3/3.5)*820=70 -->
+        <circle cx="70"  cy="26" r="6" fill="#10b981"/><text x="70"  y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Hyd</text><text x="70" y="12" font-size="8" fill="#10b981" text-anchor="middle">7.80</text>
+        <!-- Mullanpur 7.85: (0.35/3.5)*820=82 -->
+        <circle cx="82"  cy="26" r="6" fill="#10b981"/><text x="82"  y="62" font-size="8" fill="#94a3b8" text-anchor="middle">Mullanpur</text><text x="82" y="12" font-size="8" fill="#10b981" text-anchor="middle">7.85</text>
+        <!-- Delhi 9.11: (1.61/3.5)*820=377 -->
+        <circle cx="377" cy="26" r="6" fill="#3b82f6"/><text x="377" y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Delhi</text>
+        <!-- Eden 9.20: (1.7/3.5)*820=398 -->
+        <circle cx="398" cy="26" r="6" fill="#3b82f6"/><text x="398" y="62" font-size="8" fill="#94a3b8" text-anchor="middle">Eden</text>
+        <!-- Guwahati 9.25: (1.75/3.5)*820=410 -->
+        <circle cx="410" cy="26" r="6" fill="#3b82f6"/><text x="410" y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Guw.</text>
+        <!-- Ahmedabad 9.82: (2.32/3.5)*820=543 -->
+        <circle cx="543" cy="26" r="6" fill="#f97316"/><text x="543" y="62" font-size="8" fill="#94a3b8" text-anchor="middle">Ahmd.</text>
+        <!-- Chennai 10.03: (2.53/3.5)*820=592 -->
+        <circle cx="592" cy="26" r="6" fill="#f97316"/><text x="592" y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Chennai</text>
+        <!-- Wankhede 10.79: (3.29/3.5)*820=771 -->
+        <circle cx="771" cy="26" r="6" fill="#ef4444"/><text x="771" y="62" font-size="8" fill="#94a3b8" text-anchor="middle">Wankhede</text>
+        <!-- Chinnaswamy 10.90: (3.4/3.5)*820=797 -->
+        <circle cx="797" cy="26" r="6" fill="#ef4444"/><text x="797" y="52" font-size="8" fill="#94a3b8" text-anchor="middle">Chinna.</text>
+        <!-- axis labels -->
+        <text x="0" y="75" font-size="9" fill="#10b981">← Bowlers' Ground</text>
+        <text x="820" y="75" font-size="9" fill="#ef4444" text-anchor="end">Batters' Ground →</text>
+      </g>
+    </svg>
+  </div>
+
+  <div style="background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent3); border-radius:8px; padding:14px 16px; font-size:13px;">
+    <strong style="color:var(--accent3);">Venue Insight:</strong> Chinnaswamy (10.90 RPO) and Wankhede (10.79) are IPL's highest-scoring grounds this season — toss-winners should chase aggressively here. The trio of Lucknow (7.50), Hyderabad (7.80), and Mullanpur (7.85) offer genuine swing and seam conditions, making strong bowling units decisive. Chasing teams score at 9.58 RPO vs 9.13 for first-innings teams — a +0.45 RPO chasing advantage holds across all venues.
+  </div>
+</section>
+
+</div><!-- /container -->
+</main>
+
+<!-- Footer -->
+<footer class="report-footer">
+  <div class="container">
+    <p>IPL 2026 Ball-by-Ball Analytics Report · Data source: Kaggle IPL 2026 Complete Dataset · 3,284 deliveries across 15 matches</p>
+    <p style="margin-top:4px;">Generated April 2026 · For analyst and strategic use only · All statistics derived directly from delivery-level data</p>
+  </div>
+</footer>
+
+</body>
+</html>

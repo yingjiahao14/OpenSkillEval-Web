@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon Product Catalog Performance &amp; Customer Sentiment Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a2332;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --success: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-500: #64748b;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    line-height: 1.6;
+  }
+  .report-header {
+    background: linear-gradient(135deg, var(--primary) 0%, #1e3a5f 100%);
+    color: white;
+    padding: 48px 40px 40px;
+  }
+  .report-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .report-header .subtitle {
+    font-size: 15px;
+    opacity: 0.85;
+    max-width: 700px;
+  }
+  .report-header .meta {
+    margin-top: 16px;
+    font-size: 13px;
+    opacity: 0.65;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+  section { margin: 36px 0; }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary);
+    border-bottom: 3px solid var(--accent);
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+  }
+  .section-desc {
+    color: var(--gray-500);
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  /* KPI Dashboard */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .kpi-card {
+    background: white;
+    border-radius: 10px;
+    padding: 24px 20px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    border-top: 4px solid var(--accent);
+  }
+  .kpi-card.green { border-top-color: var(--success); }
+  .kpi-card.amber { border-top-color: var(--warn); }
+  .kpi-card.red { border-top-color: var(--danger); }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .kpi-label {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--gray-300);
+    margin-top: 2px;
+  }
+  /* Cards and charts */
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin-bottom: 16px;
+  }
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+  .chart-container { position: relative; height: 320px; }
+  .chart-container.tall { height: 400px; }
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    background: var(--gray-100);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    border-bottom: 2px solid var(--gray-200);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  thead th.num { text-align: right; }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:hover { background: var(--gray-50); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: var(--accent-light); color: #1e40af; }
+  /* Insight callouts */
+  .insight {
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 14px;
+    color: var(--gray-700);
+  }
+  .insight strong { color: var(--primary); }
+  .insight.warn {
+    background: #fef3c7;
+    border-left-color: var(--warn);
+  }
+  .insight.success {
+    background: #d1fae5;
+    border-left-color: var(--success);
+  }
+  /* Recommendations */
+  .rec-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--accent);
+  }
+  .rec-card h4 { font-size: 15px; margin-bottom: 6px; color: var(--primary); }
+  .rec-card p { font-size: 14px; color: var(--gray-700); }
+  .rec-card .data-point {
+    font-size: 12px;
+    color: var(--gray-500);
+    margin-top: 6px;
+    font-style: italic;
+  }
+  .sentiment-bar {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+  }
+  .sentiment-bar .label { width: 100px; font-size: 13px; color: var(--gray-700); }
+  .sentiment-bar .bar-wrap {
+    flex: 1;
+    background: var(--gray-100);
+    border-radius: 4px;
+    height: 22px;
+    overflow: hidden;
+    margin: 0 10px;
+  }
+  .sentiment-bar .bar {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 11px;
+    color: white;
+    font-weight: 600;
+  }
+  .bar-pos { background: var(--success); }
+  .bar-neg { background: var(--danger); }
+  .sentiment-bar .count { width: 60px; text-align: right; font-size: 13px; color: var(--gray-500); }
+  .correlation-meter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0;
+  }
+  .corr-track {
+    flex: 1;
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    position: relative;
+  }
+  .corr-needle {
+    position: absolute;
+    top: -4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .corr-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-500); }
+  footer {
+    padding: 24px 0;
+    text-align: center;
+    color: var(--gray-300);
+    font-size: 12px;
+    border-top: 1px solid var(--gray-200);
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <div class="container">
+    <h1>Amazon Product Catalog Performance &amp; Customer Sentiment Analysis</h1>
+    <p class="subtitle">A comprehensive analysis of 1,465 Amazon India products examining pricing strategies, discount effectiveness, customer ratings, and category-level performance to identify optimization opportunities.</p>
+    <p class="meta">Dataset: Amazon India Catalog &bull; 1,465 Products &bull; 9 Categories &bull; Report Date: April 2026</p>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- SECTION 1: Executive Overview -->
+<section id="executive-overview">
+  <h2 class="section-title">Executive Overview</h2>
+  <p class="section-desc">Headline KPIs across the full product catalog of 1,465 Amazon India products spanning 9 top-level categories.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card green">
+      <div class="kpi-value">4.10</div>
+      <div class="kpi-label">Avg Product Rating</div>
+      <div class="kpi-sub">out of 5.0 &bull; Median 4.1</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">47.7%</div>
+      <div class="kpi-label">Avg Discount</div>
+      <div class="kpi-sub">Median 50.0%</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">75.8%</div>
+      <div class="kpi-label">High-Rating Share</div>
+      <div class="kpi-sub">Products rated 4.0+</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">5,179</div>
+      <div class="kpi-label">Median Rating Count</div>
+      <div class="kpi-sub">Customer reviews per product</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-value">−0.16</div>
+      <div class="kpi-label">Discount-Rating Corr.</div>
+      <div class="kpi-sub">Weak negative relationship</div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Key Takeaway:</strong> The catalog is healthy — 3 in 4 products (75.8%) are rated 4.0 or above. However, the average discount of 47.7% is aggressive, and the weak negative correlation (r = −0.16) between discount depth and rating suggests that deeper discounts do <em>not</em> improve customer satisfaction. Heavy promotions may be eroding margin without lifting perceived quality.
+  </div>
+</section>
+
+<!-- SECTION 2: Category Performance -->
+<section id="category-analysis">
+  <h2 class="section-title">Category Performance Breakdown</h2>
+  <p class="section-desc">Performance metrics across 9 top-level and 29 sub-categories. Three major categories — Electronics, Computers &amp; Accessories, and Home &amp; Kitchen — account for 97.4% of all products.</p>
+
+  <div class="card">
+    <h3>Top-Level Category Overview</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th class="num">Products</th>
+          <th class="num">Avg Rating</th>
+          <th class="num">Avg Discount</th>
+          <th class="num">Avg Price (₹)</th>
+          <th class="num">Median Engagement</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Electronics</strong></td>
+          <td class="num">526</td>
+          <td class="num"><span class="badge badge-green">4.08</span></td>
+          <td class="num">50.8%</td>
+          <td class="num">5,966</td>
+          <td class="num">10,689</td>
+        </tr>
+        <tr>
+          <td><strong>Computers &amp; Accessories</strong></td>
+          <td class="num">453</td>
+          <td class="num"><span class="badge badge-green">4.15</span></td>
+          <td class="num">54.0%</td>
+          <td class="num">843</td>
+          <td class="num">7,732</td>
+        </tr>
+        <tr>
+          <td><strong>Home &amp; Kitchen</strong></td>
+          <td class="num">448</td>
+          <td class="num"><span class="badge badge-green">4.04</span></td>
+          <td class="num">40.1%</td>
+          <td class="num">2,331</td>
+          <td class="num">2,306</td>
+        </tr>
+        <tr>
+          <td><strong>Office Products</strong></td>
+          <td class="num">31</td>
+          <td class="num"><span class="badge badge-green">4.31</span></td>
+          <td class="num">12.4%</td>
+          <td class="num">302</td>
+          <td class="num">4,426</td>
+        </tr>
+        <tr>
+          <td>Musical Instruments</td>
+          <td class="num">2</td>
+          <td class="num">3.90</td>
+          <td class="num">46.0%</td>
+          <td class="num">638</td>
+          <td class="num">44,441</td>
+        </tr>
+        <tr>
+          <td>Home Improvement</td>
+          <td class="num">2</td>
+          <td class="num">4.25</td>
+          <td class="num">57.5%</td>
+          <td class="num">337</td>
+          <td class="num">4,283</td>
+        </tr>
+        <tr>
+          <td>Car &amp; Motorbike</td>
+          <td class="num">1</td>
+          <td class="num">3.80</td>
+          <td class="num">42.0%</td>
+          <td class="num">2,339</td>
+          <td class="num">1,118</td>
+        </tr>
+        <tr>
+          <td>Health &amp; Personal Care</td>
+          <td class="num">1</td>
+          <td class="num">4.00</td>
+          <td class="num">53.0%</td>
+          <td class="num">899</td>
+          <td class="num">3,663</td>
+        </tr>
+        <tr>
+          <td>Toys &amp; Games</td>
+          <td class="num">1</td>
+          <td class="num">4.30</td>
+          <td class="num">0.0%</td>
+          <td class="num">150</td>
+          <td class="num">15,867</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight success">
+    <strong>Standout:</strong> Office Products achieves the highest average rating (4.31) with the lowest average discount (12.4%) — a model of high satisfaction without margin erosion. Computers &amp; Accessories leads the big three with a 4.15 rating despite heavy 54% discounting.
+  </div>
+  <div class="insight warn">
+    <strong>Watch Area:</strong> Home &amp; Kitchen lags both peer categories in rating (4.04) and customer engagement (median 2,306 reviews) despite having 448 products. This category warrants quality review.
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <h3>Category Avg Rating vs Avg Discount (Major Categories)</h3>
+      <div class="chart-container">
+        <canvas id="catScatterChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Product Distribution by Category</h3>
+      <div class="chart-container">
+        <canvas id="catPieChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Top 10 Sub-Categories by Average Rating (min. 10 products)</h3>
+    <table>
+      <thead>
+        <tr><th>Sub-Category</th><th class="num">Products</th><th class="num">Avg Rating</th><th class="num">Avg Discount</th><th class="num">Total Reviews</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>General Purpose Batteries &amp; Chargers</td><td class="num">14</td><td class="num"><span class="badge badge-green">4.35</span></td><td class="num">16.7%</td><td class="num">190,302</td></tr>
+        <tr><td>Accessories</td><td class="num">14</td><td class="num"><span class="badge badge-green">4.34</span></td><td class="num">57.8%</td><td class="num">1,183,177</td></tr>
+        <tr><td>External Devices &amp; Data Storage</td><td class="num">18</td><td class="num"><span class="badge badge-green">4.32</span></td><td class="num">46.9%</td><td class="num">1,037,012</td></tr>
+        <tr><td>Office Paper Products</td><td class="num">27</td><td class="num"><span class="badge badge-green">4.29</span></td><td class="num">14.0%</td><td class="num">118,700</td></tr>
+        <tr><td>Networking Devices</td><td class="num">34</td><td class="num"><span class="badge badge-green">4.16</span></td><td class="num">47.7%</td><td class="num">1,401,750</td></tr>
+        <tr><td>Accessories &amp; Peripherals</td><td class="num">381</td><td class="num"><span class="badge badge-green">4.15</span></td><td class="num">56.0%</td><td class="num">5,079,477</td></tr>
+        <tr><td>Mobiles &amp; Accessories</td><td class="num">161</td><td class="num"><span class="badge badge-green">4.13</span></td><td class="num">42.7%</td><td class="num">4,384,197</td></tr>
+        <tr><td>Cameras &amp; Photography</td><td class="num">16</td><td class="num"><span class="badge badge-green">4.12</span></td><td class="num">47.6%</td><td class="num">322,657</td></tr>
+        <tr><td>Home Theater, TV &amp; Video</td><td class="num">162</td><td class="num"><span class="badge badge-green">4.08</span></td><td class="num">49.5%</td><td class="num">2,895,009</td></tr>
+        <tr><td>Home Audio</td><td class="num">16</td><td class="num"><span class="badge badge-green">4.07</span></td><td class="num">49.7%</td><td class="num">293,704</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Bottom 5 Sub-Categories by Average Rating (min. 10 products)</h3>
+    <table>
+      <thead>
+        <tr><th>Sub-Category</th><th class="num">Products</th><th class="num">Avg Rating</th><th class="num">Avg Discount</th><th class="num">Total Reviews</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Headphones, Earbuds &amp; Accessories</td><td class="num">66</td><td class="num"><span class="badge badge-amber">3.93</span></td><td class="num">59.5%</td><td class="num">4,844,658</td></tr>
+        <tr><td>Printers, Inks &amp; Accessories</td><td class="num">11</td><td class="num"><span class="badge badge-amber">3.96</span></td><td class="num">21.5%</td><td class="num">77,579</td></tr>
+        <tr><td>Heating, Cooling &amp; Air Quality</td><td class="num">116</td><td class="num"><span class="badge badge-amber">3.99</span></td><td class="num">40.7%</td><td class="num">551,371</td></tr>
+        <tr><td>Wearable Technology</td><td class="num">76</td><td class="num"><span class="badge badge-green">4.02</span></td><td class="num">69.8%</td><td class="num">1,644,476</td></tr>
+        <tr><td>Home Storage &amp; Organization</td><td class="num">16</td><td class="num"><span class="badge badge-green">4.03</span></td><td class="num">46.1%</td><td class="num">53,765</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight warn">
+    <strong>Red Flag:</strong> Headphones, Earbuds &amp; Accessories has the lowest sub-category rating (3.93) despite the deepest average discount (59.5%) and massive review volume (4.8M reviews). Wearable Technology averages 69.8% discount — the highest of any sub-category — yet only manages a 4.02 rating.
+  </div>
+</section>
+
+<!-- SECTION 3: Pricing & Discount Strategy -->
+<section id="pricing-discount-analysis">
+  <h2 class="section-title">Pricing &amp; Discount Strategy Analysis</h2>
+  <p class="section-desc">The highest-value analysis: quantifying whether discount depth drives customer satisfaction or merely erodes margin.</p>
+
+  <div class="card">
+    <h3>Correlation Analysis</h3>
+    <p style="font-size:14px;color:var(--gray-700);margin-bottom:16px;">Pearson correlation coefficients measuring linear relationships between key variables (range: −1.0 to +1.0).</p>
+    <table>
+      <thead>
+        <tr><th>Relationship</th><th class="num">Correlation (r)</th><th>Interpretation</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Discount % → Rating</td>
+          <td class="num"><strong style="color:var(--danger)">−0.155</strong></td>
+          <td><span class="badge badge-red">Weak Negative</span> — Deeper discounts associate with <em>slightly lower</em> ratings</td>
+        </tr>
+        <tr>
+          <td>Discount % → Rating Count</td>
+          <td class="num"><strong>+0.012</strong></td>
+          <td><span class="badge badge-amber">Negligible</span> — Discounts do not meaningfully drive review volume</td>
+        </tr>
+        <tr>
+          <td>Discounted Price → Rating</td>
+          <td class="num"><strong style="color:var(--success)">+0.120</strong></td>
+          <td><span class="badge badge-blue">Weak Positive</span> — Higher-priced products tend to rate slightly better</td>
+        </tr>
+        <tr>
+          <td>Actual Price → Rating</td>
+          <td class="num"><strong style="color:var(--success)">+0.122</strong></td>
+          <td><span class="badge badge-blue">Weak Positive</span> — Premium-priced products have marginally better ratings</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight">
+    <strong>Critical Finding:</strong> The discount-to-rating correlation of <strong>r = −0.155</strong> is the single most important metric for pricing strategy. It means deeper discounts are weakly associated with <em>lower</em> customer ratings — not higher ones. Meanwhile, the near-zero correlation with review count (r = +0.012) means discounts don't even reliably drive engagement volume. The implication: aggressive discounting is not buying customer satisfaction.
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <h3>Average Rating by Discount Band</h3>
+      <div class="chart-container">
+        <canvas id="discBandRatingChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Avg Review Count by Discount Band</h3>
+      <div class="chart-container">
+        <canvas id="discBandCountChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Discount Band Performance Detail</h3>
+    <table>
+      <thead>
+        <tr><th>Discount Band</th><th class="num">Products</th><th class="num">Avg Rating</th><th class="num">Avg Review Count</th><th class="num">Median Review Count</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-green">0–19%</span></td>
+          <td class="num">166</td>
+          <td class="num"><strong>4.17</strong></td>
+          <td class="num">14,869</td>
+          <td class="num">6,976</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">20–39%</span></td>
+          <td class="num">324</td>
+          <td class="num"><strong>4.13</strong></td>
+          <td class="num">19,541</td>
+          <td class="num">7,286</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">40–59%</span></td>
+          <td class="num">480</td>
+          <td class="num">4.09</td>
+          <td class="num">16,176</td>
+          <td class="num">3,363</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">60–79%</span></td>
+          <td class="num">399</td>
+          <td class="num">4.06</td>
+          <td class="num">23,258</td>
+          <td class="num">5,467</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-red">80–100%</span></td>
+          <td class="num">96</td>
+          <td class="num">4.02</td>
+          <td class="num">9,954</td>
+          <td class="num">2,523</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight">
+    <strong>Pattern:</strong> Ratings decline monotonically from <strong>4.17</strong> (0–19% discount) to <strong>4.02</strong> (80–100% discount). The 0.15-point gap may seem small, but across hundreds of products it signals a systematic relationship: deeply discounted products tend to be lower quality or set inflated expectations.
+  </div>
+
+  <div class="card">
+    <h3>Rating by Price Segment</h3>
+    <div class="chart-container">
+      <canvas id="priceRatingChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Price Segment Performance</h3>
+    <table>
+      <thead>
+        <tr><th>Price Segment</th><th class="num">Products</th><th class="num">Avg Rating</th><th class="num">Avg Discount</th><th class="num">Total Reviews</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>&lt;₹200</td><td class="num">199</td><td class="num">4.04</td><td class="num">57.9%</td><td class="num">2,061,720</td></tr>
+        <tr><td>₹200–499</td><td class="num">377</td><td class="num">4.09</td><td class="num">54.6%</td><td class="num">7,719,629</td></tr>
+        <tr><td>₹500–999</td><td class="num">252</td><td class="num">4.12</td><td class="num">46.1%</td><td class="num">5,336,809</td></tr>
+        <tr><td>₹1,000–2,499</td><td class="num">328</td><td class="num">4.07</td><td class="num">45.9%</td><td class="num">6,842,625</td></tr>
+        <tr><td>₹2,500–4,999</td><td class="num">103</td><td class="num">4.11</td><td class="num">40.4%</td><td class="num">1,026,213</td></tr>
+        <tr><td>₹5,000+</td><td class="num">206</td><td class="num"><strong>4.17</strong></td><td class="num">33.5%</td><td class="num">3,779,381</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight success">
+    <strong>Premium Pays:</strong> The ₹5,000+ segment earns the highest average rating (4.17) with the lowest average discount (33.5%). A clear pattern emerges: higher price points require less discounting and still achieve better customer satisfaction. The ₹200–499 segment is the volume sweet spot with the most reviews (7.7M) at a solid 4.09 rating.
+  </div>
+</section>
+
+<!-- SECTION 4: Customer Engagement -->
+<section id="customer-engagement">
+  <h2 class="section-title">Customer Engagement &amp; Rating Distribution</h2>
+  <p class="section-desc">Profiling the distribution of ratings and identifying what drives exceptional engagement.</p>
+
+  <div class="chart-row">
+    <div class="card">
+      <h3>Rating Distribution</h3>
+      <div class="chart-container">
+        <canvas id="ratingDistChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Distribution Summary</h3>
+      <table>
+        <thead>
+          <tr><th>Rating Band</th><th class="num">Products</th><th class="num">Share</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>&lt;2.0</td><td class="num">0</td><td class="num">0.0%</td></tr>
+          <tr><td>2.0–2.9</td><td class="num">6</td><td class="num">0.4%</td></tr>
+          <tr><td>3.0–3.4</td><td class="num">36</td><td class="num">2.5%</td></tr>
+          <tr><td>3.5–3.9</td><td class="num">312</td><td class="num">21.3%</td></tr>
+          <tr><td>4.0–4.4</td><td class="num">1,006</td><td class="num"><strong>68.7%</strong></td></tr>
+          <tr><td>4.5–5.0</td><td class="num">104</td><td class="num">7.1%</td></tr>
+        </tbody>
+      </table>
+      <div class="insight" style="margin-top:16px;">
+        <strong>Left Skew:</strong> The catalog is strongly concentrated in the 4.0–4.4 band (68.7% of products). Only 2.9% of products fall below 3.0, indicating strong baseline quality. However, only 7.1% reach 4.5+, suggesting an opportunity to push more products into the "excellent" tier.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Top 10 Products by Customer Engagement (Rating Count)</h3>
+    <table>
+      <thead>
+        <tr><th>Product</th><th>Category</th><th class="num">Rating</th><th class="num">Reviews</th><th class="num">Price (₹)</th><th class="num">Discount</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>AmazonBasics Flexible Premium HDMI Cable (Black, 4K)…</td><td>Electronics</td><td class="num">4.4</td><td class="num">426,973</td><td class="num">219</td><td class="num">69%</td></tr>
+        <tr><td>Amazon Basics High-Speed HDMI Cable, 6 Feet…</td><td>Electronics</td><td class="num">4.4</td><td class="num">426,973</td><td class="num">309</td><td class="num">35%</td></tr>
+        <tr><td>Amazon Basics High-Speed HDMI Cable, 6 Feet (2-Pack)…</td><td>Electronics</td><td class="num">4.4</td><td class="num">426,973</td><td class="num">309</td><td class="num">78%</td></tr>
+        <tr><td>AmazonBasics Flexible Premium HDMI Cable (Black, 4K)…</td><td>Electronics</td><td class="num">4.4</td><td class="num">426,972</td><td class="num">219</td><td class="num">69%</td></tr>
+        <tr><td>boAt Bassheads 100 in Ear Wired Earphones (Taffy Pink)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">363,713</td><td class="num">349</td><td class="num">65%</td></tr>
+        <tr><td>boAt Bassheads 100 in Ear Wired Earphones (Furious Red)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">363,713</td><td class="num">379</td><td class="num">62%</td></tr>
+        <tr><td>boAt BassHeads 100 in-Ear Wired Headphones (Black)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">363,711</td><td class="num">365</td><td class="num">63%</td></tr>
+        <tr><td>Redmi 9 Activ (Carbon Black, 4GB, 64GB)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">313,836</td><td class="num">8,499</td><td class="num">23%</td></tr>
+        <tr><td>Redmi 9A Sport (Coral Green, 2GB, 32GB)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">313,836</td><td class="num">6,499</td><td class="num">24%</td></tr>
+        <tr><td>Redmi 9A Sport (Carbon Black, 2GB, 32GB)…</td><td>Electronics</td><td class="num">4.1</td><td class="num">313,832</td><td class="num">6,499</td><td class="num">19%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight">
+    <strong>Engagement Drivers:</strong> All top 10 engagement products are in Electronics. They share key characteristics: <strong>trusted brands</strong> (AmazonBasics, boAt, Redmi), <strong>accessible pricing</strong> (₹219–₹8,499), and <strong>high ratings</strong> (4.1–4.4). Brand trust and value-for-money appear more important than discount depth in driving massive review volumes.
+  </div>
+</section>
+
+<!-- SECTION 5: Review Sentiment -->
+<section id="review-sentiment-snapshot">
+  <h2 class="section-title">Review Sentiment Snapshot</h2>
+  <p class="section-desc">Keyword frequency analysis of review content across all products, highlighting dominant positive and negative themes.</p>
+
+  <div class="chart-row">
+    <div class="card">
+      <h3>Top Positive Keywords (Review Content)</h3>
+      <div class="sentiment-bar"><div class="label">good</div><div class="bar-wrap"><div class="bar bar-pos" style="width:100%">6,544</div></div><div class="count">6,544</div></div>
+      <div class="sentiment-bar"><div class="label">quality</div><div class="bar-wrap"><div class="bar bar-pos" style="width:37.4%">2,446</div></div><div class="count">2,446</div></div>
+      <div class="sentiment-bar"><div class="label">nice</div><div class="bar-wrap"><div class="bar bar-pos" style="width:15.6%">1,018</div></div><div class="count">1,018</div></div>
+      <div class="sentiment-bar"><div class="label">best</div><div class="bar-wrap"><div class="bar bar-pos" style="width:11.7%">766</div></div><div class="count">766</div></div>
+      <div class="sentiment-bar"><div class="label">great</div><div class="bar-wrap"><div class="bar bar-pos" style="width:11.3%">737</div></div><div class="count">737</div></div>
+      <div class="sentiment-bar"><div class="label">value</div><div class="bar-wrap"><div class="bar bar-pos" style="width:8.4%">548</div></div><div class="count">548</div></div>
+      <div class="sentiment-bar"><div class="label">worth</div><div class="bar-wrap"><div class="bar bar-pos" style="width:7.2%">470</div></div><div class="count">470</div></div>
+      <div class="sentiment-bar"><div class="label">recommend</div><div class="bar-wrap"><div class="bar bar-pos" style="width:6.2%">407</div></div><div class="count">407</div></div>
+      <div class="sentiment-bar"><div class="label">perfect</div><div class="bar-wrap"><div class="bar bar-pos" style="width:5.4%">355</div></div><div class="count">355</div></div>
+      <div class="sentiment-bar"><div class="label">excellent</div><div class="bar-wrap"><div class="bar bar-pos" style="width:3.8%">248</div></div><div class="count">248</div></div>
+    </div>
+    <div class="card">
+      <h3>Top Negative Keywords (Review Content)</h3>
+      <div class="sentiment-bar"><div class="label">issue</div><div class="bar-wrap"><div class="bar bar-neg" style="width:100%">687</div></div><div class="count">687</div></div>
+      <div class="sentiment-bar"><div class="label">problem</div><div class="bar-wrap"><div class="bar bar-neg" style="width:57.5%">395</div></div><div class="count">395</div></div>
+      <div class="sentiment-bar"><div class="label">bad</div><div class="bar-wrap"><div class="bar bar-neg" style="width:40.8%">280</div></div><div class="count">280</div></div>
+      <div class="sentiment-bar"><div class="label">cheap</div><div class="bar-wrap"><div class="bar bar-neg" style="width:32.3%">222</div></div><div class="count">222</div></div>
+      <div class="sentiment-bar"><div class="label">damage</div><div class="bar-wrap"><div class="bar bar-neg" style="width:23.4%">161</div></div><div class="count">161</div></div>
+      <div class="sentiment-bar"><div class="label">return</div><div class="bar-wrap"><div class="bar bar-neg" style="width:21.0%">144</div></div><div class="count">144</div></div>
+      <div class="sentiment-bar"><div class="label">poor</div><div class="bar-wrap"><div class="bar bar-neg" style="width:17.8%">122</div></div><div class="count">122</div></div>
+      <div class="sentiment-bar"><div class="label">defect</div><div class="bar-wrap"><div class="bar bar-neg" style="width:11.6%">80</div></div><div class="count">80</div></div>
+      <div class="sentiment-bar"><div class="label">waste</div><div class="bar-wrap"><div class="bar bar-neg" style="width:10.6%">73</div></div><div class="count">73</div></div>
+      <div class="sentiment-bar"><div class="label">disappointed</div><div class="bar-wrap"><div class="bar bar-neg" style="width:10.3%">71</div></div><div class="count">71</div></div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <h3>Review Title — Positive Keywords</h3>
+      <div class="chart-container">
+        <canvas id="titlePosChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Review Title — Negative Keywords</h3>
+      <div class="chart-container">
+        <canvas id="titleNegChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Sentiment Balance:</strong> Positive keywords outnumber negative ones by roughly <strong>9:1</strong> (total positive mentions: ~13,400 vs negative: ~1,500). The dominant positive theme is general satisfaction (<em>"good," "quality," "nice"</em>), while <em>"value"</em> and <em>"worth"</em> appearing prominently confirms that value-for-money resonates with Amazon India customers.
+  </div>
+  <div class="insight warn">
+    <strong>Concern Cluster:</strong> <em>"Issue" (687), "problem" (395), "damage" (161), "defect" (80)</em> collectively point to <strong>quality control and fulfillment issues</strong> as the primary negative driver — not pricing or feature dissatisfaction. <em>"Cheap" (222)</em> appearing alongside <em>"damage"</em> suggests that heavily discounted products may face perceived or actual quality shortfalls.
+  </div>
+</section>
+
+<!-- SECTION 6: Strategic Recommendations -->
+<section id="recommendations">
+  <h2 class="section-title">Strategic Recommendations</h2>
+  <p class="section-desc">Five actionable recommendations, each grounded in specific data findings from this analysis.</p>
+
+  <div class="rec-card" style="border-left-color: var(--danger);">
+    <h4>1. Rationalize Deep Discounting — Stop Using Discounts as a Satisfaction Lever</h4>
+    <p>The data clearly shows that deeper discounts do not improve customer satisfaction. Ratings decline monotonically from 4.17 (0–19% band) to 4.02 (80–100% band). With 495 products (34%) discounted 60% or more, there is significant margin being sacrificed for no measurable satisfaction gain. Recommend auditing all products in the 60%+ discount tier and resetting pricing for those where the discount isn't driving volume.</p>
+    <p class="data-point">Supporting data: Discount-to-rating correlation r = −0.155; discount-to-review-count correlation r = +0.012 (negligible).</p>
+  </div>
+
+  <div class="rec-card" style="border-left-color: var(--warn);">
+    <h4>2. Prioritize Quality Improvement in Bottom Sub-Categories</h4>
+    <p>Headphones &amp; Earbuds (3.93 rating, 66 products), Heating/Cooling &amp; Air Quality (3.99, 116 products), and Wearable Technology (4.02, 76 products) are the three weakest sub-categories by rating. These represent 258 products — 17.6% of the catalog. Work with vendors in these segments on product quality, and consider delisting the lowest-rated SKUs to lift category averages.</p>
+    <p class="data-point">Supporting data: These three sub-categories have avg ratings 0.1–0.2 points below catalog mean of 4.10, despite avg discounts of 40–70%.</p>
+  </div>
+
+  <div class="rec-card" style="border-left-color: var(--success);">
+    <h4>3. Replicate the Office Products Playbook</h4>
+    <p>Office Products achieves the highest category rating (4.31) with the lowest discount (12.4%). This proves that well-curated, quality-focused assortments can win customer satisfaction without margin erosion. Apply this model to Home &amp; Kitchen (4.04 rating, 448 products), which has the scale to benefit most from a quality-first curation strategy.</p>
+    <p class="data-point">Supporting data: Office Products 4.31 avg rating at 12.4% avg discount vs. Home &amp; Kitchen 4.04 avg rating at 40.1% avg discount.</p>
+  </div>
+
+  <div class="rec-card" style="border-left-color: var(--accent);">
+    <h4>4. Address Product Quality &amp; Fulfillment Issues Surfaced in Reviews</h4>
+    <p>The dominant negative review themes — "issue" (687), "problem" (395), "damage" (161), "defect" (80) — point to quality control and shipping/packaging defects rather than feature gaps. Launch a focused initiative with fulfillment and vendor quality teams to reduce damage-related returns, particularly for the heavily discounted product tiers where "cheap" (222 mentions) appears prominently.</p>
+    <p class="data-point">Supporting data: Negative keyword cluster around quality/defects accounts for 1,323 mentions vs. 280 for "bad" overall.</p>
+  </div>
+
+  <div class="rec-card" style="border-left-color: var(--success);">
+    <h4>5. Invest in the ₹200–999 Price Band</h4>
+    <p>The ₹200–499 and ₹500–999 segments together represent 629 products (42.9% of catalog) with 13M+ reviews and ratings of 4.09–4.12. This is the volume and engagement sweet spot for Amazon India customers. Expand selection in this range with trusted brands, as top-engagement products show that brand trust + accessible pricing drives outsized engagement.</p>
+    <p class="data-point">Supporting data: Top 10 engagement products are all from trusted brands (AmazonBasics, boAt, Redmi) at ₹219–₹8,499, averaging 4.1–4.4 rating with 300K+ reviews each.</p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="container">
+    Amazon Product Catalog Performance &amp; Customer Sentiment Analysis &bull; Source: Amazon India Dataset (1,465 products) &bull; Generated April 2026
+  </div>
+</footer>
+
+<script>
+  const brandBlue = '#2563eb';
+  const brandGreen = '#059669';
+  const brandAmber = '#d97706';
+  const brandRed = '#dc2626';
+  const brandGray = '#94a3b8';
+
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.font.size = 12;
+
+  // Category Scatter
+  new Chart(document.getElementById('catScatterChart'), {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Categories',
+        data: [
+          {x:50.8, y:4.08, r:20, label:'Electronics'},
+          {x:54.0, y:4.15, r:18, label:'Computers'},
+          {x:40.1, y:4.04, r:18, label:'Home&Kitchen'},
+          {x:12.4, y:4.31, r:8, label:'Office Products'},
+        ],
+        backgroundColor: [
+          'rgba(37,99,235,0.6)',
+          'rgba(5,150,105,0.6)',
+          'rgba(217,119,6,0.6)',
+          'rgba(99,102,241,0.6)',
+        ],
+        borderColor: [brandBlue, brandGreen, brandAmber, '#6366f1'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display:true, text:'Avg Discount %' } },
+        y: { title: { display:true, text:'Avg Rating' }, min: 3.9, max: 4.4 }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              return `${d.label}: Rating ${d.y}, Discount ${d.x}%`;
+            }
+          }
+        },
+        legend: { display: false }
+      }
+    }
+  });
+
+  // Category Pie
+  new Chart(document.getElementById('catPieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Electronics (526)', 'Computers & Acc. (453)', 'Home & Kitchen (448)', 'Office Products (31)', 'Other (7)'],
+      datasets: [{
+        data: [526, 453, 448, 31, 7],
+        backgroundColor: [brandBlue, brandGreen, brandAmber, '#6366f1', brandGray],
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Discount Band - Rating
+  new Chart(document.getElementById('discBandRatingChart'), {
+    type: 'bar',
+    data: {
+      labels: ['0-19%', '20-39%', '40-59%', '60-79%', '80-100%'],
+      datasets: [{
+        label: 'Avg Rating',
+        data: [4.17, 4.13, 4.09, 4.06, 4.02],
+        backgroundColor: [brandGreen, '#34d399', brandAmber, '#fb923c', brandRed],
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: 3.9, max: 4.25, title: { display:true, text:'Avg Rating' } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `Rating: ${ctx.raw}` } }
+      }
+    }
+  });
+
+  // Discount Band - Count
+  new Chart(document.getElementById('discBandCountChart'), {
+    type: 'bar',
+    data: {
+      labels: ['0-19%', '20-39%', '40-59%', '60-79%', '80-100%'],
+      datasets: [
+        {
+          label: 'Avg Review Count',
+          data: [14869, 19541, 16176, 23258, 9954],
+          backgroundColor: 'rgba(37,99,235,0.6)',
+          borderColor: brandBlue,
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.5,
+          order: 2
+        },
+        {
+          label: 'Median Review Count',
+          data: [6976, 7286, 3363, 5467, 2523],
+          backgroundColor: 'rgba(99,102,241,0.5)',
+          borderColor: '#6366f1',
+          borderWidth: 1,
+          borderRadius: 4,
+          barPercentage: 0.5,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { title: { display:true, text:'Review Count' } } },
+      plugins: { legend: { position: 'top' } }
+    }
+  });
+
+  // Price Segment Rating
+  new Chart(document.getElementById('priceRatingChart'), {
+    type: 'bar',
+    data: {
+      labels: ['<₹200', '₹200-499', '₹500-999', '₹1K-2.5K', '₹2.5K-5K', '₹5000+'],
+      datasets: [
+        {
+          label: 'Avg Rating',
+          data: [4.04, 4.09, 4.12, 4.07, 4.11, 4.17],
+          backgroundColor: brandBlue,
+          borderRadius: 4,
+          barPercentage: 0.5,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Avg Discount %',
+          data: [57.9, 54.6, 46.1, 45.9, 40.4, 33.5],
+          type: 'line',
+          borderColor: brandRed,
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          pointRadius: 5,
+          pointBackgroundColor: brandRed,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { position: 'left', min: 3.9, max: 4.25, title: { display:true, text:'Avg Rating' } },
+        y1: { position: 'right', min: 20, max: 70, title: { display:true, text:'Avg Discount %' }, grid: { drawOnChartArea: false } }
+      },
+      plugins: { legend: { position: 'top' } }
+    }
+  });
+
+  // Rating Distribution
+  new Chart(document.getElementById('ratingDistChart'), {
+    type: 'bar',
+    data: {
+      labels: ['<2.0', '2.0-2.9', '3.0-3.4', '3.5-3.9', '4.0-4.4', '4.5-5.0'],
+      datasets: [{
+        label: 'Products',
+        data: [0, 6, 36, 312, 1006, 104],
+        backgroundColor: [brandRed, brandRed, brandAmber, brandAmber, brandGreen, '#059669'],
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { title: { display:true, text:'Number of Products' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Title Positive keywords
+  new Chart(document.getElementById('titlePosChart'), {
+    type: 'bar',
+    data: {
+      labels: ['good','nice','quality','best','value','worth','great','excellent','perfect','awesome'],
+      datasets: [{
+        label: 'Mentions',
+        data: [3936, 902, 761, 507, 489, 360, 261, 180, 152, 134],
+        backgroundColor: brandGreen,
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  // Title Negative keywords
+  new Chart(document.getElementById('titleNegChart'), {
+    type: 'bar',
+    data: {
+      labels: ['bad','issue','poor','cheap','problem','worst','damage','defect','waste','return'],
+      datasets: [{
+        label: 'Mentions',
+        data: [115, 75, 46, 42, 39, 36, 31, 29, 21, 15],
+        backgroundColor: brandRed,
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } }
+    }
+  });
+</script>
+</body>
+</html>

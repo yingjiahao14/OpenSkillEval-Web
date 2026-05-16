@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111a33;
+      --panel2: #0f1730;
+      --text: #e9eefc;
+      --muted: #b8c3e6;
+      --grid: rgba(255,255,255,0.10);
+      --accent: #7aa2ff;
+      --accent2: #36d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+      --good: #34d399;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 800px at 15% 10%, rgba(122,162,255,0.18), transparent 60%),
+                  radial-gradient(900px 700px at 90% 20%, rgba(54,211,153,0.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+    header { display: grid; gap: 10px; margin-bottom: 18px; }
+    h1 { font-size: 28px; margin: 0; letter-spacing: 0.2px; }
+    .subtitle { color: var(--muted); max-width: 90ch; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px 16px; color: var(--muted); font-size: 13px; }
+    .pill {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.09);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-family: var(--mono);
+    }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .card {
+      grid-column: span 12;
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+    }
+    .card h2 { margin: 0 0 10px; font-size: 18px; }
+    .card h3 { margin: 12px 0 8px; font-size: 14px; color: var(--muted); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpis { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .kpi {
+      grid-column: span 12;
+      background: rgba(0,0,0,0.20);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi .value { font-family: var(--mono); font-size: 22px; margin-top: 4px; }
+    .kpi .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .twoCol { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .chartbox { background: rgba(0,0,0,0.20); border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; padding: 12px; }
+    .chartTitle { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+    .chartTitle .t { font-weight: 650; }
+    .chartTitle .s { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+    .svg { width: 100%; height: auto; display: block; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid rgba(255,255,255,0.10); vertical-align: top; }
+    th { color: var(--muted); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
+    td code, .mono { font-family: var(--mono); }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .callout {
+      background: rgba(122,162,255,0.12);
+      border: 1px solid rgba(122,162,255,0.25);
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--text);
+    }
+    .findings li { margin: 6px 0; }
+    .hr { height: 1px; background: rgba(255,255,255,0.10); margin: 12px 0; }
+    @media (min-width: 920px) {
+      .kpi { grid-column: span 4; }
+      .twoCol { grid-template-columns: 1.25fr 0.75fr; }
+      .card.split { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</h1>
+      <div class="subtitle">A comprehensive analysis of over 20,000 Lichess chess games exploring win rates, opening strategies, rating dynamics, and game outcome patterns.</div>
+      <div class="meta">
+        <div class="pill">Games: 20,058</div>
+        <div class="pill">Generated (UTC): 2026-05-12T02:52:41Z</div>
+        <div class="pill">Source: benchmark/data.csv</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Key Findings (Actionable Synthesis)</h2>
+        <div class="callout small">These findings are computed directly from <span class="mono">data.csv</span>; percentages below are exact to the displayed precision.</div>
+        <ul class="findings">
+          <li><b>White advantage exists, but it’s modest:</b> across decisive games, White wins <span class="mono">52.34%</span> (95% Wilson CI: <span class="mono">51.63%–53.05%</span>).</li>
+          <li><b>Rating gap dominates outcome:</b> when White is +200 to +300 Elo, White wins <span class="mono">74.5%</span>; when White is −200 to −300, White wins <span class="mono">26.3%</span>.</li>
+          <li><b>Decisive result mix:</b> resignations are the most common ending (<span class="mono">55.6%</span> of all games), ahead of checkmates (<span class="mono">31.5%</span>) and timeouts (<span class="mono">8.4%</span>).</li>
+          <li><b>Game length increases with player strength:</b> mean turns rise from <span class="mono">50.00</span> (<span class="mono">&lt;1200</span>) to <span class="mono">68.06</span> (<span class="mono">2000+</span>).</li>
+          <li><b>Openings can flip the “expected” edge:</b> several highly frequent openings in this sample skew toward Black in decisive results (e.g., <span class="mono">A00 Van’t Kruijs</span>, <span class="mono">B20 Bowdler Attack</span>).</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Dataset Overview & Game Distribution</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="label">Total Games</div><div class="value">20,058</div><div class="note">Rows analyzed (after required-field parsing).</div></div>
+          <div class="kpi"><div class="label">Rated Share</div><div class="value">80.5%</div><div class="note">Rated: 16,155 · Unrated: 3,903</div></div>
+          <div class="kpi"><div class="label">Draw Rate</div><div class="value">4.7%</div><div class="note">Winner == <span class="mono">draw</span>.</div></div>
+        </div>
+        <div class="twoCol" style="margin-top:12px"> 
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Winner Distribution</div><div class="s">all games</div></div>
+            <div id="chart_winner"></div>
+          </div>
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Victory Status Distribution</div><div class="s">all games</div></div>
+            <div id="chart_victory"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>White vs. Black: The First-Move Advantage (Centerpiece)</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="label">White Win Rate (Decisive)</div><div class="value">52.34%</div><div class="note">Decisive games only: 19,108 (excludes 950 draws).</div></div>
+          <div class="kpi"><div class="label">Advantage vs 50%</div><div class="value">+2.34 pp</div><div class="note">Difference from parity in decisive games.</div></div>
+          <div class="kpi"><div class="label">95% CI (Wilson)</div><div class="value">51.63%–53.05%</div><div class="note">Sampling uncertainty of the observed White decisive win rate.</div></div>
+        </div>
+
+        <div class="twoCol" style="margin-top:12px">
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">White Decisive Win Rate by Rating Bracket</div><div class="s">excludes draws</div></div>
+            <div id="chart_white_by_rating"></div>
+          </div>
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">White Decisive Win Rate by Time Control Bucket</div><div class="s">excludes draws</div></div>
+            <div id="chart_white_by_tc"></div>
+          </div>
+        </div>
+
+        <div class="chartbox" style="margin-top:14px">
+          <div class="chartTitle"><div class="t">Heatmap: White Decisive Win Rate by Rating Bracket × Time Control</div><div class="s">cell text: win% (n decisive)</div></div>
+          <div id="chart_heatmap"></div>
+          <div class="muted small" style="margin-top:8px">Note: some buckets (especially Bullet and 2000+ Classical) have small sample sizes; interpret those cells cautiously.</div>
+        </div>
+
+        <div class="chartbox" style="margin-top:14px">
+          <div class="chartTitle"><div class="t">White Share by Victory Status</div><div class="s">within each ending type, decisive only</div></div>
+          <div id="chart_white_by_victory_status"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Rating Dynamics and Their Impact on Outcomes</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="label">Rating (All Players) Mean</div><div class="value">1592.7</div><div class="note">Min/Median/Max: 784 / 1564 / 2723</div></div>
+          <div class="kpi"><div class="label">P(High-rated Wins) vs |ΔElo| (corr)</div><div class="value">0.229</div><div class="note">Pearson correlation of |white-black| and (higher-rated wins) over decisive games (n=18,918).</div></div>
+          <div class="kpi"><div class="label">Average Game Length</div><div class="value">60.47</div><div class="note">Mean turns across all games; see breakdowns below.</div></div>
+        </div>
+
+        <div class="twoCol" style="margin-top:12px">
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Rating Distribution (All Players)</div><div class="s">histogram</div></div>
+            <div id="chart_ratings"></div>
+          </div>
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Average Turns by Victory Status</div><div class="s">mean turns</div></div>
+            <div id="chart_turns_by_victory"></div>
+          </div>
+        </div>
+
+        <div class="chartbox" style="margin-top:14px">
+          <div class="chartTitle"><div class="t">Rating Differential Impact (Binned)</div><div class="s">x = (White−Black) Elo</div></div>
+          <div id="chart_rating_diff"></div>
+          <div class="muted small" style="margin-top:8px">Interpretation: left of 0 means Black is higher-rated; right of 0 means White is higher-rated. Bars show White win rate (including draws as non-wins), while the line shows higher-rated win rate on decisive games.</div>
+        </div>
+
+        <div class="chartbox" style="margin-top:14px">
+          <div class="chartTitle"><div class="t">Average Turns by Rating Bracket</div><div class="s">mean turns</div></div>
+          <div id="chart_turns_by_rating"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Opening Analysis: Popular Openings and Their Success Rates</h2>
+        <div class="twoCol">
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Top Openings (by frequency)</div><div class="s">top 15</div></div>
+            <div id="chart_openings"></div>
+          </div>
+          <div class="chartbox">
+            <div class="chartTitle"><div class="t">Opening Depth (opening_ply) vs Outcome Mix</div><div class="s">bucketed</div></div>
+            <div id="chart_opening_ply"></div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:14px">Top openings table (depth over breadth)</h3>
+        <div class="chartbox">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>ECO</th>
+                <th>Opening</th>
+                <th class="mono">n</th>
+                <th>White win (decisive)</th>
+                <th>Black win (decisive)</th>
+                <th>Draw rate</th>
+              </tr>
+            </thead>
+            <tbody id="tbl_openings"></tbody>
+          </table>
+          <div class="muted small" style="margin-top:8px">Decisive win rates exclude draws. Draw rate is over all games for that opening.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Time Control Patterns and Game Characteristics</h2>
+        <div class="chartbox">
+          <div class="chartTitle"><div class="t">Most Common Time Controls</div><div class="s">top 10 increment_code</div></div>
+          <div id="chart_time_controls"></div>
+        </div>
+        <div class="muted small" style="margin-top:10px">This dataset contains 400 distinct increment codes; the chart focuses on the most frequent for interpretability.</div>
+      </section>
+
+      <section class="card">
+        <h2>Notes on Data Integrity</h2>
+        <ul class="small">
+          <li>All numbers and charts are computed directly from <span class="mono">benchmark/data.csv</span> (no external priors).</li>
+          <li>“White win rate” is reported as a <b>decisive win rate</b> (excluding draws) when stated explicitly; draw rate is always reported separately.</li>
+          <li>Some segmentations (notably Bullet and high-rating Classical) have low n; the report flags this where relevant.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const DATA = {"n_games":20058,"winner":{"white":10001,"black":9107,"draw":950},"victory_status":{"resign":11147,"mate":6325,"outoftime":1680,"draw":906},"white_by_rating":[{"label":"<1200","white_dec":0.5266005410279531,"n_dec":1109},{"label":"1200–1399","white_dec":0.5379407616361072,"n_dec":3545},{"label":"1400–1599","white_dec":0.5215598694382408,"n_dec":5821},{"label":"1600–1799","white_dec":0.5221298584587734,"n_dec":4451},{"label":"1800–1999","white_dec":0.5180164109882269,"n_dec":2803},{"label":"2000+","white_dec":0.5061638868745467,"n_dec":1379}],"white_by_tc":[{"label":"Bullet","white_dec":0.4566929133858268,"n_dec":127},{"label":"Blitz","white_dec":0.5240398293029872,"n_dec":3515},{"label":"Rapid","white_dec":0.5229261463073154,"n_dec":14285},{"label":"Classical","white_dec":0.5342929720575783,"n_dec":1181}],"heatmap":{"xLabels":["Bullet","Blitz","Rapid","Classical"],"yLabels":["<1200","1200–1399","1400–1599","1600–1799","1800–1999","2000+"],"grid":[[{"value":0.25,"n":12},{"value":0.5759493670886076,"n":158},{"value":0.5229468599033816,"n":828},{"value":0.5135135135135135,"n":111}],[{"value":0.6129032258064516,"n":31},{"value":0.5106382978723404,"n":658},{"value":0.5457328740910831,"n":2613},{"value":0.5185185185185185,"n":243}],[{"value":0.5185185185185185,"n":27},{"value":0.5292066259808196,"n":1147},{"value":0.519298245614035,"n":4275},{"value":0.5241935483870968,"n":372}],[{"value":0.45,"n":20},{"value":0.5103359173126615,"n":774},{"value":0.523462547362285,"n":3431},{"value":0.5486725663716814,"n":226}],[{"value":0.4,"n":25},{"value":0.5443037974683544,"n":474},{"value":0.5089986155976004,"n":2167},{"value":0.5912408759124088,"n":137}],[{"value":0.25,"n":12},{"value":0.5098684210526315,"n":304},{"value":0.5066941297631308,"n":971},{"value":0.5217391304347826,"n":92}]]},"white_by_victory_status":[{"label":"mate","white_dec":0.528695652173913,"n_dec":6325},{"label":"resign","white_dec":0.5242666188212075,"n_dec":11147},{"label":"timeout","white_dec":0.4969437652811736,"n_dec":1636}],"rating_hist":{"bins":[{"label":"700–799","count":12},{"label":"800–899","count":134},{"label":"900–999","count":408},{"label":"1000–1099","count":869},{"label":"1100–1199","count":1860},{"label":"1200–1299","count":2902},{"label":"1300–1399","count":4066},{"label":"1400–1499","count":4761},{"label":"1500–1599","count":6841},{"label":"1600–1699","count":4557},{"label":"1700–1799","count":4083},{"label":"1800–1899","count":3606},{"label":"1900–1999","count":2420},{"label":"2000–2099","count":1475},{"label":"2100–2199","count":1008},{"label":"2200–2299","count":712},{"label":"2300–2399","count":207},{"label":"2400–2499","count":126},{"label":"2500–2599","count":23},{"label":"2600–2699","count":44},{"label":"2700–2799","count":2}]},"turns_by_victory":[{"label":"resign","avg_turns":53.91253251996053},{"label":"mate","avg_turns":65.41501976284584},{"label":"outoftime","avg_turns":72.74285714285715},{"label":"draw","avg_turns":83.78145695364239}],"turns_by_rating":[{"label":"<1200","avg_turns":49.99657827202737},{"label":"1200–1399","avg_turns":53.806635844438404},{"label":"1400–1599","avg_turns":59.26524892845367},{"label":"1600–1799","avg_turns":63.28525641025641},{"label":"1800–1999","avg_turns":67.01617795753286},{"label":"2000+","avg_turns":68.05803869246164}],"rating_diff_bins":[{"label":"[-1000,-400)","label_short":"-1000..-400","white_win_rate":0.15472481827622014,"higher_rated_win_rate_decisive":0.8414893617021276,"n":963},{"label":"[-400,-300)","label_short":"-400..-300","white_win_rate":0.18733153638814015,"higher_rated_win_rate_decisive":0.8069444444444445,"n":742},{"label":"[-300,-200)","label_short":"-300..-200","white_win_rate":0.26263399693721284,"higher_rated_win_rate_decisive":0.7244979919678715,"n":1306},{"label":"[-200,-150)","label_short":"-200..-150","white_win_rate":0.3248898678414097,"higher_rated_win_rate_decisive":0.6561771561771562,"n":908},{"label":"[-150,-100)","label_short":"-150..-100","white_win_rate":0.3550893550893551,"higher_rated_win_rate_decisive":0.6263286999182338,"n":1287},{"label":"[-100,-50)","label_short":"-100..-50","white_win_rate":0.4120909595119246,"higher_rated_win_rate_decisive":0.5613931523022432,"n":1803},{"label":"[-50,0)","label_short":"-50..0","white_win_rate":0.4727065959059894,"higher_rated_win_rate_decisive":0.5004006410256411,"n":2638},{"label":"[0,50)","label_short":"0..50","white_win_rate":0.501973448152135,"higher_rated_win_rate_decisive":0.532462229481421,"n":2787},{"label":"[50,100)","label_short":"50..100","white_win_rate":0.5776495278069255,"higher_rated_win_rate_decisive":0.6062775330396476,"n":1906},{"label":"[100,150)","label_short":"100..150","white_win_rate":0.6244541484716157,"higher_rated_win_rate_decisive":0.6564651874521805,"n":1374},{"label":"[150,200)","label_short":"150..200","white_win_rate":0.6565557729941291,"higher_rated_win_rate_decisive":0.6826042726347915,"n":1022},{"label":"[200,300)","label_short":"200..300","white_win_rate":0.7450549450549451,"higher_rated_win_rate_decisive":0.7781178270849273,"n":1365},{"label":"[300,400)","label_short":"300..400","white_win_rate":0.7806122448979592,"higher_rated_win_rate_decisive":0.8052631578947368,"n":784},{"label":"[400,1000)","label_short":"400+","white_win_rate":0.8370837083708371,"higher_rated_win_rate_decisive":0.8781869688385269,"n":1111}],"top_openings":[{"eco":"A00","name":"Van't Kruijs Opening","n":368,"white_dec":0.35795454545454547,"black_dec":0.6420454545454546,"draw_rate":0.043478260869565216},{"eco":"B20","name":"Sicilian Defense: Bowdler Attack","n":296,"white_dec":0.4204946996466431,"black_dec":0.5795053003533569,"draw_rate":0.04391891891891892},{"eco":"C00","name":"French Defense: Knight Variation","n":271,"white_dec":0.52734375,"black_dec":0.47265625,"draw_rate":0.055350553505535055},{"eco":"B01","name":"Scandinavian Defense: Mieses-Kotroc Variation","n":259,"white_dec":0.6482213438735178,"black_dec":0.35177865612648224,"draw_rate":0.023166023166023165},{"eco":"D00","name":"Queen's Pawn Game: Mason Attack","n":232,"white_dec":0.5296803652968036,"black_dec":0.4703196347031963,"draw_rate":0.05603448275862069},{"eco":"B01","name":"Scandinavian Defense","n":223,"white_dec":0.4225352112676056,"black_dec":0.5774647887323944,"draw_rate":0.04484304932735426},{"eco":"A40","name":"Horwitz Defense","n":209,"white_dec":0.5392156862745098,"black_dec":0.46078431372549017,"draw_rate":0.023923444976076555},{"eco":"C41","name":"Philidor Defense #3","n":198,"white_dec":0.654639175257732,"black_dec":0.34536082474226804,"draw_rate":0.020202020202020204},{"eco":"C41","name":"Philidor Defense #2","n":193,"white_dec":0.4810810810810811,"black_dec":0.518918918918919,"draw_rate":0.04145077720207254},{"eco":"A45","name":"Indian Game","n":181,"white_dec":0.40828402366863903,"black_dec":0.591715976331361,"draw_rate":0.06629834254143646},{"eco":"C55","name":"Italian Game: Anti-Fried Liver Defense","n":180,"white_dec":0.5705882352941176,"black_dec":0.4294117647058823,"draw_rate":0.05555555555555555},{"eco":"B50","name":"Sicilian Defense","n":171,"white_dec":0.4658385093167702,"black_dec":0.5341614906832298,"draw_rate":0.05847953216374269},{"eco":"B00","name":"Owen Defense","n":168,"white_dec":0.4779874213836478,"black_dec":0.5220125786163522,"draw_rate":0.05357142857142857},{"eco":"C20","name":"King's Pawn Game: Wayward Queen Attack","n":164,"white_dec":0.46835443037974683,"black_dec":0.5316455696202531,"draw_rate":0.036585365853658534},{"eco":"B30","name":"Sicilian Defense: Old Sicilian","n":159,"white_dec":0.39215686274509803,"black_dec":0.6078431372549019,"draw_rate":0.03773584905660377}],"opening_ply_buckets":[{"label":"0–3","n":7522,"mate_rate":0.34791278915182133,"resign_rate":0.5184791278915182,"outoftime_rate":0.0894708854028184,"draw_rate":0.044137197553842066,"avg_turns":58.32650890720553},{"label":"4–5","n":6038,"mate_rate":0.3188141768797615,"resign_rate":0.5526664458429944,"outoftime_rate":0.08512752567075191,"draw_rate":0.04339185160649221,"avg_turns":61.71199072540576},{"label":"6–7","n":3364,"mate_rate":0.2984542211652794,"resign_rate":0.5847205707491082,"outoftime_rate":0.07401902497027349,"draw_rate":0.04280618311533888,"avg_turns":60.230975029726515},{"label":"8–9","n":1803,"mate_rate":0.266777592900721,"resign_rate":0.6156405990016639,"outoftime_rate":0.07210205213533001,"draw_rate":0.04547975596228508,"avg_turns":62.064891846921796},{"label":"10–11","n":857,"mate_rate":0.23687281213535588,"resign_rate":0.6102683780630105,"outoftime_rate":0.09101516919486581,"draw_rate":0.061843640606767794,"avg_turns":63.91365227537923},{"label":"12–15","n":369,"mate_rate":0.1951219512195122,"resign_rate":0.6558265582655827,"outoftime_rate":0.08130081300813008,"draw_rate":0.06775067750677506,"avg_turns":68.14092140921409},{"label":"16+","n":105,"mate_rate":0.21904761904761905,"resign_rate":0.6476190476190476,"outoftime_rate":0.05714285714285714,"draw_rate":0.0761904761904762,"avg_turns":67.04761904761905}],"top_time_controls":[{"code":"10+0","n":7721,"avg_turns":62.84924232612356,"resign_rate":0.5431938868022277,"mate_rate":0.32146095065406033,"outoftime_rate":0.09882139619220308,"draw_rate":0.03652376635150887},{"code":"15+0","n":1311,"avg_turns":60.532418001525556,"resign_rate":0.5461479786422578,"mate_rate":0.3325705568268497,"outoftime_rate":0.08237986270022883,"draw_rate":0.038901601830663615},{"code":"15+15","n":850,"avg_turns":56.96,"resign_rate":0.5694117647058824,"mate_rate":0.34823529411764703,"outoftime_rate":0.036470588235294116,"draw_rate":0.04588235294117647},{"code":"5+5","n":738,"avg_turns":61.25609756097561,"resign_rate":0.559620596205962,"mate_rate":0.3062330623306233,"outoftime_rate":0.0948509485094851,"draw_rate":0.03929539295392954},{"code":"5+8","n":697,"avg_turns":54.07604017216643,"resign_rate":0.5652797704447633,"mate_rate":0.3084648493543759,"outoftime_rate":0.09182209469153516,"draw_rate":0.03443328550932568},{"code":"8+0","n":588,"avg_turns":67.93027210884354,"resign_rate":0.4914965986394558,"mate_rate":0.28401360544217685,"outoftime_rate":0.17857142857142858,"draw_rate":0.04591836734693878},{"code":"10+5","n":579,"avg_turns":56.46286701208981,"resign_rate":0.5803108808290155,"mate_rate":0.30915371329879104,"outoftime_rate":0.07426597582037997,"draw_rate":0.03626943005181347},{"code":"15+10","n":461,"avg_turns":63.4295010845987,"resign_rate":0.6377440347071583,"mate_rate":0.23644251626898047,"outoftime_rate":0.04772234273318872,"draw_rate":0.07809110629067245},{"code":"20+0","n":448,"avg_turns":57.453125,"resign_rate":0.5178571428571429,"mate_rate":0.3861607142857143,"outoftime_rate":0.05357142857142857,"draw_rate":0.04241071428571429},{"code":"30+0","n":375,"avg_turns":53.896,"resign_rate":0.5973333333333334,"mate_rate":0.32,"outoftime_rate":0.032,"draw_rate":0.050666666666666665}]};
+
+    function el(tag, attrs={}, children=[]) {
+      const node = document.createElement(tag);
+      for (const [k,v] of Object.entries(attrs)) {
+        if (k === 'class') node.className = v;
+        else if (k === 'text') node.textContent = v;
+        else node.setAttribute(k, v);
+      }
+      for (const ch of children) node.appendChild(ch);
+      return node;
+    }
+
+    function fmtPct(x, digits=1) {
+      if (x === null || x === undefined || Number.isNaN(x)) return '—';
+      return (x * 100).toFixed(digits) + '%';
+    }
+    function fmtNum(x, digits=2) {
+      if (x === null || x === undefined || Number.isNaN(x)) return '—';
+      return Number(x).toFixed(digits);
+    }
+    function fmtInt(x) {
+      if (x === null || x === undefined || Number.isNaN(x)) return '—';
+      return Math.round(x).toLocaleString();
+    }
+
+    // --- Minimal SVG chart helpers (no external deps) ---
+    function svgBase(width, height) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const s = document.createElementNS(ns, 'svg');
+      s.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      s.setAttribute('class', 'svg');
+      return s;
+    }
+    function svgEl(tag, attrs={}) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const n = document.createElementNS(ns, tag);
+      for (const [k,v] of Object.entries(attrs)) n.setAttribute(k, v);
+      return n;
+    }
+    function addText(svg, x, y, text, opts={}) {
+      const t = svgEl('text', { x, y, fill: opts.fill || 'rgba(255,255,255,0.85)', 'font-size': opts.size || 12, 'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' });
+      if (opts.anchor) t.setAttribute('text-anchor', opts.anchor);
+      if (opts.weight) t.setAttribute('font-weight', opts.weight);
+      t.textContent = text;
+      svg.appendChild(t);
+    }
+
+    function barChart(containerId, series, opts) {
+      // series: array of {label, value, color, note}; value in [0,1] or any positive.
+      const elc = document.getElementById(containerId);
+      const W = opts.width || 760;
+      const H = opts.height || 240;
+      const padL = 56, padR = 18, padT = 18, padB = 42;
+      const svg = svgBase(W, H);
+      const maxV = (opts.max !== undefined) ? opts.max : Math.max(...series.map(d => d.value));
+      const minV = (opts.min !== undefined) ? opts.min : 0;
+      const innerW = W - padL - padR;
+      const innerH = H - padT - padB;
+
+      // grid + y-axis labels
+      const ticks = opts.ticks || 5;
+      for (let i=0;i<=ticks;i++) {
+        const y = padT + innerH - (innerH * i / ticks);
+        svg.appendChild(svgEl('line', { x1: padL, y1: y, x2: W-padR, y2: y, stroke: 'rgba(255,255,255,0.10)' }));
+        const v = minV + (maxV - minV) * i / ticks;
+        const lbl = opts.formatY ? opts.formatY(v) : fmtNum(v);
+        addText(svg, padL - 8, y + 4, lbl, { anchor:'end', size: 11, fill:'rgba(255,255,255,0.65)' });
+      }
+      if (opts.ref50) {
+        const y = padT + innerH - innerH * (0.5 - minV) / (maxV - minV);
+        svg.appendChild(svgEl('line', { x1: padL, y1: y, x2: W-padR, y2: y, stroke: 'rgba(122,162,255,0.65)', 'stroke-dasharray':'4 4' }));
+        addText(svg, W-padR, y - 6, '50%', { anchor:'end', size: 11, fill:'rgba(122,162,255,0.9)' });
+      }
+
+      const n = series.length;
+      const gap = Math.min(12, innerW * 0.12 / Math.max(1,n));
+      const bw = (innerW - gap*(n-1)) / n;
+
+      series.forEach((d, i) => {
+        const x = padL + i*(bw+gap);
+        const v = Math.max(minV, Math.min(maxV, d.value));
+        const h = (v - minV) / (maxV - minV) * innerH;
+        const y = padT + innerH - h;
+        svg.appendChild(svgEl('rect', { x, y, width: bw, height: h, rx: 6, fill: d.color || 'rgba(122,162,255,0.85)' }));
+        if (opts.showValues) {
+          const valTxt = opts.formatValue ? opts.formatValue(d.value) : fmtNum(d.value);
+          addText(svg, x + bw/2, y - 6, valTxt, { anchor:'middle', size: 11, fill:'rgba(255,255,255,0.85)' });
+        }
+        // x labels
+        addText(svg, x + bw/2, H - 18, d.label, { anchor:'middle', size: 11, fill:'rgba(255,255,255,0.75)' });
+        if (d.note) addText(svg, x + bw/2, H - 4, d.note, { anchor:'middle', size: 10, fill:'rgba(255,255,255,0.55)' });
+      });
+
+      elc.innerHTML = '';
+      elc.appendChild(svg);
+    }
+
+    function stackedBarChart(containerId, series, stackKeys, opts) {
+      // series: array of {label, values:{key: fraction}}
+      const elc = document.getElementById(containerId);
+      const W = opts.width || 900;
+      const H = opts.height || 280;
+      const padL = 140, padR = 18, padT = 14, padB = 24;
+      const svg = svgBase(W, H);
+      const innerW = W - padL - padR;
+      const innerH = H - padT - padB;
+
+      const n = series.length;
+      const barH = Math.min(24, innerH / Math.max(1,n) - 6);
+      const gap = Math.max(8, (innerH - n*barH) / Math.max(1,n-1));
+      const colors = opts.colors || {};
+
+      // grid
+      for (let i=0;i<=5;i++) {
+        const x = padL + innerW * i / 5;
+        svg.appendChild(svgEl('line', { x1:x, y1:padT, x2:x, y2:H-padB, stroke:'rgba(255,255,255,0.10)' }));
+        addText(svg, x, H-6, (i*20)+'%', { anchor:'middle', size:10, fill:'rgba(255,255,255,0.55)' });
+      }
+
+      series.forEach((d, i) => {
+        const y = padT + i*(barH + gap);
+        addText(svg, padL - 10, y + barH*0.72, d.label, { anchor:'end', size: 11, fill:'rgba(255,255,255,0.80)' });
+        let x0 = padL;
+        stackKeys.forEach((k) => {
+          const frac = d.values[k] || 0;
+          const w = innerW * frac;
+          if (w > 0.5) {
+            svg.appendChild(svgEl('rect', { x:x0, y, width:w, height:barH, rx:6, fill: colors[k] || 'rgba(122,162,255,0.8)' }));
+          }
+          x0 += w;
+        });
+      });
+
+      // legend
+      const lx = padL;
+      let ly = 10;
+      stackKeys.forEach((k, idx) => {
+        const x = lx + idx*170;
+        svg.appendChild(svgEl('rect', { x, y: ly, width: 10, height: 10, fill: (opts.colors||{})[k] || 'rgba(122,162,255,0.8)' }));
+        addText(svg, x+14, ly+10, opts.legend?.[k] || k, { size: 11, fill:'rgba(255,255,255,0.75)', anchor:'start' });
+      });
+
+      elc.innerHTML='';
+      elc.appendChild(svg);
+    }
+
+    function heatmap(containerId, grid, xLabels, yLabels, opts) {
+      const elc = document.getElementById(containerId);
+      const W = opts.width || 980;
+      const H = opts.height || 320;
+      const padL = 140, padR = 18, padT = 38, padB = 30;
+      const svg = svgBase(W, H);
+      const innerW = W - padL - padR;
+      const innerH = H - padT - padB;
+      const cols = xLabels.length;
+      const rows = yLabels.length;
+      const cellW = innerW / cols;
+      const cellH = innerH / rows;
+
+      const vMin = opts.min ?? 0.45;
+      const vMax = opts.max ?? 0.60;
+      function colorScale(v) {
+        if (v === null || v === undefined || Number.isNaN(v)) return 'rgba(255,255,255,0.06)';
+        const t = Math.max(0, Math.min(1, (v - vMin) / (vMax - vMin)));
+        // blue -> green
+        const r = Math.round(80 + 20 * (1-t));
+        const g = Math.round(120 + 120 * t);
+        const b = Math.round(210 - 60 * t);
+        return `rgba(${r},${g},${b},0.88)`;
+      }
+
+      // labels
+      xLabels.forEach((xl, c) => addText(svg, padL + c*cellW + cellW/2, 24, xl, { anchor:'middle', size: 11, fill:'rgba(255,255,255,0.80)' }));
+      yLabels.forEach((yl, r) => addText(svg, padL - 10, padT + r*cellH + cellH/2 + 4, yl, { anchor:'end', size: 11, fill:'rgba(255,255,255,0.80)' }));
+
+      for (let r=0;r<rows;r++) {
+        for (let c=0;c<cols;c++) {
+          const cell = grid[r][c];
+          const x = padL + c*cellW;
+          const y = padT + r*cellH;
+          svg.appendChild(svgEl('rect', { x, y, width: cellW-3, height: cellH-3, rx: 10, fill: colorScale(cell.value) }));
+          const txt = (cell.value === null || cell.value === undefined || Number.isNaN(cell.value)) ? '—' : (cell.value*100).toFixed(1)+'%';
+          addText(svg, x + cellW/2, y + cellH/2 + 4, txt, { anchor:'middle', size: 12, fill:'rgba(0,0,0,0.75)', weight: 700 });
+          addText(svg, x + cellW/2, y + cellH/2 + 18, `n=${cell.n}`, { anchor:'middle', size: 10, fill:'rgba(0,0,0,0.60)', weight: 600 });
+        }
+      }
+
+      elc.innerHTML='';
+      elc.appendChild(svg);
+    }
+
+    function comboBarLine(containerId, bars, line, opts) {
+      const elc = document.getElementById(containerId);
+      const W = opts.width || 980;
+      const H = opts.height || 320;
+      const padL = 64, padR = 38, padT = 16, padB = 52;
+      const svg = svgBase(W, H);
+      const innerW = W - padL - padR;
+      const innerH = H - padT - padB;
+
+      const yMin = opts.yMin ?? 0;
+      const yMax = opts.yMax ?? 1;
+      function yScale(v) {
+        return padT + innerH - innerH * (v - yMin) / (yMax - yMin);
+      }
+
+      // grid + y labels
+      for (let i=0;i<=5;i++) {
+        const y = padT + innerH - innerH*i/5;
+        svg.appendChild(svgEl('line', { x1:padL, y1:y, x2:W-padR, y2:y, stroke:'rgba(255,255,255,0.10)' }));
+        addText(svg, padL-8, y+4, (i*20)+'%', { anchor:'end', size: 11, fill:'rgba(255,255,255,0.60)' });
+      }
+      // x axis
+      svg.appendChild(svgEl('line', { x1:padL, y1:padT+innerH, x2:W-padR, y2:padT+innerH, stroke:'rgba(255,255,255,0.20)' }));
+
+      const n = bars.length;
+      const bw = innerW / n;
+      // bars
+      bars.forEach((d, i) => {
+        const x = padL + i*bw + 2;
+        const y = yScale(d.value);
+        const h = (padT + innerH) - y;
+        svg.appendChild(svgEl('rect', { x, y, width: bw-4, height: h, rx: 4, fill: 'rgba(122,162,255,0.65)' }));
+        addText(svg, x + (bw-4)/2, H-20, d.label, { anchor:'middle', size: 10, fill:'rgba(255,255,255,0.75)' });
+      });
+
+      // line
+      const pts = line.map((d, i) => [padL + i*bw + bw/2, yScale(d.value)]);
+      const path = pts.map((p,i)=> (i===0?`M ${p[0]} ${p[1]}`:`L ${p[0]} ${p[1]}`)).join(' ');
+      svg.appendChild(svgEl('path', { d: path, fill: 'none', stroke: 'rgba(54,211,153,0.95)', 'stroke-width': 2.5 }));
+      pts.forEach((p, i) => {
+        svg.appendChild(svgEl('circle', { cx:p[0], cy:p[1], r:3.2, fill:'rgba(54,211,153,0.95)' }));
+      });
+      addText(svg, W-padR, padT+14, 'Line: higher-rated win% (decisive)', { anchor:'end', size: 11, fill:'rgba(54,211,153,0.95)' });
+      addText(svg, W-padR, padT+30, 'Bars: white win% (all games)', { anchor:'end', size: 11, fill:'rgba(122,162,255,0.8)' });
+
+      elc.innerHTML='';
+      elc.appendChild(svg);
+    }
+
+    // --- Render charts ---
+    (function render() {
+      const winner = DATA.winner;
+      barChart('chart_winner', [
+        {label:'White', value: winner.white / DATA.n_games, color:'rgba(122,162,255,0.85)', note:`n=${winner.white.toLocaleString()}`},
+        {label:'Black', value: winner.black / DATA.n_games, color:'rgba(251,113,133,0.80)', note:`n=${winner.black.toLocaleString()}`},
+        {label:'Draw',  value: winner.draw  / DATA.n_games, color:'rgba(255,255,255,0.35)', note:`n=${winner.draw.toLocaleString()}`},
+      ], { max: 0.60, ticks: 5, formatY: v => (v*100).toFixed(0)+'%', showValues:true, formatValue: v => (v*100).toFixed(1)+'%', });
+
+      const victory = DATA.victory_status;
+      const vSeries = [
+        {label:'Resign', value: victory.resign / DATA.n_games, color:'rgba(255,255,255,0.55)', note:`n=${victory.resign.toLocaleString()}`},
+        {label:'Mate', value: victory.mate / DATA.n_games, color:'rgba(54,211,153,0.85)', note:`n=${victory.mate.toLocaleString()}`},
+        {label:'Timeout', value: victory.outoftime / DATA.n_games, color:'rgba(251,191,36,0.85)', note:`n=${victory.outoftime.toLocaleString()}`},
+        {label:'Draw', value: victory.draw / DATA.n_games, color:'rgba(255,255,255,0.30)', note:`n=${victory.draw.toLocaleString()}`},
+      ];
+      barChart('chart_victory', vSeries, { max: 0.65, ticks: 5, formatY: v => (v*100).toFixed(0)+'%', showValues:true, formatValue: v => (v*100).toFixed(1)+'%', });
+
+      // White by rating bracket
+      const wrb = DATA.white_by_rating;
+      barChart('chart_white_by_rating', wrb.map(d => ({label:d.label, value:d.white_dec, color:'rgba(122,162,255,0.85)', note:`n=${d.n_dec.toLocaleString()}`})),
+        { min: 0.48, max: 0.58, ticks: 5, formatY: v => (v*100).toFixed(0)+'%', showValues:true, formatValue: v => (v*100).toFixed(1)+'%', ref50:true });
+
+      // White by time control bucket
+      const wtc = DATA.white_by_tc;
+      barChart('chart_white_by_tc', wtc.map(d => ({label:d.label, value:d.white_dec, color:'rgba(122,162,255,0.85)', note:`n=${d.n_dec.toLocaleString()}`})),
+        { min: 0.44, max: 0.58, ticks: 7, formatY: v => (v*100).toFixed(0)+'%', showValues:true, formatValue: v => (v*100).toFixed(1)+'%', ref50:true });
+
+      // Heatmap
+      heatmap('chart_heatmap', DATA.heatmap.grid, DATA.heatmap.xLabels, DATA.heatmap.yLabels, { min: 0.48, max: 0.58 });
+
+      // White by victory status (decisive)
+      const wvs = DATA.white_by_victory_status;
+      barChart('chart_white_by_victory_status', wvs.map(d => ({label:d.label, value:d.white_dec, color:'rgba(122,162,255,0.85)', note:`n=${d.n_dec.toLocaleString()}`})),
+        { min: 0.45, max: 0.56, ticks: 6, formatY: v => (v*100).toFixed(0)+'%', showValues:true, formatValue: v => (v*100).toFixed(1)+'%', ref50:true });
+
+      // Rating histogram
+      barChart('chart_ratings', DATA.rating_hist.bins.map(b => ({label:b.label, value:b.count, color:'rgba(255,255,255,0.55)'})),
+        { min: 0, max: Math.max(...DATA.rating_hist.bins.map(b => b.count))*1.05, ticks: 5, formatY: v => fmtInt(v) });
+
+      // Turns by victory
+      barChart('chart_turns_by_victory', DATA.turns_by_victory.map(d => ({label:d.label, value:d.avg_turns, color:'rgba(255,255,255,0.55)'})),
+        { min: 0, max: Math.max(...DATA.turns_by_victory.map(d => d.avg_turns))*1.15, ticks: 5, formatY: v => fmtInt(v), showValues:true, formatValue: v => fmtInt(v) });
+
+      // Rating diff impact
+      comboBarLine('chart_rating_diff',
+        DATA.rating_diff_bins.map(d => ({label:d.label_short, value:d.white_win_rate})),
+        DATA.rating_diff_bins.map(d => ({label:d.label_short, value:d.higher_rated_win_rate_decisive})),
+        { yMin: 0, yMax: 1 }
+      );
+
+      // Turns by rating bracket
+      barChart('chart_turns_by_rating', DATA.turns_by_rating.map(d => ({label:d.label, value:d.avg_turns, color:'rgba(255,255,255,0.55)'})),
+        { min: 0, max: Math.max(...DATA.turns_by_rating.map(d => d.avg_turns))*1.15, ticks: 5, formatY: v => fmtInt(v), showValues:true, formatValue: v => fmtInt(v) });
+
+      // Openings chart: stacked decisive (white vs black) plus draw as separate fraction.
+      stackedBarChart('chart_openings',
+        DATA.top_openings.map(o => ({
+          label: `${o.eco} ${o.name} (n=${o.n})`,
+          values: { white: o.white_dec, black: o.black_dec, draw: o.draw_rate }
+        })),
+        ['white','black','draw'],
+        {
+          colors: { white:'rgba(122,162,255,0.85)', black:'rgba(251,113,133,0.80)', draw:'rgba(255,255,255,0.28)' },
+          legend: { white:'White (decisive)', black:'Black (decisive)', draw:'Draw rate' }
+        }
+      );
+
+      // Opening ply outcome mix
+      stackedBarChart('chart_opening_ply',
+        DATA.opening_ply_buckets.map(b => ({
+          label: `${b.label} (n=${b.n})`,
+          values: { mate: b.mate_rate, resign: b.resign_rate, outoftime: b.outoftime_rate, draw: b.draw_rate }
+        })),
+        ['resign','mate','outoftime','draw'],
+        {
+          colors: { resign:'rgba(255,255,255,0.55)', mate:'rgba(54,211,153,0.85)', outoftime:'rgba(251,191,36,0.85)', draw:'rgba(255,255,255,0.28)' },
+          legend: { resign:'Resign', mate:'Mate', outoftime:'Timeout', draw:'Draw' }
+        }
+      );
+
+      // Openings table
+      const tbody = document.getElementById('tbl_openings');
+      DATA.top_openings.forEach((o, idx) => {
+        const tr = document.createElement('tr');
+        const blackBetter = (o.black_dec > o.white_dec);
+        const cells = [
+          String(idx+1),
+          o.eco,
+          o.name,
+          String(o.n),
+          fmtPct(o.white_dec, 1),
+          fmtPct(o.black_dec, 1),
+          fmtPct(o.draw_rate, 1),
+        ];
+        cells.forEach((c, i) => {
+          const td = document.createElement('td');
+          td.textContent = c;
+          if (i===3) td.className = 'mono';
+          if (blackBetter && (i===5)) td.style.color = 'rgba(251,113,133,0.95)';
+          if (!blackBetter && (i===4)) td.style.color = 'rgba(122,162,255,0.95)';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      // Time controls chart
+      stackedBarChart('chart_time_controls',
+        DATA.top_time_controls.map(t => ({
+          label: `${t.code} (n=${t.n}; avg turns=${Math.round(t.avg_turns)})`,
+          values: { resign: t.resign_rate, mate: t.mate_rate, outoftime: t.outoftime_rate, draw: t.draw_rate }
+        })),
+        ['resign','mate','outoftime','draw'],
+        {
+          colors: { resign:'rgba(255,255,255,0.55)', mate:'rgba(54,211,153,0.85)', outoftime:'rgba(251,191,36,0.85)', draw:'rgba(255,255,255,0.28)' },
+          legend: { resign:'Resign', mate:'Mate', outoftime:'Timeout', draw:'Draw' }
+        }
+      );
+    })();
+  </script>
+</body>
+</html>

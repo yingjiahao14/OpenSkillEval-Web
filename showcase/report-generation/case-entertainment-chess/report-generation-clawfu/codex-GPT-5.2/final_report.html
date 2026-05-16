@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #0f1a30;
+      --card: #111f3a;
+      --text: #e7eefc;
+      --muted: #a9b7d6;
+      --grid: rgba(231, 238, 252, 0.12);
+      --accent: #6ee7ff;
+      --accent2: #a78bfa;
+      --good: #34d399;
+      --bad: #fb7185;
+      --warn: #fbbf24;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 800px at 15% 10%, rgba(110, 231, 255, 0.12), transparent 60%),
+                  radial-gradient(900px 700px at 85% 15%, rgba(167, 139, 250, 0.14), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.45;
+    }
+
+    .container { max-width: 1180px; margin: 0 auto; padding: 36px 22px 60px; }
+
+    header {
+      padding: 26px 24px;
+      background: linear-gradient(180deg, rgba(17,31,58,0.85), rgba(15,26,48,0.75));
+      border: 1px solid rgba(231,238,252,0.10);
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+    }
+    h1 { font-size: 30px; margin: 0 0 10px; letter-spacing: 0.2px; }
+    .subtitle { color: var(--muted); margin: 0; max-width: 980px; }
+    .meta { margin-top: 14px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+
+    h2 { margin: 34px 0 12px; font-size: 20px; }
+    h3 { margin: 20px 0 10px; font-size: 16px; color: #d7e2ff; }
+    p { color: var(--text); }
+    .muted { color: var(--muted); }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .card {
+      background: rgba(17,31,58,0.72);
+      border: 1px solid rgba(231,238,252,0.10);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+    }
+    .kpi-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .kpi-value { font-size: 22px; margin-top: 6px; font-family: var(--mono); }
+    .kpi-sub { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .grid2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; }
+    .panel {
+      background: rgba(15,26,48,0.55);
+      border: 1px solid rgba(231,238,252,0.10);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .chart { width: 100%; height: 360px; }
+    .chart.tall { height: 430px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid rgba(231,238,252,0.10); padding: 10px 8px; text-align: left; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+    td { font-family: var(--mono); font-size: 12px; color: #eaf1ff; }
+    .right { text-align: right; }
+    .nowrap { white-space: nowrap; }
+
+    .findings li { margin: 10px 0; color: var(--text); }
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(231,238,252,0.18);
+      color: var(--muted);
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: 12px;
+      color: #ffe9b0;
+      font-size: 13px;
+    }
+
+    .foot { margin-top: 30px; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1100px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid2 { grid-template-columns: 1fr; }
+      .chart { height: 320px; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</h1>
+      <p class="subtitle">A comprehensive analysis of over 20,000 Lichess chess games exploring win rates, opening strategies, rating dynamics, and game outcome patterns.</p>
+      <div class="meta">Generated: 2026-05-06 19:08 UTC • Source: benchmark/data.csv</div>
+      <div class="kpis">
+            <div class="card">
+              <div class="kpi-label">Games</div>
+              <div class="kpi-value">20,058</div>
+              <div class="kpi-sub">Rated: 16,155 • Casual: 3,903</div>
+            </div>
+            
+
+            <div class="card">
+              <div class="kpi-label">Decisive</div>
+              <div class="kpi-value">19,108</div>
+              <div class="kpi-sub">Draws: 950</div>
+            </div>
+            
+
+            <div class="card">
+              <div class="kpi-label">White win rate (decisive)</div>
+              <div class="kpi-value">52.34%</div>
+              <div class="kpi-sub">95% CI: 51.63%–53.05%</div>
+            </div>
+            
+
+            <div class="card">
+              <div class="kpi-label">Checkmate rate (all games)</div>
+              <div class="kpi-value">31.53%</div>
+              <div class="kpi-sub">victory_status == 'mate'</div>
+            </div>
+            
+
+            <div class="card">
+              <div class="kpi-label">Avg game length</div>
+              <div class="kpi-value">60.5 plies</div>
+              <div class="kpi-sub">turns (half-moves)</div>
+            </div>
+            
+
+            <div class="card">
+              <div class="kpi-label">Rating diff impact (corr)</div>
+              <div class="kpi-value">0.229</div>
+              <div class="kpi-sub">abs(Δrating) vs P(higher-rated wins)</div>
+            </div>
+            </div>
+    </header>
+
+    <section id="overview">
+      <h2>Dataset Overview &amp; Game Distribution</h2>
+      <div class="grid2">
+        <div class="panel">
+          <div id="chart_outcomes" class="chart"></div>
+          <div class="note">
+            All proportions and KPIs in this report are computed directly from <span class="badge">data.csv</span>. Where analyses exclude draws, the report labels those as <span class="badge">decisive games</span>.
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Outcome counts</h3>
+          <table>
+            <thead><tr><th>Metric</th><th class="right">Count</th></tr></thead>
+            <tbody>
+              <tr><td>Total games</td><td class="right">20,058</td></tr>
+              <tr><td>Rated</td><td class="right">16,155</td></tr>
+              <tr><td>Casual</td><td class="right">3,903</td></tr>
+              <tr><td>Decisive (white/black)</td><td class="right">19,108</td></tr>
+              <tr><td>Draws</td><td class="right">950</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Game length by end condition</h3>
+          <div id="chart_turns_by_status" class="chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="color-advantage">
+      <h2>White vs. Black: The First-Move Advantage</h2>
+      <div class="panel">
+        <p class="muted">Primary KPI definition: <span class="badge">White Win Rate</span> is computed on <span class="badge">decisive games</span> (excluding draws), as required in <span class="badge">task_input.json</span>.</p>
+        <div class="grid2">
+          <div>
+            <div id="chart_white_edge" class="chart"></div>
+          </div>
+          <div>
+            <h3>Decisive games by ending type</h3>
+            <div id="chart_white_by_status" class="chart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top: 14px;">
+        <h3>White win rate by rating bracket and time control (top time controls; n≥50)</h3>
+        <p class="muted">Each cell is the white win rate within that (rating bracket × increment_code) slice; the tooltip includes sample size and 95% Wilson CI.</p>
+        <div id="chart_color_grid" class="chart tall"></div>
+      </div>
+    </section>
+
+    <section id="rating-analysis">
+      <h2>Rating Dynamics and Their Impact on Outcomes</h2>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Win probability vs rating differential (white_rating − black_rating)</h3>
+          <p class="muted">Binned decisive-game win rates show how quickly outcomes shift with Elo gaps.</p>
+          <div id="chart_rating_diff" class="chart"></div>
+        </div>
+        <div class="panel">
+          <h3>Higher-rated win probability vs |Δrating|</h3>
+          <p class="muted">This reframes the question independent of color: how often does the stronger player win?</p>
+          <div id="chart_absdiff" class="chart"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top: 14px;">
+        <h3>Average game length by rating bracket (decisive games)</h3>
+        <div id="chart_turns_by_rating" class="chart"></div>
+      </div>
+    </section>
+
+    <section id="opening-strategy">
+      <h2>Opening Analysis: Popular Openings and Their Success Rates</h2>
+      <div class="panel">
+        <p class="muted">Focus: top 15 openings by frequency (ECO+name) among decisive games. Error bars reflect 95% Wilson CIs.</p>
+        <div id="chart_openings" class="chart tall"></div>
+      </div>
+
+      <div class="panel" style="margin-top: 14px;">
+        <h3>Opening depth (opening_ply) vs end condition</h3>
+        <div id="chart_opening_ply" class="chart"></div>
+      </div>
+    </section>
+
+    <section id="time-control">
+      <h2>Time Control Patterns and Game Characteristics</h2>
+      <div class="panel">
+        <p class="muted">Top 10 time controls by frequency; bars show end-condition shares. This section is descriptive (no causal claims).</p>
+        <div id="chart_time_control" class="chart tall"></div>
+      </div>
+    </section>
+
+    <section id="key-findings">
+      <h2>Key Findings and Strategic Takeaways</h2>
+      <div class="panel">
+    <ul class="findings">
+      <li><strong>White edge (decisive games):</strong> White wins 52.34% of decisive games (95% CI 51.63%–53.05%).</li>
+      <li><strong>Rating gaps matter:</strong> The correlation between abs(Δrating) and higher-rated win indicator is 0.229; binned curves show win probability rising sharply past ~150–200 Elo.</li>
+      <li><strong>How games end:</strong> Checkmates are 31.53% of all games; resignations dominate the outcome mix.</li>
+      <li><strong>Time trouble signature:</strong> Among the most common time controls, 8+0 has the highest timeout share (17.86%).</li>
+      <li><strong>Opening cautionary flag:</strong> In the top-15 openings by frequency (decisive games), black performs best vs white in <em>A00 — Van't Kruijs Opening</em> (white win rate 35.80%).</li>
+    </ul>
+    </div>
+    </section>
+
+    <div class="foot">
+      <div><strong>Dataset documentation:</strong> benchmark/source_brief.md (summarized in prose; all numbers from data.csv).</div>
+      <div><strong>Notes:</strong> "turns" are plies (half-moves), per dataset schema.</div>
+    </div>
+  </div>
+
+  <script>
+    const data_outcomes = [
+      {key: 'winner:white', value: 10001},
+      {key: 'winner:black', value: 9107},
+      {key: 'winner:draw', value: 950},
+      {key: 'victory:resign', value: 11147},
+      {key: 'victory:mate', value: 6325},
+      {key: 'victory:outoftime', value: 1680},
+      {key: 'victory:draw', value: 906},
+    ];
+
+    const by_status = [{"victory_status": "resign", "n": 11147, "p_white": 0.5242666188212075}, {"victory_status": "mate", "n": 6325, "p_white": 0.528695652173913}, {"victory_status": "outoftime", "n": 1636, "p_white": 0.4969437652811736}];
+    const by_rating_time = [{"rating_bracket": "1000\u20131199", "increment_code": "10+0", "n": 311, "p_white": 0.5241157556270096, "ci_lo": 0.46865436324504256, "ci_hi": 0.5789886419994995}, {"rating_bracket": "1000\u20131199", "increment_code": "15+0", "n": 63, "p_white": 0.5079365079365079, "ci_lo": 0.38762677115387556, "ci_hi": 0.6273339718564653}, {"rating_bracket": "1000\u20131199", "increment_code": "15+15", "n": 127, "p_white": 0.5196850393700787, "ci_lo": 0.43349673534507266, "ci_hi": 0.604717410614622}, {"rating_bracket": "1000\u20131199", "increment_code": "5+8", "n": 51, "p_white": 0.5294117647058824, "ci_lo": 0.3952307134472659, "ci_hi": 0.6594722857358359}, {"rating_bracket": "1200\u20131399", "increment_code": "10+0", "n": 1199, "p_white": 0.5496246872393661, "ci_lo": 0.5213485386838276, "ci_hi": 0.5775838560720571}, {"rating_bracket": "1200\u20131399", "increment_code": "15+0", "n": 234, "p_white": 0.5213675213675214, "ci_lo": 0.45753439435272936, "ci_hi": 0.5845103951206009}, {"rating_bracket": "1200\u20131399", "increment_code": "15+15", "n": 180, "p_white": 0.5111111111111111, "ci_lo": 0.438618730048297, "ci_hi": 0.5831391310669239}, {"rating_bracket": "1200\u20131399", "increment_code": "5+5", "n": 86, "p_white": 0.5232558139534884, "ci_lo": 0.41897641605458513, "ci_hi": 0.625546388525921}, {"rating_bracket": "1200\u20131399", "increment_code": "5+8", "n": 157, "p_white": 0.5159235668789809, "ci_lo": 0.438308661025277, "ci_hi": 0.5927778240631579}, {"rating_bracket": "1200\u20131399", "increment_code": "8+0", "n": 83, "p_white": 0.43373493975903615, "ci_lo": 0.33238992463542916, "ci_hi": 0.5409426717239195}, {"rating_bracket": "1400\u20131599", "increment_code": "10+0", "n": 2115, "p_white": 0.4983451536643026, "ci_lo": 0.47705821311092605, "ci_hi": 0.5196380949094563}, {"rating_bracket": "1400\u20131599", "increment_code": "15+0", "n": 393, "p_white": 0.5190839694656488, "ci_lo": 0.4697401221638857, "ci_hi": 0.5680583344495338}, {"rating_bracket": "1400\u20131599", "increment_code": "15+15", "n": 227, "p_white": 0.5594713656387665, "ci_lo": 0.49443051650074615, "ci_hi": 0.622532803802007}, {"rating_bracket": "1400\u20131599", "increment_code": "5+5", "n": 225, "p_white": 0.5155555555555555, "ci_lo": 0.4505426227283496, "ci_hi": 0.5800462212580583}, {"rating_bracket": "1400\u20131599", "increment_code": "5+8", "n": 247, "p_white": 0.5303643724696356, "ci_lo": 0.4681352224252493, "ci_hi": 0.5916634712523545}, {"rating_bracket": "1400\u20131599", "increment_code": "8+0", "n": 145, "p_white": 0.5448275862068965, "ci_lo": 0.463658273260272, "ci_hi": 0.6236829001751115}, {"rating_bracket": "1600\u20131799", "increment_code": "10+0", "n": 1903, "p_white": 0.5249605885444035, "ci_lo": 0.5024958550506367, "ci_hi": 0.5473247488212318}, {"rating_bracket": "1600\u20131799", "increment_code": "15+0", "n": 306, "p_white": 0.5555555555555556, "ci_lo": 0.4995327088754279, "ci_hi": 0.610200780752821}, {"rating_bracket": "1600\u20131799", "increment_code": "15+15", "n": 163, "p_white": 0.49079754601226994, "ci_lo": 0.4151513247890235, "ci_hi": 0.5668675482018851}, {"rating_bracket": "1600\u20131799", "increment_code": "5+5", "n": 193, "p_white": 0.5440414507772021, "ci_lo": 0.4735979211654248, "ci_hi": 0.6127659368808418}, {"rating_bracket": "1600\u20131799", "increment_code": "5+8", "n": 137, "p_white": 0.49635036496350365, "ci_lo": 0.41387476724711403, "ci_hi": 0.5790250578045754}, {"rating_bracket": "1600\u20131799", "increment_code": "8+0", "n": 100, "p_white": 0.6, "ci_lo": 0.5020007846184025, "ci_hi": 0.6906002538863971}, {"rating_bracket": "1800\u20131999", "increment_code": "10+0", "n": 1359, "p_white": 0.5136129506990434, "ci_lo": 0.4870381285601826, "ci_hi": 0.5401110280255865}, {"rating_bracket": "1800\u20131999", "increment_code": "15+0", "n": 169, "p_white": 0.47928994082840237, "ci_lo": 0.405270639822869, "ci_hi": 0.5542298507997587}, {"rating_bracket": "1800\u20131999", "increment_code": "15+15", "n": 69, "p_white": 0.5072463768115942, "ci_lo": 0.39205066383648346, "ci_hi": 0.6216777550889657}, {"rating_bracket": "1800\u20131999", "increment_code": "5+5", "n": 90, "p_white": 0.5777777777777777, "ci_lo": 0.4746099802268749, "ci_hi": 0.6745775869075303}, {"rating_bracket": "1800\u20131999", "increment_code": "5+8", "n": 59, "p_white": 0.5084745762711864, "ci_lo": 0.3843492802145344, "ci_hi": 0.6315637455518369}, {"rating_bracket": "1800\u20131999", "increment_code": "8+0", "n": 138, "p_white": 0.5289855072463768, "ci_lo": 0.44604942263156266, "ci_hi": 0.6103515203922046}, {"rating_bracket": "2000\u20132199", "increment_code": "10+0", "n": 420, "p_white": 0.5214285714285715, "ci_lo": 0.4736757876925246, "ci_hi": 0.5687929081598881}, {"rating_bracket": "2000\u20132199", "increment_code": "15+0", "n": 74, "p_white": 0.4864864864864865, "ci_lo": 0.37611598006562663, "ci_hi": 0.5981908173280549}, {"rating_bracket": "2000\u20132199", "increment_code": "5+5", "n": 62, "p_white": 0.5806451612903226, "ci_lo": 0.45665361737846166, "ci_hi": 0.6952260453271835}, {"rating_bracket": "2000\u20132199", "increment_code": "8+0", "n": 56, "p_white": 0.6071428571428571, "ci_lo": 0.476331653784818, "ci_hi": 0.7241977438248716}, {"rating_bracket": "2200+", "increment_code": "10+0", "n": 65, "p_white": 0.47692307692307695, "ci_lo": 0.36021590253064156, "ci_hi": 0.5962057959772373}];
+    const diff_bins = [{"diff_bin": "-600 to -400", "n": 650, "p_white": 0.1753846153846154}, {"diff_bin": "-400 to -300", "n": 729, "p_white": 0.19478737997256515}, {"diff_bin": "-300 to -200", "n": 1249, "p_white": 0.2746196957566053}, {"diff_bin": "-200 to -150", "n": 862, "p_white": 0.345707656612529}, {"diff_bin": "-150 to -100", "n": 1227, "p_white": 0.3740831295843521}, {"diff_bin": "-100 to -50", "n": 1711, "p_white": 0.4406779661016949}, {"diff_bin": "-50 to 0", "n": 2645, "p_white": 0.4998109640831758}, {"diff_bin": "0 to 50", "n": 2496, "p_white": 0.5316506410256411}, {"diff_bin": "50 to 100", "n": 1796, "p_white": 0.6080178173719376}, {"diff_bin": "100 to 150", "n": 1300, "p_white": 0.66}, {"diff_bin": "150 to 200", "n": 974, "p_white": 0.6848049281314168}, {"diff_bin": "200 to 300", "n": 1307, "p_white": 0.7765876052027544}, {"diff_bin": "300 to 400", "n": 754, "p_white": 0.8050397877984085}, {"diff_bin": "400 to 600", "n": 738, "p_white": 0.8699186991869918}];
+    const abs_bins = [{"abs_bin": "0\u201325", "n": 2704, "p_higher": 0.5192307692307693}, {"abs_bin": "25\u201350", "n": 2200, "p_higher": 0.5127272727272727}, {"abs_bin": "50\u201375", "n": 1917, "p_higher": 0.5779864371413668}, {"abs_bin": "75\u2013100", "n": 1610, "p_higher": 0.5900621118012422}, {"abs_bin": "100\u2013150", "n": 2534, "p_higher": 0.6416732438831886}, {"abs_bin": "150\u2013200", "n": 1845, "p_higher": 0.6693766937669376}, {"abs_bin": "200\u2013300", "n": 2556, "p_higher": 0.7523474178403756}, {"abs_bin": "300\u2013400", "n": 1489, "p_higher": 0.8052384150436535}, {"abs_bin": "400\u2013600", "n": 1390, "p_higher": 0.8482014388489209}, {"abs_bin": "600\u20131000", "n": 612, "p_higher": 0.8888888888888888}];
+    const turns_by_status = [{"victory_status": "resign", "n": 11147, "mean": 53.91253251996053, "median": 50.0}, {"victory_status": "mate", "n": 6325, "mean": 65.41501976284584, "median": 59.0}, {"victory_status": "outoftime", "n": 1680, "mean": 72.74285714285715, "median": 71.0}, {"victory_status": "draw", "n": 906, "mean": 83.78145695364239, "median": 86.0}];
+    const turns_by_rating = [{"rating_bracket": "<1000", "n": 91, "mean": 48.8021978021978, "median": 45.0}, {"rating_bracket": "1000\u20131199", "n": 1018, "mean": 49.07269155206287, "median": 46.0}, {"rating_bracket": "1200\u20131399", "n": 3545, "mean": 53.2262341325811, "median": 49.0}, {"rating_bracket": "1400\u20131599", "n": 5821, "mean": 58.19996564164233, "median": 53.0}, {"rating_bracket": "1600\u20131799", "n": 4451, "mean": 61.664345090990786, "median": 56.0}, {"rating_bracket": "1800\u20131999", "n": 2803, "mean": 65.31644666428826, "median": 60.0}, {"rating_bracket": "2000\u20132199", "n": 1143, "mean": 64.95450568678915, "median": 60.0}, {"rating_bracket": "2200+", "n": 236, "mean": 73.38135593220339, "median": 64.0}];
+    const top_increments = [{"increment_code": "10+0", "n": 7721, "avg_turns": 62.84924232612356, "pct_mate": 0.32146095065406033, "pct_resign": 0.5431938868022277, "pct_outoftime": 0.09882139619220308, "pct_draw": 0.03652376635150887}, {"increment_code": "15+0", "n": 1311, "avg_turns": 60.532418001525556, "pct_mate": 0.3325705568268497, "pct_resign": 0.5461479786422578, "pct_outoftime": 0.08237986270022883, "pct_draw": 0.038901601830663615}, {"increment_code": "15+15", "n": 850, "avg_turns": 56.96, "pct_mate": 0.34823529411764703, "pct_resign": 0.5694117647058824, "pct_outoftime": 0.036470588235294116, "pct_draw": 0.04588235294117647}, {"increment_code": "5+5", "n": 738, "avg_turns": 61.25609756097561, "pct_mate": 0.3062330623306233, "pct_resign": 0.559620596205962, "pct_outoftime": 0.0948509485094851, "pct_draw": 0.03929539295392954}, {"increment_code": "5+8", "n": 697, "avg_turns": 54.07604017216643, "pct_mate": 0.3084648493543759, "pct_resign": 0.5652797704447633, "pct_outoftime": 0.09182209469153516, "pct_draw": 0.03443328550932568}, {"increment_code": "8+0", "n": 588, "avg_turns": 67.93027210884354, "pct_mate": 0.28401360544217685, "pct_resign": 0.4914965986394558, "pct_outoftime": 0.17857142857142858, "pct_draw": 0.04591836734693878}, {"increment_code": "10+5", "n": 579, "avg_turns": 56.46286701208981, "pct_mate": 0.30915371329879104, "pct_resign": 0.5803108808290155, "pct_outoftime": 0.07426597582037997, "pct_draw": 0.03626943005181347}, {"increment_code": "15+10", "n": 461, "avg_turns": 63.4295010845987, "pct_mate": 0.23644251626898047, "pct_resign": 0.6377440347071583, "pct_outoftime": 0.04772234273318872, "pct_draw": 0.07809110629067245}, {"increment_code": "20+0", "n": 448, "avg_turns": 57.453125, "pct_mate": 0.3861607142857143, "pct_resign": 0.5178571428571429, "pct_outoftime": 0.05357142857142857, "pct_draw": 0.04241071428571429}, {"increment_code": "30+0", "n": 375, "avg_turns": 53.896, "pct_mate": 0.32, "pct_resign": 0.5973333333333334, "pct_outoftime": 0.032, "pct_draw": 0.050666666666666665}];
+    const top_openings = [{"opening_eco": "A00", "opening_name": "Van't Kruijs Opening", "n": 352, "p_white": 0.35795454545454547, "p_black": 0.6420454545454546, "ci_lo": 0.30965352463988255, "ci_hi": 0.40932255910074816}, {"opening_eco": "B20", "opening_name": "Sicilian Defense: Bowdler Attack", "n": 283, "p_white": 0.4204946996466431, "p_black": 0.5795053003533569, "ci_lo": 0.36442223634930837, "ci_hi": 0.47869675336487527}, {"opening_eco": "C00", "opening_name": "French Defense: Knight Variation", "n": 256, "p_white": 0.52734375, "p_black": 0.47265625, "ci_lo": 0.4662335805704009, "ci_hi": 0.5876453980073172}, {"opening_eco": "B01", "opening_name": "Scandinavian Defense: Mieses-Kotroc Variation", "n": 253, "p_white": 0.6482213438735178, "p_black": 0.3517786561264822, "ci_lo": 0.5875613875598332, "ci_hi": 0.7044473836049626}, {"opening_eco": "D00", "opening_name": "Queen's Pawn Game: Mason Attack", "n": 219, "p_white": 0.5296803652968036, "p_black": 0.4703196347031964, "ci_lo": 0.4636334953695853, "ci_hi": 0.5947039066235793}, {"opening_eco": "B01", "opening_name": "Scandinavian Defense", "n": 213, "p_white": 0.4225352112676056, "p_black": 0.5774647887323944, "ci_lo": 0.3581458085037698, "ci_hi": 0.48966937087140544}, {"opening_eco": "A40", "opening_name": "Horwitz Defense", "n": 204, "p_white": 0.5392156862745098, "p_black": 0.4607843137254902, "ci_lo": 0.4707197131176449, "ci_hi": 0.6062619883319205}, {"opening_eco": "C41", "opening_name": "Philidor Defense #3", "n": 194, "p_white": 0.654639175257732, "p_black": 0.34536082474226804, "ci_lo": 0.5853109938485203, "ci_hi": 0.7179619275188768}, {"opening_eco": "C41", "opening_name": "Philidor Defense #2", "n": 185, "p_white": 0.4810810810810811, "p_black": 0.518918918918919, "ci_lo": 0.4102015764907947, "ci_hi": 0.552730319871024}, {"opening_eco": "C55", "opening_name": "Italian Game: Anti-Fried Liver Defense", "n": 170, "p_white": 0.5705882352941176, "p_black": 0.4294117647058824, "ci_lo": 0.49542880761670066, "ci_hi": 0.6426279060812865}, {"opening_eco": "A45", "opening_name": "Indian Game", "n": 169, "p_white": 0.40828402366863903, "p_black": 0.591715976331361, "ci_lo": 0.3370168131585148, "ci_hi": 0.48362821674169426}, {"opening_eco": "B50", "opening_name": "Sicilian Defense", "n": 161, "p_white": 0.4658385093167702, "p_black": 0.5341614906832298, "ci_lo": 0.3904792936359137, "ci_hi": 0.5427899781983805}, {"opening_eco": "B00", "opening_name": "Owen Defense", "n": 159, "p_white": 0.4779874213836478, "p_black": 0.5220125786163522, "ci_lo": 0.4017825757326531, "ci_hi": 0.5552308655501642}, {"opening_eco": "C20", "opening_name": "King's Pawn Game: Wayward Queen Attack", "n": 158, "p_white": 0.46835443037974683, "p_black": 0.5316455696202531, "ci_lo": 0.39222262759818605, "ci_hi": 0.5459885616139819}, {"opening_eco": "B30", "opening_name": "Sicilian Defense: Old Sicilian", "n": 153, "p_white": 0.39215686274509803, "p_black": 0.607843137254902, "ci_lo": 0.3183425158168432, "ci_hi": 0.47125412180990894}];
+    const opening_ply_by_status = [{"victory_status": "resign", "n": 11147, "mean": 5.0005382614156275, "median": 4.0}, {"victory_status": "mate", "n": 6325, "mean": 4.4977075098814225, "median": 4.0}, {"victory_status": "outoftime", "n": 1680, "mean": 4.672023809523809, "median": 4.0}, {"victory_status": "draw", "n": 906, "mean": 5.056291390728477, "median": 4.0}];
+
+    function pctFormat(x) { return (100 * x).toFixed(2) + '%'; }
+
+    const commonConfig = {
+      background: null,
+      view: { stroke: null },
+      axis: {
+        labelColor: '#a9b7d6',
+        titleColor: '#a9b7d6',
+        tickColor: 'rgba(231,238,252,0.15)',
+        domainColor: 'rgba(231,238,252,0.15)',
+        gridColor: 'rgba(231,238,252,0.10)'
+      },
+      legend: { labelColor: '#a9b7d6', titleColor: '#a9b7d6' },
+      title: { color: '#e7eefc', fontSize: 14, fontWeight: 600 }
+    };
+
+    // Dataset overview chart
+    vegaEmbed('#chart_outcomes', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: data_outcomes },
+      title: 'Outcome distributions (counts)',
+      mark: { type: 'bar', cornerRadiusEnd: 3 },
+      encoding: {
+        y: { field: 'key', type: 'nominal', sort: '-x', axis: { title: null } },
+        x: { field: 'value', type: 'quantitative', axis: { title: 'count' } },
+        color: {
+          field: 'key', type: 'nominal', legend: null,
+          scale: { range: ['#6ee7ff', '#a78bfa', '#34d399', '#fb7185', '#fbbf24', '#60a5fa', '#94a3b8'] }
+        },
+        tooltip: [
+          { field: 'key', type: 'nominal' },
+          { field: 'value', type: 'quantitative', format: ',' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+
+    vegaEmbed('#chart_turns_by_status', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: turns_by_status },
+      title: 'Turns by victory_status (mean with median marker)',
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadiusEnd: 3 },
+          encoding: {
+            y: { field: 'victory_status', type: 'nominal', sort: '-x', axis: { title: null } },
+            x: { field: 'mean', type: 'quantitative', axis: { title: 'mean turns (plies)' } },
+            color: { value: '#6ee7ff' },
+            tooltip: [
+              { field: 'victory_status', type: 'nominal' },
+              { field: 'n', type: 'quantitative', format: ',' },
+              { field: 'mean', type: 'quantitative', format: '.1f' },
+              { field: 'median', type: 'quantitative', format: '.0f' }
+            ]
+          }
+        },
+        {
+          mark: { type: 'tick', color: '#a78bfa', thickness: 2 },
+          encoding: {
+            y: { field: 'victory_status', type: 'nominal', sort: '-x' },
+            x: { field: 'median', type: 'quantitative' }
+          }
+        }
+      ],
+      config: commonConfig
+    }, { actions: false });
+
+    // White edge headline chart
+    const whiteEdge = [{
+      metric: 'White win rate (decisive)',
+      p: 0.5233933431023655,
+      ci_lo: 0.516307568282588,
+      ci_hi: 0.530469713504846,
+      n: 19108
+    }];
+    vegaEmbed('#chart_white_edge', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: whiteEdge },
+      title: 'Overall first-move advantage (decisive games)',
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadiusEnd: 5 },
+          encoding: {
+            x: { field: 'p', type: 'quantitative', axis: { title: 'P(white wins) among decisive games', format: '.0%' }, scale: { domain: [0.40, 0.60] } },
+            y: { field: 'metric', type: 'nominal', axis: { title: null } },
+            color: { value: '#34d399' },
+            tooltip: [
+              { field: 'n', type: 'quantitative', title: 'n (decisive)', format: ',' },
+              { field: 'p', type: 'quantitative', title: 'white win rate', format: '.2%' },
+              { field: 'ci_lo', type: 'quantitative', title: 'CI low', format: '.2%' },
+              { field: 'ci_hi', type: 'quantitative', title: 'CI high', format: '.2%' }
+            ]
+          }
+        },
+        {
+          mark: { type: 'rule', color: '#a78bfa', strokeWidth: 3 },
+          encoding: {
+            x: { field: 'ci_lo', type: 'quantitative' },
+            x2: { field: 'ci_hi' },
+            y: { field: 'metric', type: 'nominal' }
+          }
+        },
+        {
+          mark: { type: 'rule', color: 'rgba(231,238,252,0.40)', strokeWidth: 1, strokeDash: [4,4] },
+          encoding: { x: { value: 0.50 } }
+        }
+      ],
+      config: commonConfig
+    }, { actions: false });
+
+    // By victory status
+    vegaEmbed('#chart_white_by_status', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: by_status },
+      title: 'White win rate by victory_status (decisive only)',
+      mark: { type: 'bar', cornerRadiusEnd: 3 },
+      encoding: {
+        y: { field: 'victory_status', type: 'nominal', sort: '-x', axis: { title: null } },
+        x: { field: 'p_white', type: 'quantitative', axis: { title: 'P(white wins)', format: '.0%' }, scale: { domain: [0.35, 0.70] } },
+        color: { field: 'victory_status', type: 'nominal', legend: null, scale: { range: ['#6ee7ff', '#a78bfa', '#34d399', '#fb7185'] } },
+        tooltip: [
+          { field: 'victory_status', type: 'nominal' },
+          { field: 'n', type: 'quantitative', format: ',' },
+          { field: 'p_white', type: 'quantitative', format: '.2%' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+
+    // Heatmap by bracket x time control
+    vegaEmbed('#chart_color_grid', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: by_rating_time },
+      title: 'White win rate by rating bracket × time control',
+      mark: { type: 'rect' },
+      encoding: {
+        x: { field: 'increment_code', type: 'nominal', axis: { title: 'increment_code', labelAngle: -20 } },
+        y: { field: 'rating_bracket', type: 'nominal', axis: { title: 'avg rating bracket' } },
+        color: {
+          field: 'p_white', type: 'quantitative',
+          scale: { domain: [0.45, 0.57], scheme: 'tealblues' },
+          legend: { title: 'P(white wins)' }
+        },
+        tooltip: [
+          { field: 'rating_bracket', type: 'nominal' },
+          { field: 'increment_code', type: 'nominal' },
+          { field: 'n', type: 'quantitative', format: ',' },
+          { field: 'p_white', type: 'quantitative', format: '.2%' },
+          { field: 'ci_lo', type: 'quantitative', format: '.2%' },
+          { field: 'ci_hi', type: 'quantitative', format: '.2%' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+
+    // Rating diff bin curve
+    vegaEmbed('#chart_rating_diff', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: diff_bins },
+      mark: { type: 'line', point: true },
+      encoding: {
+        x: { field: 'diff_bin', type: 'ordinal', axis: { title: 'rating diff bin (white - black)', labelAngle: -35 } },
+        y: { field: 'p_white', type: 'quantitative', axis: { title: 'P(white wins)', format: '.0%' }, scale: { domain: [0,1] } },
+        color: { value: '#6ee7ff' },
+        tooltip: [
+          { field: 'diff_bin', type: 'ordinal' },
+          { field: 'n', type: 'quantitative', format: ',' },
+          { field: 'p_white', type: 'quantitative', format: '.2%' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+
+    // Abs diff higher-rated win
+    vegaEmbed('#chart_absdiff', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: abs_bins },
+      mark: { type: 'bar', cornerRadiusEnd: 3 },
+      encoding: {
+        x: { field: 'abs_bin', type: 'ordinal', axis: { title: '|Δrating| bin', labelAngle: -25 } },
+        y: { field: 'p_higher', type: 'quantitative', axis: { title: 'P(higher-rated wins)', format: '.0%' }, scale: { domain: [0.45, 0.95] } },
+        color: { value: '#34d399' },
+        tooltip: [
+          { field: 'abs_bin', type: 'ordinal' },
+          { field: 'n', type: 'quantitative', format: ',' },
+          { field: 'p_higher', type: 'quantitative', format: '.2%' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+
+    // Turns by rating bracket
+    vegaEmbed('#chart_turns_by_rating', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: turns_by_rating },
+      title: 'Turns by rating bracket (decisive games)',
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadiusEnd: 3 },
+          encoding: {
+            x: { field: 'rating_bracket', type: 'ordinal', axis: { title: 'avg rating bracket', labelAngle: 0 } },
+            y: { field: 'mean', type: 'quantitative', axis: { title: 'mean turns (plies)' } },
+            color: { value: '#a78bfa' },
+            tooltip: [
+              { field: 'rating_bracket', type: 'ordinal' },
+              { field: 'n', type: 'quantitative', format: ',' },
+              { field: 'mean', type: 'quantitative', format: '.1f' },
+              { field: 'median', type: 'quantitative', format: '.0f' }
+            ]
+          }
+        },
+        {
+          mark: { type: 'tick', color: '#6ee7ff', thickness: 2 },
+          encoding: {
+            x: { field: 'rating_bracket', type: 'ordinal' },
+            y: { field: 'median', type: 'quantitative' }
+          }
+        }
+      ],
+      config: commonConfig
+    }, { actions: false });
+
+    // Openings chart
+    vegaEmbed('#chart_openings', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: top_openings },
+      title: 'Top openings (decisive games): white win rate with 95% CI',
+      transform: [
+        { calculate: "datum.opening_eco + ' — ' + datum.opening_name", as: "opening" }
+      ],
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadiusEnd: 3 },
+          encoding: {
+            y: { field: 'opening', type: 'nominal', sort: '-x', axis: { title: null } },
+            x: { field: 'p_white', type: 'quantitative', axis: { title: 'P(white wins)', format: '.0%' }, scale: { domain: [0.30, 0.75] } },
+            color: { condition: { test: "datum.p_white >= 0.5", value: '#34d399' }, value: '#fb7185' },
+            tooltip: [
+              { field: 'opening_eco', type: 'nominal' },
+              { field: 'opening_name', type: 'nominal' },
+              { field: 'n', type: 'quantitative', format: ',' },
+              { field: 'p_white', type: 'quantitative', format: '.2%' },
+              { field: 'ci_lo', type: 'quantitative', format: '.2%' },
+              { field: 'ci_hi', type: 'quantitative', format: '.2%' }
+            ]
+          }
+        },
+        {
+          mark: { type: 'rule', color: '#a78bfa', strokeWidth: 2 },
+          encoding: {
+            y: { field: 'opening', type: 'nominal', sort: '-x' },
+            x: { field: 'ci_lo', type: 'quantitative' },
+            x2: { field: 'ci_hi' }
+          }
+        },
+        {
+          mark: { type: 'rule', color: 'rgba(231,238,252,0.35)', strokeDash: [4,4] },
+          encoding: { x: { value: 0.50 } }
+        }
+      ],
+      config: commonConfig
+    }, { actions: false });
+
+    // Opening ply by status
+    vegaEmbed('#chart_opening_ply', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: opening_ply_by_status },
+      title: 'opening_ply by victory_status',
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadiusEnd: 3 },
+          encoding: {
+            y: { field: 'victory_status', type: 'nominal', sort: '-x', axis: { title: null } },
+            x: { field: 'mean', type: 'quantitative', axis: { title: 'mean opening_ply' } },
+            color: { value: '#60a5fa' },
+            tooltip: [
+              { field: 'victory_status', type: 'nominal' },
+              { field: 'n', type: 'quantitative', format: ',' },
+              { field: 'mean', type: 'quantitative', format: '.2f' },
+              { field: 'median', type: 'quantitative', format: '.0f' }
+            ]
+          }
+        },
+        {
+          mark: { type: 'tick', color: '#a78bfa', thickness: 2 },
+          encoding: {
+            y: { field: 'victory_status', type: 'nominal', sort: '-x' },
+            x: { field: 'median', type: 'quantitative' }
+          }
+        }
+      ],
+      config: commonConfig
+    }, { actions: false });
+
+    // Time control stacked bars
+    const timeControlLong = [];
+    for (const r of top_increments) {
+      timeControlLong.push({ increment_code: r.increment_code, outcome: 'resign', pct: r.pct_resign, n: r.n, avg_turns: r.avg_turns });
+      timeControlLong.push({ increment_code: r.increment_code, outcome: 'mate', pct: r.pct_mate, n: r.n, avg_turns: r.avg_turns });
+      timeControlLong.push({ increment_code: r.increment_code, outcome: 'outoftime', pct: r.pct_outoftime, n: r.n, avg_turns: r.avg_turns });
+      timeControlLong.push({ increment_code: r.increment_code, outcome: 'draw', pct: r.pct_draw, n: r.n, avg_turns: r.avg_turns });
+    }
+
+    vegaEmbed('#chart_time_control', {
+      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      data: { values: timeControlLong },
+      title: 'Top time controls: victory_status composition',
+      mark: { type: 'bar' },
+      encoding: {
+        x: { field: 'increment_code', type: 'nominal', axis: { title: 'increment_code', labelAngle: -20 } },
+        y: { field: 'pct', type: 'quantitative', stack: 'normalize', axis: { title: 'share of games', format: '.0%' } },
+        color: { field: 'outcome', type: 'nominal',
+          scale: { domain: ['resign','mate','outoftime','draw'], range: ['#6ee7ff','#34d399','#fb7185','#a78bfa'] },
+          legend: { title: 'victory_status' }
+        },
+        tooltip: [
+          { field: 'increment_code', type: 'nominal' },
+          { field: 'outcome', type: 'nominal' },
+          { field: 'pct', type: 'quantitative', format: '.2%' },
+          { field: 'n', type: 'quantitative', format: ',' },
+          { field: 'avg_turns', type: 'quantitative', format: '.1f' }
+        ]
+      },
+      config: commonConfig
+    }, { actions: false });
+  </script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Airbnb Market Comparison</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f5f7fb;color:#1f2937}
+    .wrap{max-width:1200px;margin:0 auto;padding:28px}
+    h1{font-size:30px;margin:0 0 8px}
+    h2{font-size:22px;margin:28px 0 12px}
+    p{line-height:1.45}
+    .sub{color:#4b5563;margin-bottom:20px}
+    .grid{display:grid;grid-template-columns:repeat(5,minmax(170px,1fr));gap:12px}
+    .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .k{font-size:12px;color:#6b7280;text-transform:uppercase}
+    .v{font-size:24px;font-weight:700;margin-top:6px}
+    .section{background:#fff;border-radius:10px;padding:18px;margin-top:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    canvas{max-height:380px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left}
+    th{background:#f9fafb}
+    ol li{margin:8px 0}
+    .note{font-size:12px;color:#6b7280}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Global Airbnb Market Comparison: Pricing, Supply &amp; Guest Demand</h1>
+  <p class="sub">Analytical benchmark across available cities in <code>data.csv</code> (snapshot scrape date: <span id="scrape"></span>).</p>
+
+  <div class="grid" id="topKpis"></div>
+
+  <div class="section">
+    <h2>1) Global Market Overview</h2>
+    <div class="two">
+      <div><canvas id="listingsByCity"></canvas></div>
+      <div><canvas id="roomTypeMix"></canvas></div>
+    </div>
+    <p class="note" id="overviewNote"></p>
+  </div>
+
+  <div class="section">
+    <h2>2) Pricing Dynamics Across Cities</h2>
+    <div class="two">
+      <div><canvas id="medianPriceCity"></canvas></div>
+      <div><canvas id="avgPriceByRoom"></canvas></div>
+    </div>
+    <div style="margin-top:14px"><canvas id="priceDispersion"></canvas></div>
+  </div>
+
+  <div class="section">
+    <h2>3) Supply Structure &amp; Host Concentration</h2>
+    <div class="two">
+      <div><canvas id="professionalShare"></canvas></div>
+      <div><canvas id="entireShare"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4) Guest Demand &amp; Review Activity</h2>
+    <div class="two">
+      <div><canvas id="reviewsPerMonth"></canvas></div>
+      <div><canvas id="reviewsLtm"></canvas></div>
+    </div>
+    <table id="reviewRecencyTbl"></table>
+  </div>
+
+  <div class="section">
+    <h2>5) Availability &amp; Booking Constraints</h2>
+    <div class="two">
+      <div><canvas id="availabilityMean"></canvas></div>
+      <div><canvas id="minimumNights"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>6) Key Takeaways &amp; Strategic Implications</h2>
+    <ol id="takeaways"></ol>
+  </div>
+
+  <div class="section">
+    <h2>Data Integrity Notes</h2>
+    <p id="integrity"></p>
+  </div>
+</div>
+
+<script>
+fetch('metrics.json').then(r=>r.json()).then(m=>{
+  const fmt = n => n==null ? 'N/A' : n.toLocaleString(undefined,{maximumFractionDigits:1});
+  const money = n => n==null ? 'N/A' : '$'+n.toLocaleString(undefined,{maximumFractionDigits:0});
+
+  document.getElementById('scrape').textContent = m.scrape_date_values.join(', ');
+
+  const cityCount = m.cities.length;
+  const totalListings = m.rows;
+  const medians = m.kpi.map(d=>d.median_price).filter(v=>v!=null);
+  const maxMedian = m.kpi.slice().sort((a,b)=>b.median_price-a.median_price)[0];
+  const minMedian = m.kpi.slice().sort((a,b)=>a.median_price-b.median_price)[0];
+  const maxProf = m.kpi.slice().sort((a,b)=>b.professional_host_share_pct-a.professional_host_share_pct)[0];
+  const maxDemand = m.kpi.slice().sort((a,b)=>b.avg_reviews_per_month-a.avg_reviews_per_month)[0];
+
+  const top = [
+    ['Cities Covered', cityCount],
+    ['Listings Analyzed', totalListings.toLocaleString()],
+    ['Highest Median Price', `${maxMedian.city} (${money(maxMedian.median_price)})`],
+    ['Lowest Median Price', `${minMedian.city} (${money(minMedian.median_price)})`],
+    ['Highest Professional Host Share', `${maxProf.city} (${fmt(maxProf.professional_host_share_pct)}%)`]
+  ];
+  const topWrap = document.getElementById('topKpis');
+  top.forEach(([k,v])=>{
+    const c=document.createElement('div'); c.className='card';
+    c.innerHTML=`<div class='k'>${k}</div><div class='v'>${v}</div>`;
+    topWrap.appendChild(c);
+  });
+
+  const citySorted = m.kpi.slice().sort((a,b)=>b.listings-a.listings);
+  new Chart(document.getElementById('listingsByCity'), {type:'bar',data:{labels:citySorted.map(d=>d.city),datasets:[{label:'Listings',data:citySorted.map(d=>d.listings),backgroundColor:'#2563eb'}]},options:{plugins:{legend:{display:false}}}});
+
+  const roomLabels = m.room_types;
+  const avgRoom = roomLabels.map(rt=>{
+    const vals=m.room_mix_pct.map(c=>c[rt]).filter(v=>v!=null);return vals.reduce((a,b)=>a+b,0)/vals.length;
+  });
+  new Chart(document.getElementById('roomTypeMix'), {type:'doughnut',data:{labels:roomLabels,datasets:[{data:avgRoom,backgroundColor:['#1d4ed8','#0ea5e9','#f59e0b','#10b981']}]}});
+
+  document.getElementById('overviewNote').textContent = `Dataset contains ${totalListings.toLocaleString()} listings across ${cityCount} cities present in source data. The original brief targets 10 cities; only cities present in data.csv are analyzed.`;
+
+  const pcity = m.price_city.slice().sort((a,b)=>b.median_price-a.median_price);
+  new Chart(document.getElementById('medianPriceCity'), {type:'bar',data:{labels:pcity.map(d=>d.city),datasets:[{label:'Median nightly price (USD)',data:pcity.map(d=>d.median_price),backgroundColor:'#7c3aed'}]}});
+
+  const roomAvgByCity = m.price_room.filter(d=>d.room_type==='Entire home/apt').sort((a,b)=>b.avg_price-a.avg_price);
+  new Chart(document.getElementById('avgPriceByRoom'), {type:'bar',data:{labels:roomAvgByCity.map(d=>d.city),datasets:[{label:'Avg price: Entire home/apt',data:roomAvgByCity.map(d=>d.avg_price),backgroundColor:'#dc2626'}]}});
+
+  new Chart(document.getElementById('priceDispersion'), {type:'line',data:{labels:pcity.map(d=>d.city),datasets:[{label:'P10',data:pcity.map(d=>d.p10),borderColor:'#16a34a'},{label:'Median',data:pcity.map(d=>d.median_price),borderColor:'#7c3aed'},{label:'P90',data:pcity.map(d=>d.p90),borderColor:'#ef4444'}]}});
+
+  const prof = m.kpi.slice().sort((a,b)=>b.professional_host_share_pct-a.professional_host_share_pct);
+  new Chart(document.getElementById('professionalShare'), {type:'bar',data:{labels:prof.map(d=>d.city),datasets:[{label:'Professional host share (%)',data:prof.map(d=>d.professional_host_share_pct),backgroundColor:'#0f766e'}]}});
+
+  const ent = m.kpi.slice().sort((a,b)=>b.entire_home_share_pct-a.entire_home_share_pct);
+  new Chart(document.getElementById('entireShare'), {type:'bar',data:{labels:ent.map(d=>d.city),datasets:[{label:'Entire home share (%)',data:ent.map(d=>d.entire_home_share_pct),backgroundColor:'#0369a1'}]}});
+
+  const dem = m.demand.slice().sort((a,b)=>b.avg_reviews_per_month-a.avg_reviews_per_month);
+  new Chart(document.getElementById('reviewsPerMonth'), {type:'bar',data:{labels:dem.map(d=>d.city),datasets:[{label:'Average reviews per month',data:dem.map(d=>d.avg_reviews_per_month),backgroundColor:'#ea580c'}]}});
+
+  const ltm = m.demand.slice().sort((a,b)=>b.avg_reviews_ltm-a.avg_reviews_ltm);
+  new Chart(document.getElementById('reviewsLtm'), {type:'bar',data:{labels:ltm.map(d=>d.city),datasets:[{label:'Average reviews in last 12 months',data:ltm.map(d=>d.avg_reviews_ltm),backgroundColor:'#4f46e5'}]}});
+
+  const rec = m.latest_review.slice().sort((a,b)=>a.days_since_latest_review-b.days_since_latest_review);
+  const tbl = document.getElementById('reviewRecencyTbl');
+  tbl.innerHTML='<tr><th>City</th><th>Most Recent Review Date</th><th>Days Since Latest Review (to 2026-04-30)</th></tr>'+
+    rec.map(d=>`<tr><td>${d.city}</td><td>${d.most_recent_review_date||'N/A'}</td><td>${d.days_since_latest_review??'N/A'}</td></tr>`).join('');
+
+  const av = m.availability.slice().sort((a,b)=>b.mean_availability_365-a.mean_availability_365);
+  new Chart(document.getElementById('availabilityMean'), {type:'bar',data:{labels:av.map(d=>d.city),datasets:[{label:'Mean availability (days/year)',data:av.map(d=>d.mean_availability_365),backgroundColor:'#334155'}]}});
+
+  const mn = m.availability.slice().sort((a,b)=>b.mean_minimum_nights-a.mean_minimum_nights);
+  new Chart(document.getElementById('minimumNights'), {type:'bar',data:{labels:mn.map(d=>d.city),datasets:[{label:'Mean minimum nights',data:mn.map(d=>d.mean_minimum_nights),backgroundColor:'#92400e'}]}});
+
+  const takeaways = [
+    `${maxMedian.city} is the highest-priced market on median nightly rate (${money(maxMedian.median_price)}), while ${minMedian.city} is the lowest (${money(minMedian.median_price)}), defining the current cross-market pricing spread.`,
+    `${maxProf.city} has the highest professional host concentration (${fmt(maxProf.professional_host_share_pct)}% of listings with 5+ listings/host), signaling stronger institutionalized supply and potentially tighter competitive pressure for independent hosts.`,
+    `${ent[0].city} shows the highest entire-home share (${fmt(ent[0].entire_home_share_pct)}%), indicating a more commercial inventory profile versus cities with larger private/shared room mixes.`,
+    `${maxDemand.city} leads average reviews per month (${fmt(maxDemand.avg_reviews_per_month)}), suggesting relatively stronger booking velocity among available markets.`,
+    `Markets combining high price levels with high professional host share warrant priority regulatory benchmarking, while lower-priced markets with lower concentration may offer more accessible entry points for new operators.`
+  ];
+  document.getElementById('takeaways').innerHTML = takeaways.map(t=>`<li>${t}</li>`).join('');
+
+  document.getElementById('integrity').innerHTML = `Missing values observed in source data: price=${m.missing.price}, reviews_per_month=${m.missing.reviews_per_month}, last_review=${m.missing.last_review}, licence/license=${m.missing.license}, neighbourhood_group=${m.missing.neighbourhood_group}. Price statistics are computed from non-null price values only. This report uses only data present in data.csv and does not impute missing values.`;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL 2026 Ball-by-Ball Analytics Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a237e;
+            --secondary: #283593;
+            --accent: #ff6f00;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --warning: #f9a825;
+            --light: #e8eaf6;
+            --dark: #212121;
+            --text: #37474f;
+            --border: #cfd8dc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        header .subtitle { opacity: 0.9; font-size: 1.1rem; }
+        header .meta { margin-top: 15px; font-size: 0.9rem; opacity: 0.8; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--accent);
+        }
+        .kpi-card.blue { border-left-color: #2196f3; }
+        .kpi-card.green { border-left-color: var(--success); }
+        .kpi-card.orange { border-left-color: var(--accent); }
+        .kpi-card.red { border-left-color: var(--danger); }
+        .kpi-label { font-size: 0.85rem; color: #78909c; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 2.2rem; font-weight: 700; color: var(--dark); margin-top: 5px; }
+        .kpi-desc { font-size: 0.8rem; color: #90a4ae; margin-top: 5px; }
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light);
+        }
+        .subsection-title { font-size: 1.1rem; color: var(--secondary); margin: 20px 0 15px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            background: var(--light);
+            color: var(--primary);
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td { padding: 12px 15px; border-bottom: 1px solid #eceff1; }
+        tr:hover { background: #f8f9fa; }
+        .rank { color: var(--accent); font-weight: 600; }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin: 20px 0;
+        }
+        .chart-container {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #eceff1;
+        }
+        .chart-title {
+            font-size: 1rem;
+            color: var(--dark);
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-primary { background: #e3f2fd; color: #1565c0; }
+        .badge-success { background: #e8f5e9; color: #2e7d32; }
+        .badge-warning { background: #fff8e1; color: #f57f17; }
+        .badge-danger { background: #ffebee; color: #c62828; }
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .overview-item {
+            text-align: center;
+            padding: 20px;
+            background: var(--light);
+            border-radius: 8px;
+        }
+        .overview-number { font-size: 2rem; font-weight: 700; color: var(--primary); }
+        .overview-label { font-size: 0.85rem; color: #78909c; }
+        .team-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: var(--secondary);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .discipline-warning { color: var(--danger); }
+        .discipline-good { color: var(--success); }
+        .venue-insight {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .venue-icon { font-size: 2rem; margin-right: 15px; }
+        .venue-name { font-weight: 600; color: var(--dark); }
+        .venue-city { font-size: 0.85rem; color: #78909c; }
+        .phase-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .pp { background: #4caf50; }
+        .mo { background: #ff9800; }
+        .death { background: #f44336; }
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #78909c;
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            header h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IPL 2026 Ball-by-Ball Analytics Report</h1>
+            <p class="subtitle">A comprehensive delivery-level analysis of the IPL 2026 season</p>
+            <p class="meta">Data Coverage: March 28 - April 9, 2026 | 15 Matches | 10 Venues | 10 Teams</p>
+        </header>
+
+        <!-- KPI Dashboard -->
+        <div class="kpi-grid">
+            <div class="kpi-card blue">
+                <div class="kpi-label">Average Runs Per Over</div>
+                <div class="kpi-value" id="kpi-rpo">--</div>
+                <div class="kpi-desc">Overall tournament scoring rate</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-label">Boundary Percentage</div>
+                <div class="kpi-value" id="kpi-boundary">--</div>
+                <div class="kpi-desc">% of deliveries resulting in 4 or 6</div>
+            </div>
+            <div class="kpi-card orange">
+                <div class="kpi-label">Dot Ball Percentage</div>
+                <div class="kpi-value" id="kpi-dot">--</div>
+                <div class="kpi-desc">Bowler pressure metric</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Extras Per Match</div>
+                <div class="kpi-value" id="kpi-extras">--</div>
+                <div class="kpi-desc">Bowling discipline indicator</div>
+            </div>
+            <div class="kpi-card red">
+                <div class="kpi-label">Wickets Per Match</div>
+                <div class="kpi-value" id="kpi-wickets">--</div>
+                <div class="kpi-desc">Bat-ball balance metric</div>
+            </div>
+        </div>
+
+        <!-- Section 1: Tournament Overview -->
+        <div class="section">
+            <h2 class="section-title">Tournament Overview & Match Summary</h2>
+            <div class="overview-grid">
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-matches">--</div>
+                    <div class="overview-label">Matches Played</div>
+                </div>
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-venues">--</div>
+                    <div class="overview-label">Venues Used</div>
+                </div>
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-teams">--</div>
+                    <div class="overview-label">Teams</div>
+                </div>
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-deliveries">--</div>
+                    <div class="overview-label">Total Deliveries</div>
+                </div>
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-runs">--</div>
+                    <div class="overview-label">Total Runs</div>
+                </div>
+                <div class="overview-item">
+                    <div class="overview-number" id="ov-wickets">--</div>
+                    <div class="overview-label">Total Wickets</div>
+                </div>
+            </div>
+            <div class="chart-container" style="margin-top: 20px;">
+                <canvas id="overviewChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Section 2: Batting Performance -->
+        <div class="section">
+            <h2 class="section-title">Batting Performance Analysis</h2>
+
+            <h3 class="subsection-title">Top Run-Scorers</h3>
+            <table id="batsmen-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Batsman</th>
+                        <th>Runs</th>
+                        <th>Balls Faced</th>
+                        <th>Strike Rate</th>
+                        <th>Boundaries</th>
+                        <th>4s</th>
+                        <th>6s</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 class="subsection-title">Phase-Wise Batting Analysis</h3>
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Runs Per Over by Match Phase</div>
+                    <canvas id="phaseRpoChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Boundary % by Phase</div>
+                    <canvas id="phaseBoundaryChart"></canvas>
+                </div>
+            </div>
+
+            <h3 class="subsection-title">Over-by-Over Scoring Pattern</h3>
+            <div class="chart-container">
+                <canvas id="overScoringChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Section 3: Bowling Performance -->
+        <div class="section">
+            <h2 class="section-title">Bowling Performance Analysis</h2>
+
+            <h3 class="subsection-title">Top Wicket-Takers</h3>
+            <table id="bowlers-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Bowler</th>
+                        <th>Wickets</th>
+                        <th>Overs</th>
+                        <th>Economy</th>
+                        <th>Strike Rate</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 class="subsection-title">Dismissal Type Distribution</h3>
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <canvas id="dismissalChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="bowlerEconomyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Team Comparison -->
+        <div class="section">
+            <h2 class="section-title">Team Performance Comparison</h2>
+
+            <h3 class="subsection-title">Batting Rankings</h3>
+            <table id="team-batting-table">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Total Runs</th>
+                        <th>Matches</th>
+                        <th>Avg Runs/Innings</th>
+                        <th>Strike Rate</th>
+                        <th>Boundary %</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3 class="subsection-title">Bowling Rankings</h3>
+            <table id="team-bowling-table">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Runs Conceded</th>
+                        <th>Wickets</th>
+                        <th>Economy</th>
+                        <th>Extras/Match</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="chart-grid" style="margin-top: 25px;">
+                <div class="chart-container">
+                    <div class="chart-title">Team Batting Comparison</div>
+                    <canvas id="teamBattingChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Team Bowling Economy</div>
+                    <canvas id="teamBowlingChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Extras & Discipline -->
+        <div class="section">
+            <h2 class="section-title">Extras & Bowling Discipline</h2>
+
+            <div class="chart-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Extras Breakdown by Type</div>
+                    <canvas id="extrasBreakdownChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Wides & No-Balls by Team</div>
+                    <canvas id="teamExtrasChart"></canvas>
+                </div>
+            </div>
+
+            <h3 class="subsection-title discipline-warning">Teams with Poor Discipline (High Extras)</h3>
+            <table id="discipline-table">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Economy</th>
+                        <th>Avg Extras/Match</th>
+                        <th>Total Extras</th>
+                        <th>Assessment</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- Section 6: Venue Insights -->
+        <div class="section">
+            <h2 class="section-title">Venue & Match Phase Insights</h2>
+
+            <h3 class="subsection-title">Venue Scoring Rates</h3>
+            <table id="venue-table">
+                <thead>
+                    <tr>
+                        <th>Venue</th>
+                        <th>Avg RPO</th>
+                        <th>Avg Runs/Innings</th>
+                        <th>Boundary %</th>
+                        <th>Wickets/Innings</th>
+                        <th>Character</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <div class="chart-grid" style="margin-top: 25px;">
+                <div class="chart-container">
+                    <div class="chart-title">Venue Comparison - Avg Runs Per Over</div>
+                    <canvas id="venueRpoChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Venue Comparison - Wickets per Innings</div>
+                    <canvas id="venueWicketsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>IPL 2026 Ball-by-Ball Analytics Report | Data Source: IPL 2026 Complete Dataset</p>
+            <p>Analysis covers 15 matches from March 28 - April 9, 2026 | Generated for cricket analysts and team strategists</p>
+        </footer>
+    </div>
+
+    <script>
+        // Embedded report data
+        const data = {"kpis":{"avg_rpo":9.34,"boundary_pct":21.5,"dot_pct":31.36,"extras_per_match":17.73,"wickets_per_match":12.0},"matches_played":15,"venues":10,"teams":["CSK","DC","GT","KKR","LSG","MI","PBKS","RCB","RR","SRH"],"total_deliveries":3284,"total_runs":5114,"total_wickets":180,"total_extras":266,"batsman_stats":[{"striker":"Yashasvi Jaiswal","runs_of_bat":170,"is_boundary":27,"is_four":19,"is_six":8,"balls_faced":109,"strike_rate":155.96,"boundary_pct":24.77},{"striker":"Sameer Rizvi","runs_of_bat":160,"is_boundary":23,"is_four":12,"is_six":11,"balls_faced":106,"strike_rate":150.94,"boundary_pct":21.7},{"striker":"Angkrish Raghuvanshi","runs_of_bat":155,"is_boundary":23,"is_four":17,"is_six":6,"balls_faced":103,"strike_rate":150.49,"boundary_pct":22.33},{"striker":"Heinrich Klaasen","runs_of_bat":145,"is_boundary":15,"is_four":11,"is_six":4,"balls_faced":103,"strike_rate":140.78,"boundary_pct":14.56},{"striker":"Ajinkya Rahane","runs_of_bat":124,"is_boundary":15,"is_four":8,"is_six":7,"balls_faced":84,"strike_rate":147.62,"boundary_pct":17.86},{"striker":"Vaibhav Sooryavanshi","runs_of_bat":122,"is_boundary":21,"is_four":10,"is_six":11,"balls_faced":52,"strike_rate":234.62,"boundary_pct":40.38},{"striker":"Rohit Sharma","runs_of_bat":118,"is_boundary":18,"is_four":11,"is_six":7,"balls_faced":72,"strike_rate":163.89,"boundary_pct":25.0},{"striker":"Jos Buttler","runs_of_bat":116,"is_boundary":18,"is_four":11,"is_six":7,"balls_faced":75,"strike_rate":154.67,"boundary_pct":24.0},{"striker":"Devdutt Padikkal","runs_of_bat":111,"is_boundary":18,"is_four":12,"is_six":6,"balls_faced":56,"strike_rate":198.21,"boundary_pct":32.14},{"striker":"Shubman Gill","runs_of_bat":109,"is_boundary":15,"is_four":10,"is_six":5,"balls_faced":75,"strike_rate":145.33,"boundary_pct":20.0},{"striker":"Cooper Connolly","runs_of_bat":108,"is_boundary":16,"is_four":11,"is_six":5,"balls_faced":68,"strike_rate":158.82,"boundary_pct":23.53},{"striker":"Sarfaraz Khan","runs_of_bat":99,"is_boundary":20,"is_four":16,"is_six":4,"balls_faced":52,"strike_rate":190.38,"boundary_pct":38.46},{"striker":"Ryan Rickelton","runs_of_bat":98,"is_boundary":15,"is_four":6,"is_six":9,"balls_faced":59,"strike_rate":166.1,"boundary_pct":25.42},{"striker":"Sai Sudharsan","runs_of_bat":98,"is_boundary":16,"is_four":13,"is_six":3,"balls_faced":66,"strike_rate":148.48,"boundary_pct":24.24},{"striker":"Virat Kohli","runs_of_bat":97,"is_boundary":13,"is_four":7,"is_six":6,"balls_faced":59,"strike_rate":164.41,"boundary_pct":22.03},{"striker":"Nitish Reddy","runs_of_bat":96,"is_boundary":13,"is_four":7,"is_six":6,"balls_faced":64,"strike_rate":150.0,"boundary_pct":20.31},{"striker":"Ishan Kishan","runs_of_bat":96,"is_boundary":16,"is_four":11,"is_six":5,"balls_faced":52,"strike_rate":184.62,"boundary_pct":30.77},{"striker":"Dhruv Jurel","runs_of_bat":95,"is_boundary":14,"is_four":9,"is_six":5,"balls_faced":58,"strike_rate":163.79,"boundary_pct":24.14},{"striker":"Rahul","runs_of_bat":93,"is_boundary":15,"is_four":11,"is_six":4,"balls_faced":60,"strike_rate":155.0,"boundary_pct":25.0},{"striker":"Pathum Nissanka","runs_of_bat":86,"is_boundary":14,"is_four":12,"is_six":2,"balls_faced":62,"strike_rate":138.71,"boundary_pct":22.58}],"bowler_stats":[{"bowler":"Ravi Bishnoi","runs_of_bat":79,"total_runs":79,"is_wicket":8,"balls_bowled":54,"overs_bowled":9.0,"economy":8.78,"bowling_strike_rate":6.75},{"bowler":"Prasidh Krishna","runs_of_bat":121,"total_runs":121,"is_wicket":7,"balls_bowled":72,"overs_bowled":12.0,"economy":10.08,"bowling_strike_rate":10.29},{"bowler":"Prince Yadav","runs_of_bat":94,"total_runs":97,"is_wicket":6,"balls_bowled":66,"overs_bowled":11.0,"economy":8.82,"bowling_strike_rate":11.0},{"bowler":"Mukesh Kumar","runs_of_bat":93,"total_runs":97,"is_wicket":6,"balls_bowled":60,"overs_bowled":10.0,"economy":9.7,"bowling_strike_rate":10.0},{"bowler":"Lungi Ngidi","runs_of_bat":82,"total_runs":82,"is_wicket":5,"balls_bowled":70,"overs_bowled":11.67,"economy":7.03,"bowling_strike_rate":14.0},{"bowler":"Jacob Duffy","runs_of_bat":72,"total_runs":73,"is_wicket":5,"balls_bowled":48,"overs_bowled":8.0,"economy":9.12,"bowling_strike_rate":9.6},{"bowler":"Blessing Muzarabani","runs_of_bat":73,"total_runs":77,"is_wicket":5,"balls_bowled":42,"overs_bowled":7.0,"economy":11.0,"bowling_strike_rate":8.4},{"bowler":"Rashid Khan","runs_of_bat":79,"total_runs":79,"is_wicket":5,"balls_bowled":72,"overs_bowled":12.0,"economy":6.58,"bowling_strike_rate":14.4},{"bowler":"Anshul Kamboj","runs_of_bat":118,"total_runs":118,"is_wicket":5,"balls_bowled":64,"overs_bowled":10.67,"economy":11.06,"bowling_strike_rate":12.8},{"bowler":"Vaibhav Arora","runs_of_bat":134,"total_runs":136,"is_wicket":5,"balls_bowled":72,"overs_bowled":12.0,"economy":11.33,"bowling_strike_rate":14.4},{"bowler":"Vijaykumar Vyshak","runs_of_bat":71,"total_runs":72,"is_wicket":5,"balls_bowled":48,"overs_bowled":8.0,"economy":9.0,"bowling_strike_rate":9.6},{"bowler":"Nandre Burger","runs_of_bat":70,"total_runs":81,"is_wicket":5,"balls_bowled":54,"overs_bowled":9.0,"economy":9.0,"bowling_strike_rate":10.8},{"bowler":"Natarajan","runs_of_bat":87,"total_runs":87,"is_wicket":4,"balls_bowled":66,"overs_bowled":11.0,"economy":7.91,"bowling_strike_rate":16.5},{"bowler":"Sandeep Sharma","runs_of_bat":79,"total_runs":80,"is_wicket":4,"balls_bowled":52,"overs_bowled":8.67,"economy":9.23,"bowling_strike_rate":13.0},{"bowler":"Eshan Malinga","runs_of_bat":70,"total_runs":71,"is_wicket":4,"balls_bowled":48,"overs_bowled":8.0,"economy":8.88,"bowling_strike_rate":12.0},{"bowler":"Harsh Dubey","runs_of_bat":68,"total_runs":69,"is_wicket":4,"balls_bowled":54,"overs_bowled":9.0,"economy":7.67,"bowling_strike_rate":13.5},{"bowler":"Jofra Archer","runs_of_bat":68,"total_runs":70,"is_wicket":4,"balls_bowled":60,"overs_bowled":10.0,"economy":7.0,"bowling_strike_rate":15.0},{"bowler":"Jaydev Unadkat","runs_of_bat":99,"total_runs":104,"is_wicket":4,"balls_bowled":59,"overs_bowled":9.83,"economy":10.58,"bowling_strike_rate":14.75},{"bowler":"Bhuvneshwar Kumar","runs_of_bat":64,"total_runs":67,"is_wicket":4,"balls_bowled":48,"overs_bowled":8.0,"economy":8.38,"bowling_strike_rate":12.0},{"bowler":"Shardul Thakur","runs_of_bat":112,"total_runs":112,"is_wicket":4,"balls_bowled":54,"overs_bowled":9.0,"economy":12.44,"bowling_strike_rate":13.5}],"dismissals":{"caught":131,"bowled":28,"runout":13,"lbw":6,"stumped":2},"team_batting":[{"batting_team":"SRH","runs_of_bat":560,"total_runs":585,"is_boundary":79,"is_wicket":28,"balls_faced":378,"matches":3,"avg_runs":186.67,"strike_rate":148.15,"boundary_pct":20.9},{"batting_team":"KKR","runs_of_bat":558,"total_runs":586,"is_boundary":81,"is_wicket":20,"balls_faced":377,"matches":4,"avg_runs":139.5,"strike_rate":148.01,"boundary_pct":21.49},{"batting_team":"GT","runs_of_bat":546,"total_runs":576,"is_boundary":78,"is_wicket":18,"balls_faced":381,"matches":3,"avg_runs":182.0,"strike_rate":143.31,"boundary_pct":20.47},{"batting_team":"CSK","runs_of_bat":504,"total_runs":544,"is_boundary":73,"is_wicket":25,"balls_faced":379,"matches":3,"avg_runs":168.0,"strike_rate":132.98,"boundary_pct":19.26},{"batting_team":"MI","runs_of_bat":487,"total_runs":509,"is_boundary":73,"is_wicket":20,"balls_faced":315,"matches":3,"avg_runs":162.33,"strike_rate":154.6,"boundary_pct":23.17},{"batting_team":"DC","runs_of_bat":485,"total_runs":516,"is_boundary":72,"is_wicket":16,"balls_faced":354,"matches":3,"avg_runs":161.67,"strike_rate":137.01,"boundary_pct":20.34},{"batting_team":"RR","runs_of_bat":462,"total_runs":488,"is_boundary":72,"is_wicket":11,"balls_faced":275,"matches":3,"avg_runs":154.0,"strike_rate":168.0,"boundary_pct":26.18},{"batting_team":"LSG","runs_of_bat":457,"total_runs":483,"is_boundary":63,"is_wicket":22,"balls_faced":361,"matches":3,"avg_runs":152.33,"strike_rate":126.59,"boundary_pct":17.45},{"batting_team":"RCB","runs_of_bat":427,"total_runs":453,"is_boundary":63,"is_wicket":8,"balls_faced":226,"matches":2,"avg_runs":213.5,"strike_rate":188.94,"boundary_pct":27.88},{"batting_team":"PBKS","runs_of_bat":362,"total_runs":374,"is_boundary":52,"is_wicket":12,"balls_faced":238,"matches":2,"avg_runs":181.0,"strike_rate":152.1,"boundary_pct":21.85}],"team_bowling":[{"bowling_team":"LSG","runs_of_bat":446,"total_runs":481,"is_wicket":17,"balls_bowled":363,"extras":35,"matches":3,"overs_bowled":60.5,"economy":7.95,"avg_extras":11.67},{"bowling_team":"PBKS","runs_of_bat":365,"total_runs":396,"is_wicket":13,"balls_bowled":284,"extras":31,"matches":3,"overs_bowled":47.33,"economy":8.37,"avg_extras":10.33},{"bowling_team":"DC","runs_of_bat":488,"total_runs":513,"is_wicket":21,"balls_bowled":364,"extras":25,"matches":3,"overs_bowled":60.67,"economy":8.46,"avg_extras":8.33},{"bowling_team":"RR","runs_of_bat":418,"total_runs":455,"is_wicket":27,"balls_bowled":321,"extras":37,"matches":3,"overs_bowled":53.5,"economy":8.5,"avg_extras":12.33},{"bowling_team":"GT","runs_of_bat":558,"total_runs":583,"is_wicket":21,"balls_bowled":375,"extras":25,"matches":3,"overs_bowled":62.5,"economy":9.33,"avg_extras":8.33},{"bowling_team":"SRH","runs_of_bat":496,"total_runs":523,"is_wicket":20,"balls_bowled":323,"extras":27,"matches":3,"overs_bowled":53.83,"economy":9.72,"avg_extras":9.0},{"bowling_team":"RCB","runs_of_bat":396,"total_runs":410,"is_wicket":21,"balls_bowled":249,"extras":14,"matches":2,"overs_bowled":41.5,"economy":9.88,"avg_extras":7.0},{"bowling_team":"KKR","runs_of_bat":603,"total_runs":632,"is_wicket":19,"balls_bowled":375,"extras":29,"matches":3,"overs_bowled":62.5,"economy":10.11,"avg_extras":9.67},{"bowling_team":"MI","runs_of_bat":513,"total_runs":534,"is_wicket":11,"balls_bowled":313,"extras":21,"matches":3,"overs_bowled":52.17,"economy":10.24,"avg_extras":7.0},{"bowling_team":"CSK","runs_of_bat":565,"total_runs":587,"is_wicket":10,"balls_bowled":317,"extras":22,"matches":3,"overs_bowled":52.83,"economy":11.11,"avg_extras":7.33}],"phase_batting":[{"match_phase":"Powerplay (1-6)","runs_of_bat":1593,"total_runs":1698,"balls":1085,"is_boundary":264,"is_dot":424,"is_wicket":50,"overs":180.83,"rpo":9.39,"strike_rate":146.82,"boundary_pct":24.33,"dot_pct":39.08},{"match_phase":"Middle Overs (7-15)","runs_of_bat":2185,"total_runs":2282,"balls":1511,"is_boundary":284,"is_dot":416,"is_wicket":80,"overs":251.83,"rpo":9.06,"strike_rate":144.61,"boundary_pct":18.8,"dot_pct":27.53},{"match_phase":"Death Overs (16-20)","runs_of_bat":1070,"total_runs":1134,"balls":688,"is_boundary":158,"is_dot":190,"is_wicket":50,"overs":114.67,"rpo":9.89,"strike_rate":155.52,"boundary_pct":22.97,"dot_pct":27.62}],"venue_stats":[{"venue":"M.Chinnaswamy Stadium, Bengaluru","runs_of_bat":823,"total_runs":863,"balls":475,"is_boundary":122,"is_wicket":29,"matches":2,"overs":79.17,"avg_rpo":10.9,"avg_runs_per_innings":205.75,"boundary_pct":25.68,"wickets_per_innings":7.25},{"venue":"Wankhede Stadium, Mumbai","runs_of_bat":428,"total_runs":444,"balls":247,"is_boundary":65,"is_wicket":8,"matches":1,"overs":41.17,"avg_rpo":10.79,"avg_runs_per_innings":214.0,"boundary_pct":26.32,"wickets_per_innings":4.0},{"venue":"MA Chidambaram Stadium, Chennai","runs_of_bat":393,"total_runs":418,"balls":250,"is_boundary":60,"is_wicket":10,"matches":1,"overs":41.67,"avg_rpo":10.03,"avg_runs_per_innings":196.5,"boundary_pct":24.0,"wickets_per_innings":5.0},{"venue":"Narendra Modi Stadium, Ahmedabad","runs_of_bat":390,"total_runs":414,"balls":253,"is_boundary":61,"is_wicket":14,"matches":1,"overs":42.17,"avg_rpo":9.82,"avg_runs_per_innings":195.0,"boundary_pct":24.11,"wickets_per_innings":7.0},{"venue":"Barsapara Cricket Stadium, Guwahati","runs_of_bat":490,"total_runs":529,"balls":343,"is_boundary":72,"is_wicket":24,"matches":2,"overs":57.17,"avg_rpo":9.25,"avg_runs_per_innings":122.5,"boundary_pct":20.99,"wickets_per_innings":6.0},{"venue":"Eden Gardens, Kolkata","runs_of_bat":733,"total_runs":774,"balls":505,"is_boundary":109,"is_wicket":31,"matches":3,"overs":84.17,"avg_rpo":9.2,"avg_runs_per_innings":122.17,"boundary_pct":21.58,"wickets_per_innings":5.17},{"venue":"Arun Jaitley Stadium, Delhi","runs_of_bat":721,"total_runs":744,"balls":490,"is_boundary":106,"is_wicket":23,"matches":2,"overs":81.67,"avg_rpo":9.11,"avg_runs_per_innings":180.25,"boundary_pct":21.63,"wickets_per_innings":5.75},{"venue":"Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur, New Chandigarh","runs_of_bat":309,"total_runs":327,"balls":250,"is_boundary":38,"is_wicket":13,"matches":1,"overs":41.67,"avg_rpo":7.85,"avg_runs_per_innings":154.5,"boundary_pct":15.2,"wickets_per_innings":6.5},{"venue":"Rajiv Gandhi International Stadium, Hyderabad","runs_of_bat":309,"total_runs":316,"balls":243,"is_boundary":41,"is_wicket":14,"matches":1,"overs":40.5,"avg_rpo":7.8,"avg_runs_per_innings":154.5,"boundary_pct":16.87,"wickets_per_innings":7.0},{"venue":"Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow","runs_of_bat":252,"total_runs":285,"balls":228,"is_boundary":32,"is_wicket":14,"matches":1,"overs":38.0,"avg_rpo":7.5,"avg_runs_per_innings":126.0,"boundary_pct":14.04,"wickets_per_innings":7.0}],"extras_breakdown":{"wides":150,"noballs":13,"byes":13,"legbyes":42},"over_runs":[{"over_number":0,"runs_of_bat":1.37,"total_runs":1.46,"is_boundary":0.23,"is_dot":0.43},{"over_number":1,"runs_of_bat":1.29,"total_runs":1.4,"is_boundary":0.23,"is_dot":0.39},{"over_number":2,"runs_of_bat":1.4,"total_runs":1.52,"is_boundary":0.22,"is_dot":0.4},{"over_number":3,"runs_of_bat":1.54,"total_runs":1.6,"is_boundary":0.24,"is_dot":0.38},{"over_number":4,"runs_of_bat":1.67,"total_runs":1.79,"is_boundary":0.29,"is_dot":0.38},{"over_number":5,"runs_of_bat":1.55,"total_runs":1.64,"is_boundary":0.25,"is_dot":0.36},{"over_number":6,"runs_of_bat":1.45,"total_runs":1.48,"is_boundary":0.17,"is_dot":0.28},{"over_number":7,"runs_of_bat":1.38,"total_runs":1.45,"is_boundary":0.18,"is_dot":0.25},{"over_number":8,"runs_of_bat":1.56,"total_runs":1.67,"is_boundary":0.2,"is_dot":0.25},{"over_number":9,"runs_of_bat":1.22,"total_runs":1.26,"is_boundary":0.14,"is_dot":0.31},{"over_number":10,"runs_of_bat":1.44,"total_runs":1.49,"is_boundary":0.18,"is_dot":0.26},{"over_number":11,"runs_of_bat":1.62,"total_runs":1.75,"is_boundary":0.24,"is_dot":0.22},{"over_number":12,"runs_of_bat":1.34,"total_runs":1.38,"is_boundary":0.16,"is_dot":0.33},{"over_number":13,"runs_of_bat":1.42,"total_runs":1.46,"is_boundary":0.19,"is_dot":0.33},{"over_number":14,"runs_of_bat":1.59,"total_runs":1.66,"is_boundary":0.23,"is_dot":0.25},{"over_number":15,"runs_of_bat":1.5,"total_runs":1.56,"is_boundary":0.21,"is_dot":0.29},{"over_number":16,"runs_of_bat":1.54,"total_runs":1.62,"is_boundary":0.23,"is_dot":0.33},{"over_number":17,"runs_of_bat":1.48,"total_runs":1.56,"is_boundary":0.2,"is_dot":0.24},{"over_number":18,"runs_of_bat":1.71,"total_runs":1.8,"is_boundary":0.25,"is_dot":0.23},{"over_number":19,"runs_of_bat":1.56,"total_runs":1.73,"is_boundary":0.27,"is_dot":0.28}],"worst_discipline":[{"bowling_team":"RR","economy":8.5,"avg_extras":12.33,"extras":37},{"bowling_team":"LSG","economy":7.95,"avg_extras":11.67,"extras":35},{"bowling_team":"PBKS","economy":8.37,"avg_extras":10.33,"extras":31},{"bowling_team":"KKR","economy":10.11,"avg_extras":9.67,"extras":29},{"bowling_team":"SRH","economy":9.72,"avg_extras":9.0,"extras":27},{"bowling_team":"DC","economy":8.46,"avg_extras":8.33,"extras":25},{"bowling_team":"GT","economy":9.33,"avg_extras":8.33,"extras":25},{"bowling_team":"CSK","economy":11.11,"avg_extras":7.33,"extras":22},{"bowling_team":"RCB","economy":9.88,"avg_extras":7.0,"extras":14},{"bowling_team":"MI","economy":10.24,"avg_extras":7.0,"extras":21}]};
+
+        function populateReport() {
+            // Populate KPIs
+            document.getElementById('kpi-rpo').textContent = data.kpis.avg_rpo;
+            document.getElementById('kpi-boundary').textContent = data.kpis.boundary_pct + '%';
+            document.getElementById('kpi-dot').textContent = data.kpis.dot_pct + '%';
+            document.getElementById('kpi-extras').textContent = data.kpis.extras_per_match;
+            document.getElementById('kpi-wickets').textContent = data.kpis.wickets_per_match;
+
+            // Overview
+            document.getElementById('ov-matches').textContent = data.matches_played;
+            document.getElementById('ov-venues').textContent = data.venues;
+            document.getElementById('ov-teams').textContent = data.teams.length;
+            document.getElementById('ov-deliveries').textContent = data.total_deliveries.toLocaleString();
+            document.getElementById('ov-runs').textContent = data.total_runs.toLocaleString();
+            document.getElementById('ov-wickets').textContent = data.total_wickets;
+
+            // Overview Chart
+            const overviewCtx = document.getElementById('overviewChart').getContext('2d');
+            new Chart(overviewCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Matches', 'Venues', 'Teams', 'Deliveries (÷10)', 'Runs (÷100)', 'Wickets'],
+                    datasets: [{
+                        label: 'Tournament Overview',
+                        data: [data.matches_played, data.venues, data.teams.length, data.total_deliveries/10, data.total_runs/100, data.total_wickets],
+                        backgroundColor: ['#1a237e', '#283593', '#3949ab', '#5c6bc0', '#7986cb', '#9fa8da']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+
+            // Batsmen Table
+            const batsmenBody = document.querySelector('#batsmen-table tbody');
+            data.batsman_stats.slice(0, 15).forEach((b, i) => {
+                const row = `<tr>
+                    <td class="rank">${i+1}</td>
+                    <td><strong>${b.striker}</strong></td>
+                    <td>${b.runs_of_bat}</td>
+                    <td>${b.balls_faced}</td>
+                    <td>${b.strike_rate}</td>
+                    <td>${b.is_boundary}</td>
+                    <td>${b.is_four}</td>
+                    <td>${b.is_six}</td>
+                </tr>`;
+                batsmenBody.innerHTML += row;
+            });
+
+            // Phase Charts
+            const phaseLabels = data.phase_batting.map(p => p.match_phase);
+            const phaseRpoData = data.phase_batting.map(p => p.rpo);
+            const phaseBoundData = data.phase_batting.map(p => p.boundary_pct);
+
+            const phaseRpoCtx = document.getElementById('phaseRpoChart').getContext('2d');
+            new Chart(phaseRpoCtx, {
+                type: 'bar',
+                data: {
+                    labels: phaseLabels,
+                    datasets: [{
+                        label: 'RPO',
+                        data: phaseRpoData,
+                        backgroundColor: ['#4caf50', '#ff9800', '#f44336']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: false, min: 8 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const phaseBoundCtx = document.getElementById('phaseBoundaryChart').getContext('2d');
+            new Chart(phaseBoundCtx, {
+                type: 'bar',
+                data: {
+                    labels: phaseLabels,
+                    datasets: [{
+                        label: 'Boundary %',
+                        data: phaseBoundData,
+                        backgroundColor: ['#4caf50', '#ff9800', '#f44336']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Over Scoring Chart
+            const overCtx = document.getElementById('overScoringChart').getContext('2d');
+            const overLabels = data.over_runs.map(o => 'Ov ' + o.over_number);
+            const overRunsData = data.over_runs.map(o => o.runs_of_bat);
+            const overBoundData = data.over_runs.map(o => (o.is_boundary * 100).toFixed(1));
+
+            new Chart(overCtx, {
+                type: 'line',
+                data: {
+                    labels: overLabels,
+                    datasets: [{
+                        label: 'Avg Runs/Ball',
+                        data: overRunsData,
+                        borderColor: '#1a237e',
+                        backgroundColor: 'rgba(26, 35, 126, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Bowlers Table
+            const bowlersBody = document.querySelector('#bowlers-table tbody');
+            data.bowler_stats.slice(0, 15).forEach((b, i) => {
+                const strikeRate = b.bowling_strike_rate ? b.bowling_strike_rate : 'N/A';
+                const row = `<tr>
+                    <td class="rank">${i+1}</td>
+                    <td><strong>${b.bowler}</strong></td>
+                    <td>${b.is_wicket}</td>
+                    <td>${b.overs_bowled}</td>
+                    <td>${b.economy}</td>
+                    <td>${strikeRate}</td>
+                </tr>`;
+                bowlersBody.innerHTML += row;
+            });
+
+            // Dismissal Chart
+            const dismissCtx = document.getElementById('dismissalChart').getContext('2d');
+            const dismissLabels = Object.keys(data.dismissals);
+            const dismissData = Object.values(data.dismissals);
+            const dismissColors = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0', '#00bcd4', '#795548'];
+
+            new Chart(dismissCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: dismissLabels,
+                    datasets: [{
+                        data: dismissData,
+                        backgroundColor: dismissColors.slice(0, dismissLabels.length)
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            // Bowler Economy Chart (top 10)
+            const bowlerEcoCtx = document.getElementById('bowlerEconomyChart').getContext('2d');
+            const topBowlers = data.bowler_stats.slice(0, 10);
+            new Chart(bowlerEcoCtx, {
+                type: 'bar',
+                data: {
+                    labels: topBowlers.map(b => b.bowler),
+                    datasets: [{
+                        label: 'Economy',
+                        data: topBowlers.map(b => b.economy),
+                        backgroundColor: '#283593'
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Team Batting Table
+            const teamBatBody = document.querySelector('#team-batting-table tbody');
+            data.team_batting.forEach((t, i) => {
+                const row = `<tr>
+                    <td><span class="team-badge">${t.batting_team}</span></td>
+                    <td>${t.runs_of_bat}</td>
+                    <td>${t.matches}</td>
+                    <td>${t.avg_runs}</td>
+                    <td>${t.strike_rate}</td>
+                    <td>${t.boundary_pct}%</td>
+                </tr>`;
+                teamBatBody.innerHTML += row;
+            });
+
+            // Team Bowling Table
+            const teamBowlBody = document.querySelector('#team-bowling-table tbody');
+            data.team_bowling.forEach((t, i) => {
+                const row = `<tr>
+                    <td><span class="team-badge">${t.bowling_team}</span></td>
+                    <td>${t.runs_of_bat}</td>
+                    <td>${t.is_wicket}</td>
+                    <td>${t.economy}</td>
+                    <td class="${t.avg_extras > 15 ? 'discipline-warning' : 'discipline-good'}">${t.avg_extras}</td>
+                </tr>`;
+                teamBowlBody.innerHTML += row;
+            });
+
+            // Team Comparison Charts
+            const teamBatCtx = document.getElementById('teamBattingChart').getContext('2d');
+            new Chart(teamBatCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.team_batting.map(t => t.batting_team),
+                    datasets: [{
+                        label: 'Avg Runs',
+                        data: data.team_batting.map(t => t.avg_runs),
+                        backgroundColor: '#1a237e'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const teamBowlCtx = document.getElementById('teamBowlingChart').getContext('2d');
+            new Chart(teamBowlCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.team_bowling.map(t => t.bowling_team),
+                    datasets: [{
+                        label: 'Economy',
+                        data: data.team_bowling.map(t => t.economy),
+                        backgroundColor: '#c62828'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Extras Breakdown Chart
+            const extrasCtx = document.getElementById('extrasBreakdownChart').getContext('2d');
+            const extrasLabels = Object.keys(data.extras_breakdown);
+            const extrasData = Object.values(data.extras_breakdown);
+
+            new Chart(extrasCtx, {
+                type: 'bar',
+                data: {
+                    labels: extrasLabels,
+                    datasets: [{
+                        label: 'Runs',
+                        data: extrasData,
+                        backgroundColor: ['#f44336', '#ff9800', '#4caf50', '#2196f3']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Discipline Table
+            const disciplineBody = document.querySelector('#discipline-table tbody');
+            data.worst_discipline.forEach((t, i) => {
+                const assessment = t.avg_extras > 20 ? '<span class="badge badge-danger">Poor</span>' :
+                                  t.avg_extras > 15 ? '<span class="badge badge-warning">Concerning</span>' :
+                                  '<span class="badge badge-success">Good</span>';
+                const row = `<tr>
+                    <td><span class="team-badge">${t.bowling_team}</span></td>
+                    <td>${t.economy}</td>
+                    <td class="${t.avg_extras > 15 ? 'discipline-warning' : ''}">${t.avg_extras}</td>
+                    <td>${t.extras}</td>
+                    <td>${assessment}</td>
+                </tr>`;
+                disciplineBody.innerHTML += row;
+            });
+
+            // Venue Table
+            const venueBody = document.querySelector('#venue-table tbody');
+            data.venue_stats.forEach((v, i) => {
+                const character = v.avg_rpo > 10 ? '<span class="badge badge-success">Batting Friendly</span>' :
+                                 v.avg_rpo < 8.5 ? '<span class="badge badge-danger">Bowling Friendly</span>' :
+                                 '<span class="badge badge-primary">Balanced</span>';
+                const venueShort = v.venue.split(',')[0];
+                const row = `<tr>
+                    <td><strong>${venueShort}</strong><br><small style="color:#78909c">${v.venue.split(',')[1] || ''}</small></td>
+                    <td>${v.avg_rpo}</td>
+                    <td>${v.avg_runs_per_innings}</td>
+                    <td>${v.boundary_pct}%</td>
+                    <td>${v.wickets_per_innings}</td>
+                    <td>${character}</td>
+                </tr>`;
+                venueBody.innerHTML += row;
+            });
+
+            // Venue Charts
+            const venueRpoCtx = document.getElementById('venueRpoChart').getContext('2d');
+            new Chart(venueRpoCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.venue_stats.map(v => v.venue.split(',')[0]),
+                    datasets: [{
+                        label: 'Avg RPO',
+                        data: data.venue_stats.map(v => v.avg_rpo),
+                        backgroundColor: data.venue_stats.map(v => v.avg_rpo > 10 ? '#4caf50' : v.avg_rpo < 8.5 ? '#f44336' : '#ff9800')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false, min: 6 } }
+                }
+            });
+
+            const venueWktCtx = document.getElementById('venueWicketsChart').getContext('2d');
+            new Chart(venueWktCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.venue_stats.map(v => v.venue.split(',')[0]),
+                    datasets: [{
+                        label: 'Wickets/Innings',
+                        data: data.venue_stats.map(v => v.wickets_per_innings),
+                        backgroundColor: '#9c27b0'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Initialize
+        populateReport();
+    </script>
+</body>
+</html>

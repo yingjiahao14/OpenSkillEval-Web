@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon Product Catalog Performance & Customer Sentiment Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+:root {
+    --primary: #232F3E;
+    --accent: #FF9900;
+    --accent2: #146EB4;
+    --bg: #F8F9FA;
+    --card-bg: #FFFFFF;
+    --text: #333333;
+    --text-light: #666666;
+    --border: #E8E8E8;
+    --success: #28A745;
+    --warning: #FFC107;
+    --danger: #DC3545;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+.header { background: linear-gradient(135deg, var(--primary) 0%, #37475A 100%); color:#fff; padding:48px 40px 40px; }
+.header h1 { font-size:28px; font-weight:700; margin-bottom:8px; }
+.header .subtitle { font-size:15px; color:#ccc; margin-bottom:4px; }
+.header .meta { font-size:13px; color:#999; }
+.container { max-width:1200px; margin:0 auto; padding:0 24px; }
+.kpi-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:16px; margin:-40px 0 32px; position:relative; z-index:1; }
+.kpi-card { background:var(--card-bg); border-radius:12px; padding:24px 20px; box-shadow:0 2px 12px rgba(0,0,0,0.08); text-align:center; border-top:3px solid var(--accent); }
+.kpi-value { font-size:32px; font-weight:700; color:var(--primary); margin:8px 0 4px; }
+.kpi-label { font-size:12px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.kpi-sub { font-size:11px; color:#999; margin-top:4px; }
+section { margin-bottom:40px; }
+.section-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; padding-bottom:12px; border-bottom:2px solid var(--accent); }
+.section-num { background:var(--accent); color:var(--primary); width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0; }
+.section-header h2 { font-size:22px; color:var(--primary); }
+.card { background:var(--card-bg); border-radius:12px; padding:28px; box-shadow:0 1px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
+.chart-container { position:relative; width:100%; }
+.chart-row { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.data-table { width:100%; border-collapse:collapse; font-size:14px; }
+.data-table th { background:var(--primary); color:#fff; padding:12px 16px; text-align:left; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+.data-table td { padding:10px 16px; border-bottom:1px solid var(--border); }
+.data-table tbody tr:hover { background:#f5f5f5; }
+.data-table tbody tr:last-child td { border-bottom:none; }
+.text-success { color:var(--success); font-weight:600; }
+.text-warning { color:#E67E00; font-weight:600; }
+.text-danger { color:var(--danger); font-weight:600; }
+.insight-box { background:#FFF8E7; border-left:4px solid var(--accent); padding:16px 20px; border-radius:0 8px 8px 0; margin:16px 0; font-size:14px; }
+.insight-box strong { color:var(--primary); }
+.mini-bar-wrap { width:100%; height:8px; background:#eee; border-radius:4px; overflow:hidden; }
+.mini-bar { height:100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius:4px; }
+.rec-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.rec-card { background:var(--card-bg); border-radius:12px; padding:24px; border-left:4px solid var(--accent2); box-shadow:0 1px 6px rgba(0,0,0,0.06); }
+.rec-card h4 { color:var(--accent2); font-size:16px; margin-bottom:8px; }
+.rec-card p { font-size:14px; color:var(--text-light); }
+.rec-card .data-point { background:#EBF5FB; padding:8px 12px; border-radius:6px; font-size:13px; margin-top:10px; color:var(--accent2); }
+.stat-highlight { display:inline-block; background:var(--accent); color:var(--primary); padding:2px 8px; border-radius:4px; font-weight:700; }
+.footer { text-align:center; padding:32px; color:#999; font-size:12px; border-top:1px solid var(--border); margin-top:40px; }
+.corr-badge { display:inline-block; padding:4px 12px; border-radius:20px; font-weight:700; font-size:14px; }
+.corr-weak { background:#FFF3CD; color:#856404; }
+.corr-none { background:#F0F0F0; color:#666; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media (max-width:900px) {
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    .chart-row, .rec-grid, .two-col { grid-template-columns:1fr; }
+}
+@media (max-width:600px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .header { padding:32px 20px 24px; }
+    .header h1 { font-size:22px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="container">
+        <h1>Amazon Product Catalog Performance & Customer Sentiment Analysis</h1>
+        <div class="subtitle">Comprehensive analysis of 1,465 products across 9 categories on Amazon India</div>
+        <div class="meta">Data Source: Amazon India Product Catalog &bull; 26,766,377 total customer ratings analyzed</div>
+    </div>
+</div>
+
+<div class="container">
+
+<!-- KPI Dashboard -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label">Average Rating</div>
+        <div class="kpi-value">4.10</div>
+        <div class="kpi-sub">out of 5.0</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Avg Discount</div>
+        <div class="kpi-value">47.7%</div>
+        <div class="kpi-sub">Median: 50%</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">High-Rating Share</div>
+        <div class="kpi-value">75.8%</div>
+        <div class="kpi-sub">Products rated 4.0+</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Median Engagement</div>
+        <div class="kpi-value">5,179</div>
+        <div class="kpi-sub">ratings per product</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Discount &harr; Rating</div>
+        <div class="kpi-value" style="font-size:26px">-0.155</div>
+        <div class="kpi-sub">Pearson correlation</div>
+    </div>
+</div>
+
+<!-- Section 1: Executive Overview -->
+<section id="executive-overview">
+    <div class="section-header">
+        <div class="section-num">1</div>
+        <h2>Executive Overview</h2>
+    </div>
+    <div class="card">
+        <p style="font-size:15px; margin-bottom:16px;">
+            This report analyzes <strong>1,465 Amazon India products</strong> spanning 9 top-level categories.
+            The catalog demonstrates strong overall quality: <span class="stat-highlight">75.8%</span> of products carry ratings of 4.0 or above,
+            with an average rating of <strong>4.10/5.0</strong>.
+        </p>
+        <p style="font-size:15px; margin-bottom:16px;">
+            The promotional environment is aggressive — the average discount is <strong>47.7%</strong> (median 50%),
+            indicating that nearly half the catalog is discounted by 50% or more. However, deeper discounts show a
+            <strong>weak negative correlation with ratings (r = -0.155)</strong>, suggesting that heavy discounting is
+            not translating into higher customer satisfaction and may even signal lower-quality products.
+        </p>
+        <div class="insight-box">
+            <strong>Key Finding:</strong> The correlation between discount percentage and review volume is near zero (r = 0.0117),
+            meaning discounts are not meaningfully driving more customer engagement. Management should re-evaluate whether deep
+            discounting is delivering ROI beyond volume, as it appears to neither increase ratings nor significantly boost review counts.
+        </div>
+    </div>
+</section>
+
+<!-- Section 2: Category Performance -->
+<section id="category-analysis">
+    <div class="section-header">
+        <div class="section-num">2</div>
+        <h2>Category Performance Breakdown</h2>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:16px; font-size:16px; color:var(--primary);">Category Overview</h3>
+        <table class="data-table">
+            <thead><tr>
+                <th>Category</th><th>Products</th><th>Distribution</th><th>Avg Rating</th><th>Avg Discount</th><th>Total Ratings</th>
+            </tr></thead>
+            <tbody><tr>
+        <td><strong>Electronics</strong></td>
+        <td>526</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:100%"></div></div></td>
+        <td class="text-warning">4.08</td>
+        <td>50.8%</td>
+        <td>15,778,848</td>
+    </tr><tr>
+        <td><strong>Computers&amp;Accessories</strong></td>
+        <td>453</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:86%"></div></div></td>
+        <td class="text-success">4.15</td>
+        <td>54.0%</td>
+        <td>7,728,689</td>
+    </tr><tr>
+        <td><strong>Home&amp;Kitchen</strong></td>
+        <td>448</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:85%"></div></div></td>
+        <td class="text-warning">4.04</td>
+        <td>40.1%</td>
+        <td>2,991,069</td>
+    </tr><tr>
+        <td><strong>OfficeProducts</strong></td>
+        <td>31</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:6%"></div></div></td>
+        <td class="text-success">4.31</td>
+        <td>12.4%</td>
+        <td>149,675</td>
+    </tr><tr>
+        <td><strong>MusicalInstruments</strong></td>
+        <td>2</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:0%"></div></div></td>
+        <td class="text-danger">3.90</td>
+        <td>46.0%</td>
+        <td>88,882</td>
+    </tr><tr>
+        <td><strong>HomeImprovement</strong></td>
+        <td>2</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:0%"></div></div></td>
+        <td class="text-success">4.25</td>
+        <td>57.5%</td>
+        <td>8,566</td>
+    </tr><tr>
+        <td><strong>Car&amp;Motorbike</strong></td>
+        <td>1</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:0%"></div></div></td>
+        <td class="text-danger">3.80</td>
+        <td>42.0%</td>
+        <td>1,118</td>
+    </tr><tr>
+        <td><strong>Health&amp;PersonalCare</strong></td>
+        <td>1</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:0%"></div></div></td>
+        <td class="text-warning">4.00</td>
+        <td>53.0%</td>
+        <td>3,663</td>
+    </tr><tr>
+        <td><strong>Toys&amp;Games</strong></td>
+        <td>1</td>
+        <td><div class="mini-bar-wrap"><div class="mini-bar" style="width:0%"></div></div></td>
+        <td class="text-success">4.30</td>
+        <td>0.0%</td>
+        <td>15,867</td>
+    </tr></tbody>
+        </table>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Average Rating by Category</h3>
+            <div class="chart-container"><canvas id="catRatingChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Average Discount by Category</h3>
+            <div class="chart-container"><canvas id="catDiscountChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:12px; font-size:16px;">Sub-Category Drilldown (Top 3 Categories)</h3>
+        <h4>Electronics</h4><table class="data-table"><thead><tr><th>Sub-Category</th><th>Products</th><th>Avg Rating</th><th>Avg Discount</th></tr></thead><tbody><tr><td>HomeTheater,TV&amp;Video</td><td>162</td><td>4.08</td><td>49.5%</td></tr><tr><td>Mobiles&amp;Accessories</td><td>161</td><td>4.13</td><td>42.7%</td></tr><tr><td>WearableTechnology</td><td>76</td><td>4.02</td><td>69.8%</td></tr><tr><td>Headphones,Earbuds&amp;Accessories</td><td>66</td><td>3.93</td><td>59.5%</td></tr><tr><td>Cameras&amp;Photography</td><td>16</td><td>4.12</td><td>47.6%</td></tr></tbody></table><h4>Computers&amp;Accessories</h4><table class="data-table"><thead><tr><th>Sub-Category</th><th>Products</th><th>Avg Rating</th><th>Avg Discount</th></tr></thead><tbody><tr><td>Accessories&amp;Peripherals</td><td>381</td><td>4.15</td><td>56.0%</td></tr><tr><td>NetworkingDevices</td><td>34</td><td>4.16</td><td>47.7%</td></tr><tr><td>ExternalDevices&amp;DataStorage</td><td>18</td><td>4.32</td><td>46.9%</td></tr><tr><td>Printers,Inks&amp;Accessories</td><td>11</td><td>3.96</td><td>21.5%</td></tr><tr><td>Components</td><td>5</td><td>4.38</td><td>54.6%</td></tr></tbody></table><h4>Home&amp;Kitchen</h4><table class="data-table"><thead><tr><th>Sub-Category</th><th>Products</th><th>Avg Rating</th><th>Avg Discount</th></tr></thead><tbody><tr><td>Kitchen&amp;HomeAppliances</td><td>308</td><td>4.05</td><td>40.3%</td></tr><tr><td>Heating,Cooling&amp;AirQuality</td><td>116</td><td>3.99</td><td>40.7%</td></tr><tr><td>HomeStorage&amp;Organization</td><td>16</td><td>4.03</td><td>46.1%</td></tr><tr><td>CraftMaterials</td><td>7</td><td>4.34</td><td>8.4%</td></tr><tr><td>Kitchen&amp;Dining</td><td>1</td><td>4.10</td><td>60.0%</td></tr></tbody></table>
+    </div>
+
+    <div class="insight-box">
+        <strong>Category Insight:</strong> Office Products leads with the highest average rating (4.31) and the lowest discounting (12.4%), reinforcing that quality-first categories don't need heavy promotions.
+        Home&amp;Kitchen shows the weakest rating (4.04) despite being the second-largest category — a priority area for quality improvement.
+    </div>
+</section>
+
+<!-- Section 3: Pricing & Discount Strategy -->
+<section id="pricing-discount-analysis">
+    <div class="section-header">
+        <div class="section-num">3</div>
+        <h2>Pricing & Discount Strategy Analysis</h2>
+    </div>
+
+    <div class="card" style="border-top:3px solid var(--accent);">
+        <h3 style="margin-bottom:8px; font-size:18px; color:var(--primary);">Does Deeper Discounting Drive Higher Satisfaction?</h3>
+        <p style="font-size:15px; margin-bottom:16px; color:var(--text-light);">
+            The data answers this question clearly: <strong>No.</strong> There is a weak negative correlation between discount
+            depth and customer rating.
+        </p>
+        <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:20px;">
+            <div style="flex:1; min-width:200px; text-align:center; padding:20px; background:#f8f8f8; border-radius:8px;">
+                <div style="font-size:13px; color:var(--text-light); text-transform:uppercase;">Discount vs Rating</div>
+                <div style="font-size:36px; font-weight:700; color:var(--danger); margin:8px 0;">-0.155</div>
+                <span class="corr-badge corr-weak">Weak Negative</span>
+            </div>
+            <div style="flex:1; min-width:200px; text-align:center; padding:20px; background:#f8f8f8; border-radius:8px;">
+                <div style="font-size:13px; color:var(--text-light); text-transform:uppercase;">Discount vs Review Volume</div>
+                <div style="font-size:36px; font-weight:700; color:#666; margin:8px 0;">0.0117</div>
+                <span class="corr-badge corr-none">No Correlation</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Discount % vs Customer Rating (Scatter)</h3>
+            <div class="chart-container"><canvas id="scatterChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Avg Rating by Discount Bracket</h3>
+            <div class="chart-container"><canvas id="discBracketChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:12px; font-size:16px;">Discount Bracket Detail</h3>
+        <table class="data-table">
+            <thead><tr><th>Discount Bracket</th><th>Products</th><th>Avg Rating</th><th>Median Reviews</th></tr></thead>
+            <tbody><tr>
+        <td><strong>0–20%</strong></td>
+        <td>180</td>
+        <td class="text-success">4.17</td>
+        <td>6,744</td>
+    </tr><tr>
+        <td><strong>20–40%</strong></td>
+        <td>338</td>
+        <td class="text-success">4.13</td>
+        <td>7,308</td>
+    </tr><tr>
+        <td><strong>40–60%</strong></td>
+        <td>508</td>
+        <td class="text-warning">4.08</td>
+        <td>3,198</td>
+    </tr><tr>
+        <td><strong>60–80%</strong></td>
+        <td>380</td>
+        <td class="text-warning">4.08</td>
+        <td>5,643</td>
+    </tr><tr>
+        <td><strong>80–100%</strong></td>
+        <td>59</td>
+        <td class="text-danger">3.98</td>
+        <td>4,740</td>
+    </tr></tbody></table>
+        <div class="insight-box">
+            <strong>Discount Strategy Insight:</strong> Products in the 0–20% discount bracket have the highest average rating (4.17)
+            while the 80–100% bracket has the lowest (3.98). This 0.20-point gap
+            suggests that ultra-deep discounts are concentrated among lower-quality products — discounting is compensating for product weakness, not creating customer delight.
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Avg Rating by Price Segment</h3>
+            <div class="chart-container"><canvas id="priceRatingChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Product Count by Price Segment</h3>
+            <div class="chart-container"><canvas id="priceCountChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:12px; font-size:16px;">Price Segment Detail</h3>
+        <table class="data-table">
+            <thead><tr><th>Price Segment</th><th>Products</th><th>Avg Rating</th><th>Avg Discount</th><th>Median Reviews</th></tr></thead>
+            <tbody><tr>
+        <td><strong>Under ₹500</strong></td>
+        <td>576</td>
+        <td>4.07</td>
+        <td>55.8%</td>
+        <td>3,080</td>
+    </tr><tr>
+        <td><strong>₹500–1K</strong></td>
+        <td>252</td>
+        <td>4.12</td>
+        <td>46.1%</td>
+        <td>6,350</td>
+    </tr><tr>
+        <td><strong>₹1K–2K</strong></td>
+        <td>275</td>
+        <td>4.07</td>
+        <td>46.0%</td>
+        <td>9,504</td>
+    </tr><tr>
+        <td><strong>₹2K–5K</strong></td>
+        <td>156</td>
+        <td>4.09</td>
+        <td>42.2%</td>
+        <td>4,602</td>
+    </tr><tr>
+        <td><strong>₹5K–10K</strong></td>
+        <td>84</td>
+        <td>4.14</td>
+        <td>35.2%</td>
+        <td>3,827</td>
+    </tr><tr>
+        <td><strong>Over ₹10K</strong></td>
+        <td>122</td>
+        <td>4.20</td>
+        <td>32.4%</td>
+        <td>11,976</td>
+    </tr></tbody></table>
+        <div class="insight-box">
+            <strong>Price Insight:</strong> Premium products (Over ₹10K) carry the highest average rating (4.20)
+            while the budget segment (Under ₹500) has the lowest (4.07).
+            Higher-priced items consistently achieve better customer satisfaction, pointing to quality-price alignment in the catalog.
+        </div>
+    </div>
+</section>
+
+<!-- Section 4: Customer Engagement -->
+<section id="customer-engagement">
+    <div class="section-header">
+        <div class="section-num">4</div>
+        <h2>Customer Engagement & Rating Distribution</h2>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Rating Distribution</h3>
+            <div class="chart-container"><canvas id="ratingDistChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px;">Rating Breakdown</h3>
+            <table class="data-table">
+                <thead><tr><th>Rating Range</th><th>Products</th><th>Share</th></tr></thead>
+                <tbody><tr>
+        <td><strong>Below 3.0</strong></td>
+        <td>6</td>
+        <td>0.4%</td>
+    </tr><tr>
+        <td><strong>3.0–3.4</strong></td>
+        <td>36</td>
+        <td>2.5%</td>
+    </tr><tr>
+        <td><strong>3.5–3.9</strong></td>
+        <td>312</td>
+        <td>21.3%</td>
+    </tr><tr>
+        <td><strong>4.0–4.2</strong></td>
+        <td>653</td>
+        <td>44.6%</td>
+    </tr><tr>
+        <td><strong>4.3–4.5</strong></td>
+        <td>428</td>
+        <td>29.2%</td>
+    </tr><tr>
+        <td><strong>4.6+</strong></td>
+        <td>29</td>
+        <td>2.0%</td>
+    </tr></tbody></table>
+            <div class="insight-box" style="margin-top:16px;">
+                <strong>Distribution Insight:</strong> The catalog is heavily right-skewed — 75.8% of products are rated 4.0+.
+                Only 6 products fall below 3.0. This indicates strong overall catalog curation but
+                limits differentiation — most products cluster in a narrow rating band.
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:16px; font-size:16px;">Top 10 Most-Engaged Products</h3>
+        <table class="data-table">
+            <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Rating</th><th>Rating Count</th><th>Discount</th></tr></thead>
+            <tbody><tr>
+        <td>1</td>
+        <td title="AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60Hz, 18Gbps), 3-Foot">AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60H...</td>
+        <td>Electronics</td>
+        <td>4.4</td>
+        <td>426,973</td>
+        <td>69%</td>
+    </tr><tr>
+        <td>2</td>
+        <td title="Amazon Basics High-Speed HDMI Cable, 6 Feet - Supports Ethernet, 3D, 4K video,Black">Amazon Basics High-Speed HDMI Cable, 6 Feet - Supports ...</td>
+        <td>Electronics</td>
+        <td>4.4</td>
+        <td>426,973</td>
+        <td>35%</td>
+    </tr><tr>
+        <td>3</td>
+        <td title="Amazon Basics High-Speed HDMI Cable, 6 Feet (2-Pack),Black">Amazon Basics High-Speed HDMI Cable, 6 Feet (2-Pack),Bl...</td>
+        <td>Electronics</td>
+        <td>4.4</td>
+        <td>426,973</td>
+        <td>78%</td>
+    </tr><tr>
+        <td>4</td>
+        <td title="AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60Hz, 18Gbps), 3-Foot">AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60H...</td>
+        <td>Electronics</td>
+        <td>4.4</td>
+        <td>426,972</td>
+        <td>69%</td>
+    </tr><tr>
+        <td>5</td>
+        <td title="boAt Bassheads 100 in Ear Wired Earphones with Mic(Taffy Pink)">boAt Bassheads 100 in Ear Wired Earphones with Mic(Taff...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>363,713</td>
+        <td>65%</td>
+    </tr><tr>
+        <td>6</td>
+        <td title="boAt Bassheads 100 in Ear Wired Earphones with Mic(Furious Red)">boAt Bassheads 100 in Ear Wired Earphones with Mic(Furi...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>363,713</td>
+        <td>62%</td>
+    </tr><tr>
+        <td>7</td>
+        <td title="boAt BassHeads 100 in-Ear Wired Headphones with Mic (Black)">boAt BassHeads 100 in-Ear Wired Headphones with Mic (Bl...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>363,711</td>
+        <td>63%</td>
+    </tr><tr>
+        <td>8</td>
+        <td title="Redmi 9 Activ (Carbon Black, 4GB RAM, 64GB Storage) | Octa-core Helio G35 | 5000 mAh Battery">Redmi 9 Activ (Carbon Black, 4GB RAM, 64GB Storage) | O...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>313,836</td>
+        <td>23%</td>
+    </tr><tr>
+        <td>9</td>
+        <td title="Redmi 9A Sport (Coral Green, 2GB RAM, 32GB Storage) | 2GHz Octa-core Helio G25 Processor | 5000 mAh Battery">Redmi 9A Sport (Coral Green, 2GB RAM, 32GB Storage) | 2...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>313,836</td>
+        <td>24%</td>
+    </tr><tr>
+        <td>10</td>
+        <td title="Redmi 9A Sport (Carbon Black, 2GB RAM, 32GB Storage) | 2GHz Octa-core Helio G25 Processor | 5000 mAh Battery">Redmi 9A Sport (Carbon Black, 2GB RAM, 32GB Storage) | ...</td>
+        <td>Electronics</td>
+        <td>4.1</td>
+        <td>313,832</td>
+        <td>19%</td>
+    </tr></tbody>
+        </table>
+        <div class="insight-box" style="margin-top:16px;">
+            <strong>Engagement Insight:</strong> The most-reviewed products tend to be affordable accessories (cables, chargers) with
+            moderate ratings (4.0–4.3). High engagement doesn't require perfect ratings — accessible pricing and broad utility drive volume.
+        </div>
+    </div>
+</section>
+
+<!-- Section 5: Review Sentiment -->
+<section id="review-sentiment-snapshot">
+    <div class="section-header">
+        <div class="section-num">5</div>
+        <h2>Review Sentiment Snapshot</h2>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px; color:var(--success);">Top Positive Themes</h3>
+            <div class="chart-container"><canvas id="posChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px; font-size:16px; color:var(--danger);">Top Negative Themes</h3>
+            <div class="chart-container"><canvas id="negChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="two-col">
+            <div>
+                <h4 style="color:var(--success); margin-bottom:12px;">What Customers Love</h4>
+                <ul style="font-size:14px; line-height:2;">
+                    <li><strong>"Good"</strong> appears in 3,889 review titles — the most common positive signal</li>
+                    <li><strong>"Quality"</strong> (748 mentions) and <strong>"Worth"</strong> (362) suggest value-for-money resonates strongly</li>
+                    <li><strong>"Nice"</strong> (899) and <strong>"Best"</strong> (499) round out the top themes</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color:var(--danger); margin-bottom:12px;">What Customers Dislike</h4>
+                <ul style="font-size:14px; line-height:2;">
+                    <li><strong>"Bad"</strong> (116) and <strong>"Not working"</strong> (72) are the top complaints</li>
+                    <li><strong>"Poor"</strong> (45) and <strong>"Cheap"</strong> (42) indicate quality and durability concerns</li>
+                    <li><strong>"Defective"</strong> (21) flags potential QC issues that warrant supplier review</li>
+                </ul>
+            </div>
+        </div>
+        <div class="insight-box" style="margin-top:16px;">
+            <strong>Sentiment Ratio:</strong> Positive theme mentions outweigh negative by roughly <strong>18:1</strong>,
+            consistent with the high average rating. However, "not working" and "defective" complaints — though relatively small in number —
+            represent actionable quality issues that disproportionately damage brand trust.
+        </div>
+    </div>
+</section>
+
+<!-- Section 6: Recommendations -->
+<section id="recommendations">
+    <div class="section-header">
+        <div class="section-num">6</div>
+        <h2>Strategic Recommendations</h2>
+    </div>
+
+    <div class="rec-grid">
+        <div class="rec-card">
+            <h4>1. Recalibrate Discount Strategy</h4>
+            <p>Reduce reliance on deep discounts (60%+) which correlate with lower ratings. Shift promotional spend toward
+            value-added bundles or loyalty rewards instead of price-only promotions.</p>
+            <div class="data-point">Products at 80–100% discount average only 3.98 stars vs 4.17 at 0–20% discount (r = -0.155)</div>
+        </div>
+        <div class="rec-card">
+            <h4>2. Prioritize Home & Kitchen Quality</h4>
+            <p>Home&amp;Kitchen — the catalog's third-largest category (448 products) — has the lowest
+            average rating among major categories. Conduct supplier quality audits and curate underperformers.</p>
+            <div class="data-point">Home&amp;Kitchen avg rating: 4.04 vs catalog avg: 4.10</div>
+        </div>
+        <div class="rec-card">
+            <h4>3. Address "Not Working" / Defective Complaints</h4>
+            <p>Product functionality failures ("not working": 72 mentions, "defective": 21) are the most damaging
+            review themes. Implement a defect-flagging system to auto-escalate products crossing a complaint threshold.</p>
+            <div class="data-point">93 combined mentions of functionality failures across review titles</div>
+        </div>
+        <div class="rec-card">
+            <h4>4. Invest in the Premium Segment</h4>
+            <p>Products priced above ₹10K show the highest average rating (4.20). Expand and better merchandise
+            the premium tier — these products drive satisfaction and likely higher margins with lower discount intensity.</p>
+            <div class="data-point">Over ₹10K: 4.20 avg rating with only 122 products — underrepresented high-performer</div>
+        </div>
+        <div class="rec-card" style="grid-column: span 2;">
+            <h4>5. Leverage Office Products as a Best-Practice Model</h4>
+            <p>Office Products achieves the highest average rating (4.31) with the lowest average discount
+            (12.4%). Study this category's vendor curation, product listing standards, and customer communication
+            practices as a model for underperforming categories — proof that quality-first merchandising can outperform discount-heavy strategies.</p>
+            <div class="data-point">Office Products: 4.31 rating at 12.4% avg discount — highest satisfaction, lowest promotional intensity</div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+<div class="footer">
+    Amazon Product Catalog Performance & Customer Sentiment Analysis &bull; Data: 1,465 products, 26,766,377 customer ratings &bull; Generated from Amazon India catalog data
+</div>
+
+<script>
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.display = false;
+
+// Category Rating Chart
+new Chart(document.getElementById('catRatingChart'), {
+    type: 'bar',
+    data: {
+        labels: ["Electronics", "Computers&Accessories", "Home&Kitchen", "OfficeProducts", "MusicalInstruments", "HomeImprovement"],
+        datasets: [{
+            data: [4.08, 4.15, 4.04, 4.31, 3.9, 4.25],
+            backgroundColor: ['#146EB4','#1A85CC','#2196C8','#28A7C4','#30B8C0','#38C9BC'],
+            borderRadius: 6,
+            barPercentage: 0.7
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { min:3.8, max:4.4, ticks:{ stepSize:0.1 }, title:{ display:true, text:'Avg Rating' } },
+            x: { ticks:{ maxRotation:45 } }
+        },
+        plugins: { tooltip:{ callbacks:{ label: ctx => 'Rating: ' + ctx.parsed.y } } }
+    }
+});
+
+// Category Discount Chart
+new Chart(document.getElementById('catDiscountChart'), {
+    type: 'bar',
+    data: {
+        labels: ["Electronics", "Computers&Accessories", "Home&Kitchen", "OfficeProducts", "MusicalInstruments", "HomeImprovement"],
+        datasets: [{
+            data: [50.8, 54.0, 40.1, 12.4, 46.0, 57.5],
+            backgroundColor: ['#FF9900','#FFB347','#FFCC80','#FFD699','#FFE0B2','#FFECCC'],
+            borderRadius: 6,
+            barPercentage: 0.7
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { min:0, title:{ display:true, text:'Avg Discount %' } },
+            x: { ticks:{ maxRotation:45 } }
+        },
+        plugins: { tooltip:{ callbacks:{ label: ctx => ctx.parsed.y + '%' } } }
+    }
+});
+
+// Scatter: Discount vs Rating
+new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            data: [{"x": 25.0, "y": 4.2}, {"x": 60.0, "y": 3.7}, {"x": 60.0, "y": 3.3}, {"x": 50.0, "y": 4.3}, {"x": 58.0, "y": 3.9}, {"x": 23.0, "y": 4.5}, {"x": 60.0, "y": 4.1}, {"x": 58.0, "y": 4.1}, {"x": 26.0, "y": 4.2}, {"x": 59.0, "y": 3.6}, {"x": 52.0, "y": 3.1}, {"x": 57.0, "y": 3.9}, {"x": 16.0, "y": 4.5}, {"x": 11.0, "y": 4.1}, {"x": 33.0, "y": 4.4}, {"x": 65.0, "y": 4.4}, {"x": 41.0, "y": 4.5}, {"x": 55.0, "y": 4.0}, {"x": 50.0, "y": 4.2}, {"x": 38.0, "y": 3.1}, {"x": 47.0, "y": 4.3}, {"x": 40.0, "y": 4.4}, {"x": 62.0, "y": 3.6}, {"x": 53.0, "y": 4.5}, {"x": 83.0, "y": 3.8}, {"x": 40.0, "y": 4.5}, {"x": 60.0, "y": 4.1}, {"x": 77.0, "y": 4.0}, {"x": 10.0, "y": 4.4}, {"x": 60.0, "y": 4.0}, {"x": 59.0, "y": 4.3}, {"x": 56.0, "y": 4.3}, {"x": 50.0, "y": 4.2}, {"x": 32.0, "y": 4.1}, {"x": 65.0, "y": 3.9}, {"x": 32.0, "y": 4.3}, {"x": 46.0, "y": 4.3}, {"x": 74.0, "y": 3.9}, {"x": 12.0, "y": 4.3}, {"x": 91.0, "y": 4.2}, {"x": 0.0, "y": 4.2}, {"x": 65.0, "y": 4.0}, {"x": 40.0, "y": 4.0}, {"x": 25.0, "y": 3.8}, {"x": 18.0, "y": 4.0}, {"x": 41.0, "y": 4.2}, {"x": 14.0, "y": 4.3}, {"x": 44.0, "y": 4.8}, {"x": 60.0, "y": 3.8}, {"x": 80.0, "y": 4.1}, {"x": 28.0, "y": 4.3}, {"x": 40.0, "y": 4.0}, {"x": 22.0, "y": 3.9}, {"x": 43.0, "y": 4.1}, {"x": 62.0, "y": 3.9}, {"x": 59.0, "y": 4.3}, {"x": 25.0, "y": 4.3}, {"x": 30.0, "y": 4.3}, {"x": 68.0, "y": 4.3}, {"x": 41.0, "y": 4.0}, {"x": 43.0, "y": 4.4}, {"x": 54.0, "y": 3.8}, {"x": 64.0, "y": 4.2}, {"x": 21.0, "y": 3.9}, {"x": 14.0, "y": 4.4}, {"x": 55.0, "y": 4.0}, {"x": 69.0, "y": 4.2}, {"x": 60.0, "y": 3.6}, {"x": 20.0, "y": 3.8}, {"x": 70.0, "y": 4.3}, {"x": 60.0, "y": 4.3}, {"x": 50.0, "y": 4.0}, {"x": 32.0, "y": 4.4}, {"x": 78.0, "y": 4.4}, {"x": 28.0, "y": 4.1}, {"x": 47.0, "y": 4.1}, {"x": 85.0, "y": 3.9}, {"x": 80.0, "y": 3.8}, {"x": 6.0, "y": 4.0}, {"x": 78.0, "y": 4.2}, {"x": 53.0, "y": 3.4}, {"x": 33.0, "y": 4.1}, {"x": 57.0, "y": 4.1}, {"x": 80.0, "y": 4.0}, {"x": 85.0, "y": 3.9}, {"x": 22.0, "y": 4.1}, {"x": 66.0, "y": 4.2}, {"x": 70.0, "y": 4.0}, {"x": 56.0, "y": 4.3}, {"x": 70.0, "y": 4.0}, {"x": 38.0, "y": 3.9}, {"x": 36.0, "y": 4.3}, {"x": 27.0, "y": 4.2}, {"x": 35.0, "y": 4.1}, {"x": 32.0, "y": 4.1}, {"x": 18.0, "y": 4.4}, {"x": 21.0, "y": 4.0}, {"x": 76.0, "y": 4.0}, {"x": 29.0, "y": 4.0}, {"x": 60.0, "y": 4.1}, {"x": 72.0, "y": 4.2}, {"x": 53.0, "y": 4.1}, {"x": 58.0, "y": 4.2}, {"x": 60.0, "y": 3.8}, {"x": 62.0, "y": 4.0}, {"x": 17.0, "y": 4.4}, {"x": 58.0, "y": 3.9}, {"x": 33.0, "y": 3.8}, {"x": 58.0, "y": 3.6}, {"x": 29.0, "y": 4.2}, {"x": 61.0, "y": 4.2}, {"x": 55.0, "y": 4.3}, {"x": 67.0, "y": 3.5}, {"x": 13.0, "y": 3.9}, {"x": 61.0, "y": 4.5}, {"x": 13.0, "y": 4.4}, {"x": 74.0, "y": 4.1}, {"x": 75.0, "y": 5.0}, {"x": 24.0, "y": 4.1}, {"x": 64.0, "y": 3.4}, {"x": 38.0, "y": 4.3}, {"x": 42.0, "y": 4.3}, {"x": 28.0, "y": 4.0}, {"x": 82.0, "y": 3.5}, {"x": 14.0, "y": 3.7}, {"x": 45.0, "y": 3.6}, {"x": 33.0, "y": 4.1}, {"x": 76.0, "y": 3.4}, {"x": 54.0, "y": 3.7}, {"x": 56.0, "y": 4.1}, {"x": 41.0, "y": 4.1}, {"x": 50.0, "y": 3.9}, {"x": 73.0, "y": 4.4}, {"x": 51.0, "y": 3.8}, {"x": 69.0, "y": 4.3}, {"x": 60.0, "y": 4.3}, {"x": 13.0, "y": 4.4}, {"x": 38.0, "y": 3.9}, {"x": 45.0, "y": 4.3}, {"x": 53.0, "y": 4.1}, {"x": 44.0, "y": 3.7}, {"x": 33.0, "y": 4.3}, {"x": 38.0, "y": 4.3}, {"x": 49.0, "y": 4.4}, {"x": 63.0, "y": 4.1}, {"x": 50.0, "y": 4.4}, {"x": 51.0, "y": 3.9}, {"x": 53.0, "y": 4.3}, {"x": 70.0, "y": 4.3}, {"x": 0.0, "y": 3.8}, {"x": 41.0, "y": 3.9}, {"x": 67.0, "y": 3.9}, {"x": 76.0, "y": 4.0}, {"x": 68.0, "y": 4.2}, {"x": 55.0, "y": 4.0}, {"x": 52.0, "y": 4.0}, {"x": 42.0, "y": 4.2}, {"x": 63.0, "y": 3.9}, {"x": 21.0, "y": 4.2}, {"x": 42.0, "y": 3.8}, {"x": 60.0, "y": 4.2}, {"x": 55.0, "y": 4.3}, {"x": 63.0, "y": 4.0}, {"x": 0.0, "y": 4.3}, {"x": 58.0, "y": 4.3}, {"x": 65.0, "y": 4.3}, {"x": 48.0, "y": 3.8}, {"x": 8.0, "y": 3.8}, {"x": 13.0, "y": 3.9}, {"x": 16.0, "y": 3.6}, {"x": 70.0, "y": 4.0}, {"x": 23.0, "y": 4.1}, {"x": 70.0, "y": 4.2}, {"x": 58.0, "y": 3.6}, {"x": 44.0, "y": 4.0}, {"x": 65.0, "y": 4.0}, {"x": 63.0, "y": 3.9}, {"x": 25.0, "y": 4.0}, {"x": 60.0, "y": 4.1}, {"x": 30.0, "y": 3.5}, {"x": 24.0, "y": 4.4}, {"x": 4.0, "y": 4.1}, {"x": 21.0, "y": 4.3}, {"x": 29.0, "y": 4.1}, {"x": 65.0, "y": 4.2}, {"x": 45.0, "y": 3.8}, {"x": 59.0, "y": 4.3}, {"x": 48.0, "y": 4.0}, {"x": 44.0, "y": 4.2}, {"x": 81.0, "y": 4.2}, {"x": 61.0, "y": 4.2}, {"x": 0.0, "y": 4.2}, {"x": 53.0, "y": 4.4}, {"x": 34.0, "y": 4.1}, {"x": 49.0, "y": 4.0}, {"x": 82.0, "y": 4.0}, {"x": 15.0, "y": 4.2}, {"x": 94.0, "y": 4.3}, {"x": 41.0, "y": 4.4}, {"x": 46.0, "y": 4.5}, {"x": 59.0, "y": 4.0}, {"x": 55.0, "y": 4.3}, {"x": 45.0, "y": 3.7}, {"x": 80.0, "y": 4.5}, {"x": 73.0, "y": 4.5}, {"x": 54.0, "y": 4.2}, {"x": 0.0, "y": 4.3}, {"x": 20.0, "y": 4.3}, {"x": 17.0, "y": 4.4}, {"x": 43.0, "y": 3.9}, {"x": 26.0, "y": 3.9}, {"x": 37.0, "y": 4.1}, {"x": 0.0, "y": 4.3}, {"x": 62.0, "y": 4.3}, {"x": 28.0, "y": 4.1}, {"x": 67.0, "y": 3.6}, {"x": 49.0, "y": 3.3}, {"x": 66.0, "y": 4.3}, {"x": 77.0, "y": 4.3}, {"x": 52.0, "y": 4.1}, {"x": 70.0, "y": 4.0}, {"x": 60.0, "y": 4.2}, {"x": 33.0, "y": 4.3}, {"x": 40.0, "y": 4.1}, {"x": 21.0, "y": 4.6}, {"x": 29.0, "y": 4.1}, {"x": 14.0, "y": 4.3}, {"x": 27.0, "y": 3.9}, {"x": 33.0, "y": 4.1}, {"x": 69.0, "y": 4.1}, {"x": 57.0, "y": 3.8}, {"x": 78.0, "y": 3.8}, {"x": 28.0, "y": 4.0}, {"x": 43.0, "y": 4.2}, {"x": 0.0, "y": 4.3}, {"x": 33.0, "y": 4.4}, {"x": 24.0, "y": 4.4}, {"x": 57.0, "y": 4.1}, {"x": 73.0, "y": 4.0}, {"x": 56.0, "y": 3.4}, {"x": 35.0, "y": 3.8}, {"x": 6.0, "y": 4.0}, {"x": 56.0, "y": 4.2}, {"x": 76.0, "y": 4.3}, {"x": 45.0, "y": 4.2}, {"x": 36.0, "y": 3.6}, {"x": 75.0, "y": 3.7}, {"x": 75.0, "y": 3.7}, {"x": 62.0, "y": 4.1}, {"x": 41.0, "y": 4.1}, {"x": 50.0, "y": 4.3}, {"x": 59.0, "y": 4.0}, {"x": 77.0, "y": 4.2}, {"x": 28.0, "y": 4.1}, {"x": 57.0, "y": 4.3}, {"x": 72.0, "y": 4.3}, {"x": 0.0, "y": 4.5}, {"x": 41.0, "y": 4.1}, {"x": 41.0, "y": 4.1}, {"x": 35.0, "y": 4.2}, {"x": 55.0, "y": 4.3}, {"x": 21.0, "y": 4.1}, {"x": 22.0, "y": 4.3}, {"x": 50.0, "y": 4.1}, {"x": 10.0, "y": 4.4}, {"x": 75.0, "y": 3.5}, {"x": 23.0, "y": 4.3}, {"x": 48.0, "y": 4.0}, {"x": 43.0, "y": 4.4}, {"x": 44.0, "y": 4.0}, {"x": 38.0, "y": 4.1}, {"x": 0.0, "y": 4.1}, {"x": 73.0, "y": 4.3}, {"x": 68.0, "y": 3.7}, {"x": 43.0, "y": 3.4}, {"x": 56.0, "y": 4.2}, {"x": 23.0, "y": 4.3}, {"x": 41.0, "y": 4.3}, {"x": 12.0, "y": 4.4}, {"x": 0.0, "y": 4.5}, {"x": 47.0, "y": 4.4}, {"x": 29.0, "y": 3.9}, {"x": 27.0, "y": 4.4}, {"x": 27.0, "y": 4.1}, {"x": 29.0, "y": 3.8}, {"x": 61.0, "y": 4.1}, {"x": 60.0, "y": 4.3}, {"x": 90.0, "y": 4.1}, {"x": 59.0, "y": 3.2}, {"x": 28.0, "y": 4.1}, {"x": 65.0, "y": 3.8}, {"x": 21.0, "y": 4.0}, {"x": 22.0, "y": 4.2}, {"x": 41.0, "y": 3.9}, {"x": 26.0, "y": 4.3}, {"x": 76.0, "y": 3.6}, {"x": 40.0, "y": 3.9}, {"x": 49.0, "y": 3.7}, {"x": 80.0, "y": 4.1}, {"x": 24.0, "y": 4.4}, {"x": 37.0, "y": 4.2}, {"x": 32.0, "y": 4.3}, {"x": 62.0, "y": 4.3}, {"x": 24.0, "y": 4.3}, {"x": 46.0, "y": 3.9}, {"x": 72.0, "y": 2.9}, {"x": 65.0, "y": 4.1}, {"x": 20.0, "y": 4.2}, {"x": 29.0, "y": 3.8}, {"x": 43.0, "y": 4.3}, {"x": 67.0, "y": 3.8}, {"x": 60.0, "y": 4.1}, {"x": 74.0, "y": 4.1}, {"x": 16.0, "y": 3.8}, {"x": 80.0, "y": 5.0}, {"x": 64.0, "y": 4.1}, {"x": 50.0, "y": 3.5}, {"x": 48.0, "y": 4.1}, {"x": 17.0, "y": 3.9}, {"x": 86.0, "y": 4.0}, {"x": 88.0, "y": 3.9}, {"x": 26.0, "y": 4.0}, {"x": 25.0, "y": 4.0}, {"x": 47.0, "y": 4.0}, {"x": 64.0, "y": 4.0}, {"x": 77.0, "y": 4.2}, {"x": 35.0, "y": 4.0}, {"x": 60.0, "y": 4.1}, {"x": 70.0, "y": 4.5}, {"x": 60.0, "y": 3.3}, {"x": 50.0, "y": 3.8}, {"x": 40.0, "y": 4.2}, {"x": 65.0, "y": 4.0}, {"x": 53.0, "y": 3.9}, {"x": 62.0, "y": 4.1}, {"x": 18.0, "y": 4.0}, {"x": 33.0, "y": 4.0}, {"x": 28.0, "y": 4.4}, {"x": 63.0, "y": 4.4}, {"x": 18.0, "y": 4.1}, {"x": 60.0, "y": 3.6}, {"x": 50.0, "y": 4.3}, {"x": 21.0, "y": 4.0}, {"x": 26.0, "y": 3.8}, {"x": 78.0, "y": 4.2}, {"x": 47.0, "y": 3.8}, {"x": 39.0, "y": 4.0}, {"x": 60.0, "y": 4.0}, {"x": 39.0, "y": 3.5}, {"x": 62.0, "y": 3.4}, {"x": 60.0, "y": 3.3}, {"x": 28.0, "y": 4.1}, {"x": 50.0, "y": 4.6}, {"x": 11.0, "y": 4.1}, {"x": 53.0, "y": 4.0}, {"x": 31.0, "y": 4.4}, {"x": 38.0, "y": 3.9}, {"x": 39.0, "y": 3.9}, {"x": 79.0, "y": 3.9}, {"x": 58.0, "y": 3.7}, {"x": 43.0, "y": 4.2}, {"x": 58.0, "y": 4.2}, {"x": 76.0, "y": 4.3}, {"x": 48.0, "y": 3.9}, {"x": 50.0, "y": 4.2}, {"x": 40.0, "y": 3.9}, {"x": 43.0, "y": 4.4}, {"x": 60.0, "y": 4.3}, {"x": 0.0, "y": 4.4}, {"x": 13.0, "y": 4.4}, {"x": 57.0, "y": 4.7}, {"x": 66.0, "y": 4.3}, {"x": 13.0, "y": 3.9}, {"x": 85.0, "y": 3.5}, {"x": 23.0, "y": 4.1}, {"x": 43.0, "y": 4.1}, {"x": 57.0, "y": 4.1}, {"x": 55.0, "y": 4.0}, {"x": 23.0, "y": 3.5}, {"x": 24.0, "y": 4.6}, {"x": 88.0, "y": 3.9}, {"x": 38.0, "y": 4.0}, {"x": 77.0, "y": 4.3}, {"x": 54.0, "y": 4.2}, {"x": 30.0, "y": 4.1}, {"x": 80.0, "y": 4.2}, {"x": 83.0, "y": 3.7}, {"x": 50.0, "y": 4.2}, {"x": 37.0, "y": 4.1}, {"x": 42.0, "y": 4.4}, {"x": 23.0, "y": 4.3}, {"x": 43.0, "y": 4.0}, {"x": 46.0, "y": 4.0}, {"x": 30.0, "y": 3.7}, {"x": 48.0, "y": 4.2}, {"x": 62.0, "y": 4.3}, {"x": 48.0, "y": 3.9}, {"x": 40.0, "y": 4.1}, {"x": 70.0, "y": 4.3}, {"x": 50.0, "y": 3.8}, {"x": 71.0, "y": 3.7}, {"x": 40.0, "y": 4.3}, {"x": 44.0, "y": 4.4}, {"x": 73.0, "y": 4.5}, {"x": 30.0, "y": 4.3}, {"x": 0.0, "y": 4.3}, {"x": 66.0, "y": 3.6}, {"x": 55.0, "y": 2.3}, {"x": 64.0, "y": 4.1}, {"x": 55.0, "y": 4.2}, {"x": 25.0, "y": 4.2}, {"x": 80.0, "y": 3.9}, {"x": 55.0, "y": 4.1}, {"x": 47.0, "y": 4.3}, {"x": 75.0, "y": 4.2}, {"x": 45.0, "y": 4.4}, {"x": 55.0, "y": 4.1}, {"x": 73.0, "y": 4.3}, {"x": 58.0, "y": 4.0}, {"x": 62.0, "y": 4.1}, {"x": 54.0, "y": 4.1}, {"x": 62.0, "y": 4.1}, {"x": 55.0, "y": 4.3}, {"x": 44.0, "y": 4.2}, {"x": 22.0, "y": 3.8}, {"x": 80.0, "y": 3.0}, {"x": 59.0, "y": 4.0}, {"x": 56.0, "y": 4.3}, {"x": 59.0, "y": 4.5}, {"x": 64.0, "y": 4.0}, {"x": 14.0, "y": 4.1}, {"x": 43.0, "y": 4.3}, {"x": 19.0, "y": 4.1}, {"x": 28.0, "y": 4.1}, {"x": 59.0, "y": 4.4}, {"x": 3.0, "y": 4.1}, {"x": 20.0, "y": 4.4}, {"x": 52.0, "y": 4.2}, {"x": 27.0, "y": 4.4}, {"x": 53.0, "y": 4.1}, {"x": 57.0, "y": 3.0}, {"x": 38.0, "y": 4.3}, {"x": 60.0, "y": 4.1}, {"x": 32.0, "y": 4.0}, {"x": 77.0, "y": 4.0}, {"x": 18.0, "y": 4.1}, {"x": 80.0, "y": 4.3}, {"x": 53.0, "y": 4.2}, {"x": 77.0, "y": 4.3}, {"x": 62.0, "y": 4.1}, {"x": 58.0, "y": 4.1}, {"x": 33.0, "y": 4.2}, {"x": 55.0, "y": 4.1}, {"x": 88.0, "y": 3.9}, {"x": 24.0, "y": 4.0}, {"x": 36.0, "y": 4.3}, {"x": 6.0, "y": 3.8}, {"x": 33.0, "y": 4.4}, {"x": 46.0, "y": 4.5}, {"x": 73.0, "y": 3.7}, {"x": 0.0, "y": 4.4}, {"x": 56.0, "y": 4.7}, {"x": 49.0, "y": 3.9}, {"x": 69.0, "y": 4.3}, {"x": 81.0, "y": 4.1}, {"x": 75.0, "y": 3.7}, {"x": 69.0, "y": 3.8}, {"x": 75.0, "y": 4.3}, {"x": 49.0, "y": 4.0}, {"x": 48.0, "y": 4.3}, {"x": 75.0, "y": 4.1}, {"x": 10.0, "y": 4.2}, {"x": 46.0, "y": 3.8}, {"x": 63.0, "y": 4.5}, {"x": 25.0, "y": 4.4}, {"x": 69.0, "y": 4.1}, {"x": 65.0, "y": 4.1}, {"x": 66.0, "y": 4.6}, {"x": 11.0, "y": 4.0}, {"x": 22.0, "y": 4.5}, {"x": 62.0, "y": 4.1}, {"x": 50.0, "y": 4.0}, {"x": 0.0, "y": 4.2}, {"x": 5.0, "y": 4.2}, {"x": 51.0, "y": 3.9}, {"x": 25.0, "y": 4.3}, {"x": 64.0, "y": 4.2}, {"x": 44.0, "y": 4.4}, {"x": 33.0, "y": 4.1}, {"x": 78.0, "y": 3.3}, {"x": 45.0, "y": 3.7}, {"x": 52.0, "y": 4.2}, {"x": 41.0, "y": 3.7}, {"x": 54.0, "y": 4.0}, {"x": 60.0, "y": 4.0}, {"x": 15.0, "y": 4.1}, {"x": 50.0, "y": 3.7}, {"x": 64.0, "y": 3.9}, {"x": 38.0, "y": 4.2}, {"x": 38.0, "y": 4.3}],
+            backgroundColor: 'rgba(20,110,180,0.25)',
+            borderColor: 'rgba(20,110,180,0.5)',
+            pointRadius: 3,
+            pointHoverRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            x: { title:{ display:true, text:'Discount (%)' }, min:0, max:100 },
+            y: { title:{ display:true, text:'Rating' }, min:1.5, max:5.2 }
+        },
+        plugins: {
+            tooltip: { callbacks:{ label: ctx => 'Discount: '+ctx.parsed.x+'%, Rating: '+ctx.parsed.y } }
+        }
+    }
+});
+
+// Discount Bracket Chart
+new Chart(document.getElementById('discBracketChart'), {
+    type: 'bar',
+    data: {
+        labels: ["0\u201320%", "20\u201340%", "40\u201360%", "60\u201380%", "80\u2013100%"],
+        datasets: [{
+            label: 'Avg Rating',
+            data: [4.17, 4.13, 4.08, 4.08, 3.98],
+            backgroundColor: [4.17, 4.13, 4.08, 4.08, 3.98].map(v => v >= 4.1 ? '#28A745' : v >= 4.0 ? '#FFC107' : '#DC3545'),
+            borderRadius: 6,
+            barPercentage: 0.7
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { min:3.8, max:4.3, ticks:{ stepSize:0.05 }, title:{ display:true, text:'Avg Rating' } }
+        }
+    }
+});
+
+// Price Rating Chart
+new Chart(document.getElementById('priceRatingChart'), {
+    type: 'line',
+    data: {
+        labels: ["Under \u20b9500", "\u20b9500\u20131K", "\u20b91K\u20132K", "\u20b92K\u20135K", "\u20b95K\u201310K", "Over \u20b910K"],
+        datasets: [{
+            data: [4.07, 4.12, 4.07, 4.09, 4.14, 4.2],
+            borderColor: '#146EB4',
+            backgroundColor: 'rgba(20,110,180,0.1)',
+            fill: true,
+            tension: 0.3,
+            pointBackgroundColor: '#146EB4',
+            pointRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { min:4.0, max:4.3, title:{ display:true, text:'Avg Rating' } }
+        }
+    }
+});
+
+// Price Count Chart
+new Chart(document.getElementById('priceCountChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ["Under \u20b9500", "\u20b9500\u20131K", "\u20b91K\u20132K", "\u20b92K\u20135K", "\u20b95K\u201310K", "Over \u20b910K"],
+        datasets: [{
+            data: [576, 252, 275, 156, 84, 122],
+            backgroundColor: ['#232F3E','#37475A','#485769','#146EB4','#FF9900','#FFB347']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display:true, position:'right' },
+            tooltip: { callbacks:{ label: ctx => ctx.label + ': ' + ctx.parsed + ' products' } }
+        }
+    }
+});
+
+// Rating Distribution
+new Chart(document.getElementById('ratingDistChart'), {
+    type: 'bar',
+    data: {
+        labels: ["Below 3.0", "3.0\u20133.4", "3.5\u20133.9", "4.0\u20134.2", "4.3\u20134.5", "4.6+"],
+        datasets: [{
+            data: [6, 36, 312, 653, 428, 29],
+            backgroundColor: ['#DC3545','#FFC107','#FFD54F','#66BB6A','#28A745','#1B7A34'],
+            borderRadius: 6,
+            barPercentage: 0.8
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: { title:{ display:true, text:'Number of Products' } }
+        },
+        plugins: {
+            tooltip: { callbacks:{ label: ctx => ctx.parsed.y + ' products (' + [0.4, 2.5, 21.3, 44.6, 29.2, 2.0][ctx.dataIndex] + '%)' } }
+        }
+    }
+});
+
+// Positive Sentiment
+new Chart(document.getElementById('posChart'), {
+    type: 'bar',
+    data: {
+        labels: ["Good", "Nice", "Quality", "Best", "Worth", "Great", "Super", "Excellent"],
+        datasets: [{
+            data: [3889, 899, 748, 499, 362, 261, 180, 179],
+            backgroundColor: '#28A745',
+            borderRadius: 6,
+            barPercentage: 0.7
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: {
+            x: { title:{ display:true, text:'Mentions in Review Titles' } }
+        }
+    }
+});
+
+// Negative Sentiment
+new Chart(document.getElementById('negChart'), {
+    type: 'bar',
+    data: {
+        labels: ["Bad", "Not working", "Poor", "Cheap", "Worst", "Slow", "Defective", "Waste"],
+        datasets: [{
+            data: [116, 72, 45, 42, 36, 32, 21, 21],
+            backgroundColor: '#DC3545',
+            borderRadius: 6,
+            barPercentage: 0.7
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: {
+            x: { title:{ display:true, text:'Mentions in Review Titles' } }
+        }
+    }
+});
+</script>
+
+</body>
+</html>

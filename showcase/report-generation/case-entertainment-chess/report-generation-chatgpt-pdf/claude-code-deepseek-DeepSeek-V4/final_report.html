@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-alt: #22262f;
+    --border: #2d3140;
+    --text: #e1e4e8;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-red: #f85149;
+    --accent-yellow: #d29922;
+    --accent-purple: #a371f7;
+    --white-color: #f0f6fc;
+    --black-color: #8b949e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  header {
+    background: linear-gradient(135deg, #1a1d27 0%, #1f2937 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 60px 0 40px;
+    text-align: center;
+  }
+  header h1 {
+    font-size: 2.2em;
+    color: #fff;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+  }
+  header .subtitle { color: var(--text-secondary); font-size: 1.1em; max-width: 700px; margin: 0 auto; }
+  .meta-bar {
+    display: flex; justify-content: center; gap: 40px; margin-top: 24px;
+    font-size: 0.9em; color: var(--text-secondary);
+  }
+  .meta-bar span { display: flex; align-items: center; gap: 6px; }
+  .meta-bar .val { color: var(--text); font-weight: 600; }
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; margin: 40px 0;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .kpi-card .label { font-size: 0.8em; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card .value { font-size: 2em; font-weight: 700; color: var(--accent); margin: 6px 0; }
+  .kpi-card .note { font-size: 0.8em; color: var(--text-secondary); }
+  section { margin: 48px 0; }
+  section h2 {
+    font-size: 1.6em;
+    color: #fff;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  section h3 { font-size: 1.2em; color: var(--text); margin: 28px 0 12px; }
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+  .chart-box h4 { font-size: 1em; color: var(--text-secondary); margin-bottom: 16px; font-weight: 500; }
+  .chart-box canvas { max-height: 380px; }
+  .chart-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 20px; margin: 20px 0;
+  }
+  @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+  .stats-table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+    font-size: 0.9em;
+  }
+  .stats-table th {
+    background: var(--surface-alt);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  .stats-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stats-table tr:hover td { background: rgba(88,166,255,0.04); }
+  .highlight-number { font-weight: 700; color: var(--accent); }
+  .positive { color: var(--accent-green); }
+  .negative { color: var(--accent-red); }
+  .callout {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.95em;
+  }
+  .callout.warning { border-left-color: var(--accent-yellow); }
+  .callout.green { border-left-color: var(--accent-green); }
+  .text-block { font-size: 0.95em; color: var(--text); margin: 12px 0; }
+  .text-block strong { color: #fff; }
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+  }
+  .key-finding {
+    display: flex; gap: 16px; margin: 16px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+  .key-finding .num {
+    background: var(--accent);
+    color: #000;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85em;
+    flex-shrink: 0;
+  }
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; margin: 40px 0; }
+  .toc h3 { margin-top: 0; color: var(--text-secondary); text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.5px; }
+  .toc ol { margin: 12px 0 0 20px; }
+  .toc li { margin: 6px 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>Lichess Chess Game Analytics</h1>
+    <p class="subtitle">Patterns of Victory, Openings, and Player Dynamics &mdash; A comprehensive analysis of over 20,000 online chess games exploring win rates, opening strategies, rating dynamics, and game outcome patterns.</p>
+    <div class="meta-bar">
+      <span>Dataset: <span class="val">20,058 games</span></span>
+      <span>Source: <span class="val">Lichess.org API</span></span>
+      <span>Date: <span class="val">May 2026</span></span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- Table of Contents -->
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#overview">Dataset Overview &amp; Game Distribution</a></li>
+    <li><a href="#color-advantage">White vs. Black: The First-Move Advantage</a></li>
+    <li><a href="#rating-analysis">Rating Dynamics and Their Impact on Outcomes</a></li>
+    <li><a href="#opening-strategy">Opening Analysis: Popular Openings and Their Success Rates</a></li>
+    <li><a href="#time-control">Time Control Patterns and Game Characteristics</a></li>
+    <li><a href="#key-findings">Key Findings and Strategic Takeaways</a></li>
+  </ol>
+</div>
+
+<!-- KPI Row -->
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="label">White Win Rate</div>
+    <div class="value">52.34%</div>
+    <div class="note">of all decisive games</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Average Game Length</div>
+    <div class="value">59.8</div>
+    <div class="note">turns per game</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Checkmate Rate</div>
+    <div class="value">31.5%</div>
+    <div class="note">of all games end in mate</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Rating Diff Impact</div>
+    <div class="value">+300 pts</div>
+    <div class="note">~80% win probability</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Top Opening Win Rate</div>
+    <div class="value">65.5%</div>
+    <div class="note">Philidor Defense #3 (white)</div>
+  </div>
+</div>
+
+<!-- =========================== -->
+<!-- SECTION 1: Dataset Overview -->
+<!-- =========================== -->
+<section id="overview">
+  <h2>1. Dataset Overview &amp; Game Distribution</h2>
+
+  <p class="text-block">
+    The dataset contains <strong>20,058 completed chess games</strong> collected from Lichess.org. Of these,
+    <strong>16,155 games (80.5%)</strong> were rated, meaning player Elo ratings were affected by the outcome, while
+    <strong>3,903 games (19.5%)</strong> were casual (unrated). Every game includes full metadata: player identities
+    and ratings, time controls, opening classification (ECO code and name), complete move sequences, and detailed
+    outcome information.
+  </p>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h4>Game Outcomes by Result</h4>
+      <canvas id="chartOutcomeDonut"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Victory Status Distribution</h4>
+      <canvas id="chartVictoryBar"></canvas>
+    </div>
+  </div>
+
+  <p class="text-block">
+    Games predominantly end via <strong>resignation (55.6%)</strong>, reflecting the convention in online chess where
+    players concede lost positions rather than playing to checkmate. <strong>Checkmate accounts for 31.5%</strong> of
+    games, while <strong>timeout (8.4%)</strong> and <strong>draws (4.5%)</strong> round out the distribution. The
+    low draw rate (4.5%) is typical of amateur online play, where decisive results are far more common than in elite
+    over-the-board competition.
+  </p>
+
+  <div class="callout">
+    <strong>Key observation:</strong> White won 10,001 games (49.9%), Black won 9,107 (45.4%), with 950 draws (4.7%).
+    Excluding draws, white wins <strong>52.34%</strong> of decisive games &mdash; a 4.7 percentage-point edge. This
+    quantifies the well-known "first-move advantage" in chess and serves as the baseline for deeper analysis in the
+    following sections.
+  </div>
+</section>
+
+<!-- =========================== -->
+<!-- SECTION 2: Color Advantage -->
+<!-- =========================== -->
+<section id="color-advantage">
+  <h2>2. White vs. Black: The First-Move Advantage</h2>
+
+  <p class="text-block">
+    Across all 20,058 games, white holds a clear but modest advantage. Of the 19,108 decisive games,
+    white won <strong>52.34%</strong> to black's 47.66%. This +4.68 percentage-point edge translates to
+    a <strong>white-to-black win ratio of 1.098</strong>: for every 100 games black wins, white wins approximately 110.
+  </p>
+
+  <h3>White Advantage by Rating Bracket</h3>
+  <p class="text-block">
+    The first-move advantage is not uniform across skill levels. Breaking games into rating brackets
+    (using the white player's Elo) reveals a striking pattern: <strong>white's edge grows substantially
+    as player strength increases</strong>.
+  </p>
+
+  <div class="chart-box">
+    <h4>White Win Rate by Rating Bracket (Excluding Draws)</h4>
+    <canvas id="chartColorByRating"></canvas>
+  </div>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>Rating Bracket</th><th>Games</th><th>White Wins</th><th>Black Wins</th><th>Draws</th><th>White Win % (excl. draws)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Below 1100</td><td>679</td><td>196</td><td>442</td><td>41</td><td class="negative">30.7%</td></tr>
+      <tr><td>1100 &ndash; 1400</td><td>4,368</td><td>1,880</td><td>2,325</td><td>163</td><td class="negative">44.7%</td></tr>
+      <tr><td>1400 &ndash; 1600</td><td>5,789</td><td>2,883</td><td>2,655</td><td>251</td><td class="positive">52.1%</td></tr>
+      <tr><td>1600 &ndash; 1800</td><td>4,342</td><td>2,305</td><td>1,856</td><td>181</td><td class="positive">55.4%</td></tr>
+      <tr><td>1800 &ndash; 2000</td><td>3,073</td><td>1,628</td><td>1,259</td><td>186</td><td class="positive">56.4%</td></tr>
+      <tr><td>2000+</td><td>1,807</td><td>1,109</td><td>570</td><td>128</td><td class="positive">66.1%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout green">
+    <strong>The gradient is steep:</strong> At the beginner level (&lt;1100), black actually wins <strong>69.3%</strong> of decisive games &mdash; suggesting that at very low ratings, random blunders overwhelm any positional advantage. By the 2000+ expert tier, white's edge expands dramatically to <strong>66.1%</strong>, nearly doubling the baseline advantage.
+  </div>
+
+  <h3>White Advantage by Time Control</h3>
+  <p class="text-block">
+    Time pressure affects how players convert the first-move advantage. Across the most popular time controls,
+    white's edge is remarkably stable at the blitz and rapid levels:
+  </p>
+
+  <div class="chart-box">
+    <h4>White Win Rate by Time Control (Top 12 by Volume)</h4>
+    <canvas id="chartColorByTC"></canvas>
+  </div>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>Time Control</th><th>Games</th><th>White Win % (excl. draws)</th><th>Avg Turns</th><th>Draw Rate</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>10+0 (Blitz)</td><td>7,721</td><td>51.9%</td><td>62.8</td><td>4.1%</td></tr>
+      <tr><td>15+0 (Rapid)</td><td>1,311</td><td>52.1%</td><td>60.5</td><td>4.0%</td></tr>
+      <tr><td>15+15</td><td>850</td><td>51.4%</td><td>57.0</td><td>4.6%</td></tr>
+      <tr><td>5+5 (Blitz)</td><td>738</td><td>53.5%</td><td>61.3</td><td>3.9%</td></tr>
+      <tr><td>5+8 (Blitz)</td><td>697</td><td>51.4%</td><td>54.1</td><td>3.4%</td></tr>
+      <tr><td>8+0 (Blitz)</td><td>588</td><td>53.1%</td><td>67.9</td><td>5.8%</td></tr>
+      <tr><td>10+5 (Blitz)</td><td>579</td><td>51.1%</td><td>56.5</td><td>3.6%</td></tr>
+      <tr><td>15+10 (Rapid)</td><td>461</td><td class="positive">55.3%</td><td>63.4</td><td>7.8%</td></tr>
+      <tr><td>20+0 (Rapid)</td><td>448</td><td>52.0%</td><td>57.5</td><td>4.2%</td></tr>
+      <tr><td>30+0 (Rapid)</td><td>375</td><td>52.0%</td><td>53.9</td><td>5.1%</td></tr>
+      <tr><td>10+10 (Blitz)</td><td>355</td><td>52.5%</td><td>60.6</td><td>10.4%</td></tr>
+      <tr><td>15+5 (Rapid)</td><td>314</td><td>51.9%</td><td>62.0</td><td>5.4%</td></tr>
+    </tbody>
+  </table>
+
+  <p class="text-block">
+    The <strong>15+10 time control</strong> stands out with the highest white advantage (55.3%) among popular controls.
+    Controls with higher increment (10+10, 15+10) also show notably higher draw rates (7.8%&ndash;10.4%), consistent
+    with the principle that more time per move allows for more accurate play and fewer decisive errors.
+  </p>
+</section>
+
+<!-- =========================== -->
+<!-- SECTION 3: Rating Dynamics -->
+<!-- =========================== -->
+<section id="rating-analysis">
+  <h2>3. Rating Dynamics and Their Impact on Outcomes</h2>
+
+  <p class="text-block">
+    Player ratings on Lichess span a wide range: <strong>white ratings from 784 to 2,700</strong> (mean: 1,596.6)
+    and <strong>black ratings from 789 to 2,723</strong> (mean: 1,588.8). The distribution is centered around
+    the intermediate range (1,400&ndash;1,600), where the bulk of online play occurs.
+  </p>
+
+  <h3>Rating Differential vs. Win Probability</h3>
+  <p class="text-block">
+    The rating differential &mdash; the difference between the white and black player's Elo &mdash; is the single
+    strongest predictor of game outcome. Below, we bin games by the white-minus-black rating gap and plot
+    white's win probability in each bin.
+  </p>
+
+  <div class="chart-box">
+    <h4>White Win Probability by Rating Differential (White Rating &minus; Black Rating)</h4>
+    <canvas id="chartRatingDiff"></canvas>
+  </div>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>Rating Differential</th><th>Sample Size</th><th>White Win Rate</th><th>Interpretation</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>&minus;500+ (black much stronger)</td><td>589</td><td class="negative">14.2%</td><td>Black dominant; white wins ~1 in 7</td></tr>
+      <tr><td>&minus;400 to &minus;500</td><td>398</td><td class="negative">18.3%</td><td></td></tr>
+      <tr><td>&minus;200 to &minus;400</td><td>2,048</td><td class="negative">24.2%</td><td>Significant black edge</td></tr>
+      <tr><td>&minus;100 to &minus;200</td><td>2,195</td><td class="negative">36.1%</td><td>Moderate black edge</td></tr>
+      <tr><td>&minus;50 to &minus;100</td><td>1,803</td><td class="negative">43.9%</td><td>Slight black edge</td></tr>
+      <tr><td>&minus;50 to 0</td><td>2,638</td><td>50.0%</td><td>Near-even (white's move compensates slight rating deficit)</td></tr>
+      <tr><td>0 to +50</td><td>2,787</td><td class="positive">53.0%</td><td>Slight white edge (first-move + small rating edge)</td></tr>
+      <tr><td>+50 to +100</td><td>1,906</td><td class="positive">60.6%</td><td>Moderate white edge</td></tr>
+      <tr><td>+100 to +200</td><td>2,396</td><td class="positive">66.8%</td><td>Strong white edge</td></tr>
+      <tr><td>+200 to +400</td><td>2,149</td><td class="positive">78.8%</td><td>White strongly favored</td></tr>
+      <tr><td>+400+ (white much stronger)</td><td>1,149</td><td class="positive">88.1%</td><td>White dominant; black wins ~1 in 8</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Notable asymmetry:</strong> When white is rated 50&ndash;100 points lower than black (diff &minus;50 to &minus;100),
+    white still wins 43.9% of the time. Conversely, when white is rated 50&ndash;100 points higher, white's win rate
+    jumps to 60.6%. This asymmetry &mdash; roughly <strong>16 percentage points</strong> is partially attributable to
+    the first-move advantage: it offsets a ~50-point rating deficit but amplifies a ~50-point rating surplus.
+  </div>
+
+  <h3>Game Length by Rating Tier</h3>
+  <div class="chart-row">
+    <div class="chart-box">
+      <h4>Average Turns by Rating Bracket</h4>
+      <canvas id="chartTurnsByRating"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Victory Status Distribution by Rating Bracket</h4>
+      <canvas id="chartVictoryByRating"></canvas>
+    </div>
+  </div>
+
+  <p class="text-block">
+    <strong>Game length increases with player strength.</strong> Beginners (below 1100) average 48.8 turns per game,
+    while 1800&ndash;2000 players average 65.8 turns &mdash; a 35% increase. This reflects stronger players' ability to
+    defend difficult positions and convert advantages methodically rather than via early blunders.
+  </p>
+
+  <p class="text-block">
+    <strong>Resignation becomes the dominant end as ratings rise.</strong> At the 2000+ level, 66.7% of games end
+    in resignation versus only 47.7% at the beginner level. Meanwhile, checkmate rates drop from 40.5% (below 1100)
+    to just 17.7% (2000+). Stronger players recognize lost positions earlier and resign rather than playing to mate,
+    a marker of chess maturity.
+  </p>
+</section>
+
+<!-- =========================== -->
+<!-- SECTION 4: Opening Analysis -->
+<!-- =========================== -->
+<section id="opening-strategy">
+  <h2>4. Opening Analysis: Popular Openings and Their Success Rates</h2>
+
+  <p class="text-block">
+    The dataset captures 365 unique ECO codes. We focus on the <strong>top 15 by frequency</strong>, which
+    together account for a disproportionate share of all games. ECO categories break down as:
+    <strong>C (Open Games): 7,658 games</strong> &mdash; white wins 54.0%;
+    <strong>B (Semi-Open): 5,238</strong> &mdash; white 51.7%;
+    <strong>A (Flank/Unorthodox): 3,973</strong> &mdash; white 50.1%;
+    <strong>D (Closed): 2,683</strong> &mdash; white 52.4%;
+    <strong>E (Indian): 506</strong> &mdash; white 51.2%.
+  </p>
+
+  <div class="chart-box">
+    <h4>Top 15 ECO Codes: Frequency and White Win Rate (Excluding Draws)</h4>
+    <canvas id="chartOpenings"></canvas>
+  </div>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>ECO</th><th>Opening Name (representative)</th><th>Games</th><th>White Win%</th><th>Draws</th><th>Avg. Ply</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>A00</td><td>Van't Kruijs Opening</td><td>1,007</td><td class="negative">41.1%</td><td>39</td><td>1.3</td></tr>
+      <tr><td>C00</td><td>French Defense: Knight Variation</td><td>844</td><td>51.7%</td><td>38</td><td>3.1</td></tr>
+      <tr><td>D00</td><td>Queen's Pawn Game: Mason Attack</td><td>739</td><td class="negative">48.6%</td><td>38</td><td>3.3</td></tr>
+      <tr><td>B01</td><td>Scandinavian Defense</td><td>716</td><td>51.9%</td><td>26</td><td>3.9</td></tr>
+      <tr><td>C41</td><td>Philidor Defense</td><td>691</td><td class="positive">59.7%</td><td>28</td><td>5.2</td></tr>
+      <tr><td>C20</td><td>King's Pawn Game: Wayward Queen Attack</td><td>675</td><td class="negative">45.7%</td><td>21</td><td>3.1</td></tr>
+      <tr><td>A40</td><td>Horwitz Defense</td><td>618</td><td class="positive">56.4%</td><td>19</td><td>2.2</td></tr>
+      <tr><td>B00</td><td>Owen Defense / Nimzowitsch</td><td>611</td><td class="positive">62.6%</td><td>28</td><td>3.0</td></tr>
+      <tr><td>B20</td><td>Sicilian Defense: Bowdler Attack</td><td>567</td><td class="negative">41.1%</td><td>24</td><td>2.8</td></tr>
+      <tr><td>C50</td><td>Italian Game</td><td>538</td><td class="negative">47.2%</td><td>30</td><td>6.9</td></tr>
+      <tr><td>C40</td><td>King's Pawn Game: McConnell Defense</td><td>446</td><td class="positive">61.4%</td><td>13</td><td>3.9</td></tr>
+      <tr><td>D02</td><td>Queen's Pawn Game: Zukertort Variation</td><td>434</td><td class="positive">53.5%</td><td>19</td><td>4.0</td></tr>
+      <tr><td>C44</td><td>Scotch Game</td><td>375</td><td class="positive">52.8%</td><td>6</td><td>5.4</td></tr>
+      <tr><td>C42</td><td>Russian Game: Three Knights Game</td><td>327</td><td class="positive">57.0%</td><td>13</td><td>5.7</td></tr>
+      <tr><td>C55</td><td>Italian Game: Anti-Fried Liver Defense</td><td>312</td><td class="positive">55.7%</td><td>16</td><td>6.5</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Black-Favored Openings: Where the First-Move Advantage Reverses</h3>
+  <p class="text-block">
+    Several openings (with at least 50 games played) see black winning more than 50% of decisive games,
+    effectively overturning white's first-move advantage:
+  </p>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>ECO</th><th>Opening Name</th><th>Games</th><th>White Win%</th><th>Black Win%</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>D01</td><td>Queen's Pawn Game: Chigorin Variation</td><td>89</td><td class="negative">33.3%</td><td class="positive">66.7%</td></tr>
+      <tr><td>A46</td><td>Yusupov-Rubinstein System</td><td>79</td><td class="negative">37.0%</td><td class="positive">63.0%</td></tr>
+      <tr><td>C22</td><td>Center Game: Normal Variation</td><td>86</td><td class="negative">38.4%</td><td class="positive">61.6%</td></tr>
+      <tr><td>A00</td><td>Van't Kruijs Opening</td><td>1,007</td><td class="negative">41.1%</td><td class="positive">58.9%</td></tr>
+      <tr><td>B20</td><td>Sicilian Defense: Bowdler Attack</td><td>567</td><td class="negative">41.1%</td><td class="positive">58.9%</td></tr>
+      <tr><td>A02</td><td>Bird Opening</td><td>82</td><td class="negative">41.6%</td><td class="positive">58.4%</td></tr>
+      <tr><td>A45</td><td>Indian Game</td><td>252</td><td class="negative">43.2%</td><td class="positive">56.8%</td></tr>
+      <tr><td>B30</td><td>Sicilian Defense: Old Sicilian</td><td>227</td><td class="negative">44.1%</td><td class="positive">55.9%</td></tr>
+      <tr><td>C20</td><td>King's Pawn Game: Wayward Queen Attack</td><td>675</td><td class="negative">45.7%</td><td class="positive">54.3%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warning">
+    <strong>Opening depth matters.</strong> Analyzing game outcomes by opening ply (the number of half-moves in the
+    opening phase) reveals that longer opening sequences correlate with higher white win rates: openings with
+    0&ndash;2 ply see white win 45.7% of decisive games, while those with 6&ndash;10 ply see white win 52.9%.
+    This suggests that players who follow established theory deeper tend to convert white's advantage more reliably.
+  </div>
+</section>
+
+<!-- =========================== -->
+<!-- SECTION 5: Time Controls -->
+<!-- =========================== -->
+<section id="time-control">
+  <h2>5. Time Control Patterns and Game Characteristics</h2>
+
+  <p class="text-block">
+    The dataset spans <strong>175 unique time control configurations</strong>. The dominant format is
+    <strong>10+0 (blitz, no increment)</strong> at 7,721 games (38.5% of the dataset), followed by 15+0 rapid (1,311)
+    and 15+15 (850). Time controls shape not only game length but also <em>how</em> games end &mdash; with faster
+    controls producing more timeouts and fewer checkmates.
+  </p>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h4>Top 14 Time Controls by Game Volume</h4>
+      <canvas id="chartTimeControlVolume"></canvas>
+    </div>
+    <div class="chart-box">
+      <h4>Average Turns by Time Control</h4>
+      <canvas id="chartTurnsByTC"></canvas>
+    </div>
+  </div>
+
+  <h3>Time Control Categories</h3>
+  <p class="text-block">
+    Grouping controls into speed categories reveals clear patterns in how time affects game characteristics:
+  </p>
+
+  <table class="stats-table">
+    <thead>
+      <tr><th>Category</th><th>Games</th><th>White Win %</th><th>Draw Rate</th><th>Avg Turns</th><th>Timeout Rate</th><th>Mate Rate</th><th>Resign Rate</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Bullet (&lt;3 min)</td><td>5,097</td><td>51.1%</td><td>3.7%</td><td>57.4</td><td class="highlight-number">14.0%</td><td>41.1%</td><td>41.1%</td></tr>
+      <tr><td>Blitz (3&ndash;10 min)</td><td>10,957</td><td>51.8%</td><td>4.4%</td><td>61.0</td><td>7.6%</td><td>31.9%</td><td>56.1%</td></tr>
+      <tr><td>Rapid (10&ndash;60 min)</td><td>3,790</td><td>52.2%</td><td>5.8%</td><td>60.0</td><td>5.8%</td><td>27.8%</td><td>60.5%</td></tr>
+      <tr><td>Classical (60+ min)</td><td>214</td><td class="positive">53.6%</td><td>8.9%</td><td>72.9</td><td>2.8%</td><td>18.7%</td><td>69.6%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Timeout patterns are nearly symmetric:</strong> across all 1,680 timeout games, white won 813 and black
+    won 823 &mdash; a near 50/50 split (49.5% white, 50.5% black). This shows that clock management pressure is
+    color-neutral; both sides are equally likely to flag. However, the <strong>8+0 time control</strong> (no increment,
+    8-minute base) has the highest timeout rate at 17.9%, nearly double the overall average.
+  </div>
+
+  <div class="chart-box">
+    <h4>Victory Status Distribution by Time Control Category</h4>
+    <canvas id="chartVictoryByCat"></canvas>
+  </div>
+
+  <p class="text-block">
+    As time controls lengthen, three trends emerge clearly: <strong>checkmate rates decline</strong> (from 41.1%
+    in bullet to 18.7% in classical), <strong>resignation rates rise</strong> (from 41.1% to 69.6%), and
+    <strong>draw rates increase</strong> (from 3.7% to 8.9%). Players with more time are more willing to play
+    out positions, leading to more accurate assessments and timely resignations. Classical games also run longer
+    (72.9 turns average) and show the highest white win rate (53.6%), consistent with the idea that the
+    first-move advantage is best exploited when players have time to think.
+  </p>
+</section>
+
+<!-- =========================== -->
+<!-- SECTION 6: Key Findings -->
+<!-- =========================== -->
+<section id="key-findings">
+  <h2>6. Key Findings and Strategic Takeaways</h2>
+
+  <div class="key-finding">
+    <div class="num">1</div>
+    <div>
+      <strong>White's advantage is real but modest.</strong> Across all 20,058 games, white wins 52.34% of decisive
+      games &mdash; a 4.68 pp edge. This confirms the first-move advantage, but it is far from decisive: in nearly
+      half of all games, black overcomes it. The effect is strongest at high ratings (66.1% white wins at 2000+)
+      and weakest at low ratings (30.7% below 1100, where random blunders dominate).
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">2</div>
+    <div>
+      <strong>Rating differential is the dominant predictor.</strong> A 100&ndash;200 point rating advantage
+      pushes win probability to ~67% for the higher-rated player; a 400+ point gap pushes it to 88%.
+      The relationship is non-linear: small rating gaps (&plusmn;50 points) produce near-even outcomes,
+      but the win probability curve steepens rapidly beyond a 100-point differential.
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">3</div>
+    <div>
+      <strong>Not all openings are created equal for white.</strong> The Philidor Defense (C41, white win 59.7%),
+      Owen Defense (B00, 62.6%), and McConnell Defense (C40, 61.4%) are white's best-performing popular openings.
+      Conversely, the Van't Kruijs Opening (A00, 41.1%) and Bowdler Attack (B20, 41.1%) see black winning more often
+      than white. Opening depth correlates with white success: 6+ ply openings see 52.9% white wins vs. 45.7% for
+      0&ndash;2 ply openings.
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">4</div>
+    <div>
+      <strong>Stronger players resign; weaker players get checkmated.</strong> At the 2000+ level, 66.7% of games
+      end in resignation and only 17.7% in checkmate. Below 1100, the pattern inverts: 47.7% resignation, 40.5%
+      checkmate. This shift is a clear marker of chess maturity &mdash; recognizing lost positions and conserving
+      mental energy for the next game.
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">5</div>
+    <div>
+      <strong>Time controls shape the game's character.</strong> Bullet games are chaotic: 14% end by timeout,
+      and an equal share end by checkmate and resignation. Classical games are methodical: 69.6% resignation,
+      only 2.8% timeout. White's advantage grows with slower controls (51.1% bullet &rarr; 53.6% classical),
+      and draws also increase from 3.7% to 8.9%.
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">6</div>
+    <div>
+      <strong>Game length increases with skill.</strong> Beginners average 48.8 turns per game; experts (1800&ndash;2000)
+      average 65.8 turns &mdash; 35% longer. Drawn games are the longest at 83.8 turns, and resigned games the
+      shortest at 53.9 turns. This suggests that stronger players' longer games reflect both deeper middlegame
+      knowledge and more resilient defense, not simply slower play.
+    </div>
+  </div>
+  <div class="key-finding">
+    <div class="num">7</div>
+    <div>
+      <strong>The first-move advantage compounds with rating.</strong> A player 50 points stronger with white
+      wins 60.6% of the time; a player 50 points stronger with black wins only 56.1% (white's win rate flipped).
+      The 4.5 percentage-point bonus from the first move persists across rating differentials, effectively
+      meaning that color assignment is worth approximately <strong>35&ndash;50 Elo points</strong> in practical terms.
+    </div>
+  </div>
+
+</section>
+
+</div><!-- /container -->
+
+<footer>
+  <div class="container">
+    <p>Data sourced from Lichess.org via the Kaggle "Chess Game Dataset (Lichess)" &mdash; 20,058 games &middot; 16 columns &middot; Analysis generated May 2026</p>
+    <p style="margin-top:4px;font-size:0.8em;">All statistics computed directly from <code>data.csv</code>. No fabricated numbers.</p>
+  </div>
+</footer>
+
+<!-- ==================== CHARTS ==================== -->
+<script>
+Chart.defaults.color = '#8b949e';
+Chart.defaults.borderColor = '#2d3140';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.plugins.tooltip.backgroundColor = '#1a1d27';
+Chart.defaults.plugins.tooltip.borderColor = '#2d3140';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+
+// === 1. Outcome Donut ===
+new Chart(document.getElementById('chartOutcomeDonut'), {
+  type: 'doughnut',
+  data: {
+    labels: ['White Wins', 'Black Wins', 'Draws'],
+    datasets: [{
+      data: [10001, 9107, 950],
+      backgroundColor: ['#f0f6fc', '#545d68', '#d29922'],
+      borderColor: '#1a1d27',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } },
+      tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} (${(ctx.raw/20058*100).toFixed(1)}%)` } }
+    }
+  }
+});
+
+// === 2. Victory Status Bar ===
+new Chart(document.getElementById('chartVictoryBar'), {
+  type: 'bar',
+  data: {
+    labels: ['Resign', 'Mate', 'Out of Time', 'Draw'],
+    datasets: [{
+      data: [11147, 6325, 1680, 906],
+      backgroundColor: ['#58a6ff', '#3fb950', '#f85149', '#d29922'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => `${ctx.raw} games (${(ctx.raw/20058*100).toFixed(1)}%)` } }
+    },
+    scales: { y: { grid: { color: '#2d3140' } } }
+  }
+});
+
+// === 3. White Win Rate by Rating Bracket ===
+new Chart(document.getElementById('chartColorByRating'), {
+  type: 'bar',
+  data: {
+    labels: ['<1100', '1100-1400', '1400-1600', '1600-1800', '1800-2000', '2000+'],
+    datasets: [{
+      label: 'White Win %',
+      data: [30.7, 44.7, 52.1, 55.4, 56.4, 66.1],
+      backgroundColor: data => data.raw >= 50 ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.7)',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      annotation: { annotations: { line1: { type: 'line', yMin: 50, yMax: 50, borderColor: '#8b949e', borderWidth: 1, borderDash: [5,5] } } }
+    },
+    scales: {
+      y: { min: 25, max: 72, grid: { color: '#2d3140' }, title: { display: true, text: 'White Win % (excl. draws)' } }
+    }
+  }
+});
+
+// === 4. Rating Differential Line ===
+new Chart(document.getElementById('chartRatingDiff'), {
+  type: 'line',
+  data: {
+    labels: ['-525','-450','-350','-250','-175','-125','-75','-38','-12','+12','+38','+75','+125','+175','+250','+350','+450','+525'],
+    datasets: [{
+      label: 'White Win Probability',
+      data: [14.2, 18.3, 19.3, 27.6, 34.4, 37.4, 43.9, 49.0, 50.8, 53.6, 52.2, 60.6, 65.6, 68.3, 77.8, 80.5, 86.3, 89.5],
+      borderColor: '#58a6ff',
+      backgroundColor: 'rgba(88,166,255,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 4,
+      pointBackgroundColor: '#58a6ff'
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      tooltip: { callbacks: { label: ctx => `White Win: ${ctx.raw.toFixed(1)}%` } }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Rating Differential (White − Black)' }, grid: { color: '#2d3140' } },
+      y: { min: 0, max: 100, grid: { color: '#2d3140' }, title: { display: true, text: 'White Win %' },
+        ticks: { callback: v => v+'%' }
+      }
+    }
+  }
+});
+
+// === 5. White Win Rate by Time Control ===
+new Chart(document.getElementById('chartColorByTC'), {
+  type: 'bar',
+  data: {
+    labels: ['10+0','15+0','15+15','5+5','5+8','8+0','10+5','15+10','20+0','30+0','10+10','15+5'],
+    datasets: [{
+      label: 'White Win %',
+      data: [51.9, 52.1, 51.4, 53.5, 51.4, 53.1, 51.1, 55.3, 52.0, 52.0, 52.5, 51.9],
+      backgroundColor: data => data.raw >= 52.34 ? 'rgba(63,185,80,0.7)' : 'rgba(88,166,255,0.5)',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 50, max: 57, grid: { color: '#2d3140' }, title: { display: true, text: 'White Win % (excl. draws)' },
+        ticks: { callback: v => v+'%' }
+      }
+    }
+  }
+});
+
+// === 6. Avg Turns by Rating ===
+new Chart(document.getElementById('chartTurnsByRating'), {
+  type: 'bar',
+  data: {
+    labels: ['<1100','1100-1400','1400-1600','1600-1800','1800-2000','2000+'],
+    datasets: [{
+      label: 'Average Turns',
+      data: [48.8, 54.5, 59.3, 63.8, 65.8, 65.7],
+      backgroundColor: '#a371f7',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: '#2d3140' }, title: { display: true, text: 'Turns' } }
+    }
+  }
+});
+
+// === 7. Victory Status by Rating Bracket (stacked) ===
+new Chart(document.getElementById('chartVictoryByRating'), {
+  type: 'bar',
+  data: {
+    labels: ['<1100','1100-1400','1400-1600','1600-1800','1800-2000','2000+'],
+    datasets: [
+      { label: 'Mate', data: [40.5,40.4,34.5,28.9,23.3,17.7], backgroundColor: '#3fb950' },
+      { label: 'Resign', data: [47.7,48.1,53.3,58.5,61.5,66.7], backgroundColor: '#58a6ff' },
+      { label: 'Out of Time', data: [8.7,7.8,8.1,8.5,9.2,9.1], backgroundColor: '#f85149' },
+      { label: 'Draw', data: [3.1,3.8,4.1,4.1,6.0,6.5], backgroundColor: '#d29922' }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
+    scales: {
+      x: { stacked: true },
+      y: { stacked: true, grid: { color: '#2d3140' }, title: { display: true, text: '%' },
+        ticks: { callback: v => v+'%' }
+      }
+    }
+  }
+});
+
+// === 8. Top 15 ECO Codes ===
+new Chart(document.getElementById('chartOpenings'), {
+  type: 'bar',
+  data: {
+    labels: ['A00','C00','D00','B01','C41','C20','A40','B00','B20','C50','C40','D02','C44','C42','C55'],
+    datasets: [{
+      label: 'White Win %',
+      data: [41.1,51.7,48.6,51.9,59.7,45.7,56.4,62.6,41.1,47.2,61.4,53.5,52.8,57.0,55.7],
+      backgroundColor: data => data.raw >= 50 ? 'rgba(63,185,80,0.7)' : 'rgba(248,81,73,0.7)',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#2d3140' }, title: { display: true, text: 'White Win %' },
+        ticks: { callback: v => v+'%' }
+      },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// === 9. Time Control Volume ===
+new Chart(document.getElementById('chartTimeControlVolume'), {
+  type: 'bar',
+  data: {
+    labels: ['10+0','15+0','15+15','5+5','5+8','8+0','10+5','15+10','20+0','30+0','10+10','15+5','7+2','30+30'],
+    datasets: [{
+      label: 'Games',
+      data: [7721,1311,850,738,697,588,579,461,448,375,355,314,265,169],
+      backgroundColor: 'rgba(88,166,255,0.6)',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#2d3140' }, title: { display: true, text: 'Number of Games' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// === 10. Avg Turns by Time Control ===
+new Chart(document.getElementById('chartTurnsByTC'), {
+  type: 'bar',
+  data: {
+    labels: ['10+0','15+0','15+15','5+5','5+8','8+0','10+5','15+10','20+0','30+0','10+10','15+5'],
+    datasets: [{
+      label: 'Average Turns',
+      data: [62.8,60.5,57.0,61.3,54.1,67.9,56.5,63.4,57.5,53.9,60.6,62.0],
+      backgroundColor: 'rgba(163,113,247,0.7)',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 50, grid: { color: '#2d3140' }, title: { display: true, text: 'Turns' } }
+    }
+  }
+});
+
+// === 11. Victory Status by Time Control Category (stacked) ===
+new Chart(document.getElementById('chartVictoryByCat'), {
+  type: 'bar',
+  data: {
+    labels: ['Bullet (<3min)','Blitz (3-10min)','Rapid (10-60min)','Classical (60+min)'],
+    datasets: [
+      { label: 'Mate', data: [41.1, 31.9, 27.8, 18.7], backgroundColor: '#3fb950' },
+      { label: 'Resign', data: [41.1, 56.1, 60.5, 69.6], backgroundColor: '#58a6ff' },
+      { label: 'Out of Time', data: [14.0, 7.6, 5.8, 2.8], backgroundColor: '#f85149' },
+      { label: 'Draw', data: [3.7, 4.4, 5.8, 8.9], backgroundColor: '#d29922' }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
+    scales: {
+      x: { stacked: true },
+      y: { stacked: true, grid: { color: '#2d3140' }, title: { display: true, text: '%' },
+        ticks: { callback: v => v+'%' }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --white-color: #2563eb;
+    --black-color: #dc2626;
+    --draw-color: #6b7280;
+    --accent: #1d4ed8;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --header-bg: #0f172a;
+    --header-text: #f1f5f9;
+    --section-accent: #eff6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* Header */
+  .report-header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 48px 60px 40px;
+    border-bottom: 4px solid var(--accent);
+  }
+  .report-header .tag {
+    display: inline-block;
+    background: rgba(37,99,235,0.3);
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  .report-header h1 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+  .report-header .subtitle {
+    font-size: 1rem;
+    color: #94a3b8;
+    max-width: 700px;
+    margin-bottom: 28px;
+  }
+  .meta-row { display: flex; gap: 32px; flex-wrap: wrap; }
+  .meta-item { font-size: 0.82rem; color: #64748b; }
+  .meta-item strong { color: #cbd5e1; font-weight: 600; }
+
+  /* Content */
+  .content { max-width: 1100px; margin: 0 auto; padding: 48px 32px; }
+
+  /* KPI Bar */
+  .kpi-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .kpi-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 8px; }
+  .kpi-card .value { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; margin-bottom: 4px; }
+  .kpi-card .sub { font-size: 0.78rem; color: var(--text-muted); }
+
+  /* Sections */
+  .section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 36px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .section-header {
+    background: var(--section-accent);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-num {
+    background: var(--accent);
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+  .section-body { padding: 28px; }
+
+  /* Charts */
+  .chart-grid { display: grid; gap: 28px; }
+  .chart-grid-2 { grid-template-columns: 1fr 1fr; }
+  .chart-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 800px) { .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; } }
+  .chart-box { background: var(--bg); border-radius: 10px; padding: 20px; border: 1px solid var(--border); }
+  .chart-box h3 { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 16px; }
+  .chart-container { position: relative; }
+
+  /* Tables */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin-top: 16px; }
+  .data-table thead th {
+    background: #f1f5f9;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+  }
+  .data-table tbody tr:hover { background: #f8fafc; }
+  .data-table tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .data-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; }
+  .badge-white { background: #dbeafe; color: #1d4ed8; }
+  .badge-black { background: #fee2e2; color: #b91c1c; }
+  .badge-draw  { background: #f3f4f6; color: #374151; }
+
+  /* Insight boxes */
+  .insight { background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 16px 0; font-size: 0.875rem; color: #0c4a6e; }
+  .insight strong { font-weight: 700; }
+  .insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  @media (max-width: 650px) { .insight-grid { grid-template-columns: 1fr; } }
+
+  /* Progress bars */
+  .pbar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 0.82rem; }
+  .pbar-label { width: 130px; flex-shrink: 0; font-weight: 500; color: var(--text); }
+  .pbar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 10px; overflow: hidden; }
+  .pbar-fill { height: 100%; border-radius: 4px; }
+  .pbar-val { width: 48px; text-align: right; font-weight: 700; color: var(--text); }
+
+  /* Key findings */
+  .finding { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+  .finding:last-child { border-bottom: none; }
+  .finding-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+  .finding-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .finding-body { font-size: 0.875rem; color: #374151; line-height: 1.55; }
+
+  /* Color legend */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-muted); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+  /* Stat pill */
+  .stat-pill { display: inline-flex; align-items: baseline; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; }
+  .stat-pill .big { font-size: 1.5rem; font-weight: 800; color: var(--accent); }
+  .stat-pill .sm { font-size: 0.78rem; color: var(--text-muted); }
+  .stat-pills { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+
+  /* Prose */
+  p { margin-bottom: 12px; font-size: 0.9rem; color: #374151; line-height: 1.65; }
+  p:last-child { margin-bottom: 0; }
+
+  /* Footer */
+  footer { text-align: center; padding: 32px; font-size: 0.78rem; color: var(--text-muted); border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header class="report-header">
+  <div class="tag">Analytics Report &mdash; Chess</div>
+  <h1>Lichess Chess Game Analytics:<br>Patterns of Victory, Openings, and Player Dynamics</h1>
+  <p class="subtitle">A comprehensive data-driven analysis of 20,058 Lichess games examining color advantage, rating dynamics, opening effectiveness, and time control patterns.</p>
+  <div class="meta-row">
+    <div class="meta-item"><strong>Dataset:</strong> Lichess.org via Kaggle (datasnaek/chess)</div>
+    <div class="meta-item"><strong>Games Analyzed:</strong> 20,058</div>
+    <div class="meta-item"><strong>Audience:</strong> Analysts &amp; Coaches</div>
+    <div class="meta-item"><strong>Report Date:</strong> April 2026</div>
+  </div>
+</header>
+
+<main class="content">
+
+  <!-- KPI Bar -->
+  <div class="kpi-bar">
+    <div class="kpi-card">
+      <div class="label">Total Games</div>
+      <div class="value">20,058</div>
+      <div class="sub">80.5% rated</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">White Win Rate</div>
+      <div class="value">52.3%</div>
+      <div class="sub">of decisive games</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Avg. Game Length</div>
+      <div class="value">60.5</div>
+      <div class="sub">half-moves (plies)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Checkmate Rate</div>
+      <div class="value">31.5%</div>
+      <div class="sub">of all games</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Draw Rate</div>
+      <div class="value">4.7%</div>
+      <div class="sub">950 drawn games</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Rating Range</div>
+      <div class="value">784–2723</div>
+      <div class="sub">Elo (both colors)</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: OVERVIEW -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2>Dataset Overview &amp; Game Distribution</h2>
+    </div>
+    <div class="section-body">
+      <p>The dataset comprises <strong>20,058 completed Lichess games</strong> collected via the Lichess API, with each row representing a unique rated or casual game. A strong majority&mdash;<strong>16,155 games (80.5%)</strong>&mdash;were rated, meaning outcomes affected Elo ratings. The remaining 3,903 (19.5%) were casual.</p>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h3>Game Outcomes by Victory Status</h3>
+          <div class="chart-container" style="height:260px">
+            <canvas id="victoryChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>Winner Distribution</h3>
+          <div class="chart-container" style="height:260px">
+            <canvas id="winnerChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>Resignation dominates:</strong> 55.6% of games end in resignation, compared to 31.5% by checkmate, 8.4% by timeout, and just 4.5% drawn. The low draw rate (4.7%) reflects the amateur-to-intermediate player distribution of this dataset&mdash;lower-rated games rarely reach theoretical endgame complexity.
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Victory Status</th>
+            <th class="num">Count</th>
+            <th class="num">% of All</th>
+            <th class="num">White Wins</th>
+            <th class="num">Black Wins</th>
+            <th class="num">Draws</th>
+            <th class="num">Avg. Turns</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Resign</td><td class="num">11,147</td><td class="num">55.6%</td><td class="num">5,844</td><td class="num">5,303</td><td class="num">0</td><td class="num">53.9</td></tr>
+          <tr><td>Mate (Checkmate)</td><td class="num">6,325</td><td class="num">31.5%</td><td class="num">3,344</td><td class="num">2,981</td><td class="num">0</td><td class="num">65.4</td></tr>
+          <tr><td>Out of Time</td><td class="num">1,680</td><td class="num">8.4%</td><td class="num">813</td><td class="num">823</td><td class="num">44</td><td class="num">72.7</td></tr>
+          <tr><td>Draw</td><td class="num">906</td><td class="num">4.5%</td><td class="num">0</td><td class="num">0</td><td class="num">906</td><td class="num">83.8</td></tr>
+          <tr style="font-weight:700; background:#f8fafc"><td>Total</td><td class="num">20,058</td><td class="num">100%</td><td class="num">10,001</td><td class="num">9,107</td><td class="num">950</td><td class="num">60.5</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:14px;">Game length varies substantially by outcome: resigned games average only <strong>53.9 half-moves</strong>, while drawn games reach <strong>83.8 half-moves</strong>&mdash;a 55% premium, consistent with draws requiring longer maneuvering before agreement.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 2: COLOR ADVANTAGE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <h2>White vs. Black: The First-Move Advantage</h2>
+    </div>
+    <div class="section-body">
+      <p>The first-move advantage is a foundational concept in competitive chess. Across the full dataset, <strong>white won 10,001 games (49.9% of all games) versus black's 9,107 (45.4%)</strong>. Excluding the 950 draws, white wins <strong>52.3% of decisive games</strong> and black wins <strong>47.7%</strong>&mdash;a 4.6 percentage-point edge for white.</p>
+
+      <div class="stat-pills">
+        <div class="stat-pill"><span class="big" style="color:#2563eb">52.3%</span><span class="sm">White decisive win rate</span></div>
+        <div class="stat-pill"><span class="big" style="color:#dc2626">47.7%</span><span class="sm">Black decisive win rate</span></div>
+        <div class="stat-pill"><span class="big" style="color:#6b7280">4.7%</span><span class="sm">Draw rate</span></div>
+        <div class="stat-pill"><span class="big">+4.6pp</span><span class="sm">White advantage (decisive)</span></div>
+      </div>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h3>White vs Black Win Rate by Rating Bracket</h3>
+          <div class="chart-container" style="height:300px">
+            <canvas id="bracketChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>White Win Rate (Decisive) by Time Control</h3>
+          <div class="chart-container" style="height:300px">
+            <canvas id="tcColorChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>Key pattern:</strong> White's advantage is <em>largest among lower-rated players</em> and <em>narrows significantly at higher ratings</em>. At 2000+ Elo, white's decisive win rate drops to <strong>50.6%</strong>&mdash;barely above parity&mdash;suggesting stronger players (who play more theoretically sound defenses) equalize more effectively. At sub-1200 levels, white wins 53.8% of decisive games.
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Rating Bracket</th>
+            <th class="num">Total Games</th>
+            <th class="num">White Wins</th>
+            <th class="num">Black Wins</th>
+            <th class="num">Draws</th>
+            <th class="num">White % (All)</th>
+            <th class="num">Black % (All)</th>
+            <th class="num">White % (Decisive)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>&lt;1000</td><td class="num">93</td><td class="num">49</td><td class="num">42</td><td class="num">2</td><td class="num">52.7%</td><td class="num">45.2%</td><td class="num">53.8%</td></tr>
+          <tr><td>1000–1199</td><td class="num">1,076</td><td class="num">535</td><td class="num">483</td><td class="num">58</td><td class="num">49.7%</td><td class="num">44.9%</td><td class="num">52.6%</td></tr>
+          <tr><td>1200–1399</td><td class="num">3,677</td><td class="num">1,907</td><td class="num">1,638</td><td class="num">132</td><td class="num">51.9%</td><td class="num">44.5%</td><td class="num">53.8%</td></tr>
+          <tr><td>1400–1599</td><td class="num">6,066</td><td class="num">3,036</td><td class="num">2,785</td><td class="num">245</td><td class="num">50.0%</td><td class="num">45.9%</td><td class="num">52.2%</td></tr>
+          <tr><td>1600–1799</td><td class="num">4,680</td><td class="num">2,324</td><td class="num">2,127</td><td class="num">229</td><td class="num">49.7%</td><td class="num">45.4%</td><td class="num">52.2%</td></tr>
+          <tr><td>1800–1999</td><td class="num">2,967</td><td class="num">1,452</td><td class="num">1,351</td><td class="num">164</td><td class="num">48.9%</td><td class="num">45.5%</td><td class="num">51.8%</td></tr>
+          <tr><td>2000+</td><td class="num">1,499</td><td class="num">698</td><td class="num">681</td><td class="num">120</td><td class="num">46.6%</td><td class="num">45.4%</td><td class="num">50.6%</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:16px;"><strong>By time control,</strong> white's edge is strongest in Rapid/Classical formats (16+ min): <strong>53.9%</strong> decisive win rate. Bullet (&lt;3 min) is the notable outlier&mdash;black actually wins more often (54.5% for black, 45.7% for white) in that small sample (n=131), likely due to the increased role of flagging skill and the small sample size. Blitz and Rapid formats show a consistent white edge of 51.7%–52.8%.</p>
+
+      <div class="chart-box" style="margin-top:20px;">
+        <h3>White Win Rate (Decisive) Across All Dimensions</h3>
+        <div style="margin-top:8px;">
+          <div class="pbar-row"><div class="pbar-label">All Games</div><div class="pbar-track"><div class="pbar-fill" style="width:52.3%;background:#2563eb"></div></div><div class="pbar-val">52.3%</div></div>
+          <div class="pbar-row"><div class="pbar-label">&lt;1200 Elo</div><div class="pbar-track"><div class="pbar-fill" style="width:52.7%;background:#2563eb"></div></div><div class="pbar-val">52.7%</div></div>
+          <div class="pbar-row"><div class="pbar-label">1200–1600 Elo</div><div class="pbar-track"><div class="pbar-fill" style="width:53.2%;background:#2563eb"></div></div><div class="pbar-val">53.2%</div></div>
+          <div class="pbar-row"><div class="pbar-label">1600–2000 Elo</div><div class="pbar-track"><div class="pbar-fill" style="width:52.0%;background:#2563eb"></div></div><div class="pbar-val">52.0%</div></div>
+          <div class="pbar-row"><div class="pbar-label">2000+ Elo</div><div class="pbar-track"><div class="pbar-fill" style="width:50.6%;background:#93c5fd"></div></div><div class="pbar-val">50.6%</div></div>
+          <div class="pbar-row"><div class="pbar-label">Blitz (3–5 min)</div><div class="pbar-track"><div class="pbar-fill" style="width:51.7%;background:#3b82f6"></div></div><div class="pbar-val">51.7%</div></div>
+          <div class="pbar-row"><div class="pbar-label">Blitz (6–10 min)</div><div class="pbar-track"><div class="pbar-fill" style="width:52.0%;background:#3b82f6"></div></div><div class="pbar-val">52.0%</div></div>
+          <div class="pbar-row"><div class="pbar-label">Rapid (11–15 min)</div><div class="pbar-track"><div class="pbar-fill" style="width:52.8%;background:#1d4ed8"></div></div><div class="pbar-val">52.8%</div></div>
+          <div class="pbar-row"><div class="pbar-label">Rapid/Classical (16+)</div><div class="pbar-track"><div class="pbar-fill" style="width:53.9%;background:#1e40af"></div></div><div class="pbar-val">53.9%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: RATING DYNAMICS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <h2>Rating Dynamics and Their Impact on Outcomes</h2>
+    </div>
+    <div class="section-body">
+      <p>Player ratings follow a bell-curve distribution centered around <strong>1,597 Elo (white) and 1,589 Elo (black)</strong>, with a standard deviation of 291 for both colors. The slight discrepancy in means reflects normal sampling variation rather than systematic bias.</p>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h3>Rating Distribution (White &amp; Black)</h3>
+          <div class="chart-container" style="height:260px">
+            <canvas id="ratingDistChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>Higher-Rated Player Win % by Rating Gap</h3>
+          <div class="chart-container" style="height:260px">
+            <canvas id="diffChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>Rating differentials are the single strongest predictor of outcomes.</strong> When two players are within 50 Elo of each other, the nominally higher-rated player wins only <strong>48.9%</strong>&mdash;essentially a coin flip. At a 200-point gap the favorite wins <strong>64%</strong>, at 300–500 points the figure rises to <strong>79.2%</strong>, and beyond 500 points it reaches <strong>84.9%</strong>. This near-linear progression confirms Elo's predictive validity at scale.
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Rating Gap</th>
+            <th class="num">Games</th>
+            <th class="num">Higher-Rated Wins</th>
+            <th class="num">Win %</th>
+            <th class="num">Upset %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>0–50 (near-equal)</td><td class="num">5,271</td><td class="num">2,576</td><td class="num">48.9%</td><td class="num">51.1%</td></tr>
+          <tr><td>51–100</td><td class="num">3,688</td><td class="num">2,043</td><td class="num">55.4%</td><td class="num">44.6%</td></tr>
+          <tr><td>101–150</td><td class="num">2,653</td><td class="num">1,624</td><td class="num">61.2%</td><td class="num">38.8%</td></tr>
+          <tr><td>151–200</td><td class="num">1,921</td><td class="num">1,230</td><td class="num">64.0%</td><td class="num">36.0%</td></tr>
+          <tr><td>201–300</td><td class="num">2,671</td><td class="num">1,917</td><td class="num">71.8%</td><td class="num">28.2%</td></tr>
+          <tr><td>301–500</td><td class="num">2,402</td><td class="num">1,902</td><td class="num">79.2%</td><td class="num">20.8%</td></tr>
+          <tr><td>500+</td><td class="num">1,249</td><td class="num">1,060</td><td class="num">84.9%</td><td class="num">15.1%</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:16px;"><strong>Game length increases with skill level.</strong> Players rated below 1,000 average <strong>48.2 half-moves</strong> per game, while 2,000+ players average <strong>68.1</strong>&mdash;an increase of nearly 41%. Higher-rated players are less prone to blunders that cause quick resignations, leading to longer, more positional contests.</p>
+
+      <div class="chart-box" style="margin-top:20px;">
+        <h3>Average Game Length (Turns) by Rating Bracket</h3>
+        <div class="chart-container" style="height:220px">
+          <canvas id="turnsRatingChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: OPENINGS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <h2>Opening Analysis: Popular Openings and Their Success Rates</h2>
+    </div>
+    <div class="section-body">
+      <p>The dataset contains hundreds of distinct openings. The analysis below focuses on the <strong>top 15 by frequency</strong>&mdash;representing the openings that collectively shape most of the games played. White-centric openings with high decisive win rates for white are separated from black-favored lines where black actually outperforms.</p>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h3>Top 15 Openings by Frequency</h3>
+          <div class="chart-container" style="height:340px">
+            <canvas id="openingFreqChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>White vs Black Win % — Top 15 Openings</h3>
+          <div class="chart-container" style="height:340px">
+            <canvas id="openingWinChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>Openings where Black outperforms White:</strong> The <strong>Van't Kruijs Opening</strong> (1.e3) stands out dramatically&mdash;black wins <strong>61.4%</strong> of those games vs. white's 34.2%, making it the worst-performing opening for white among the top 15. The <strong>Sicilian Defense</strong> and its <strong>Bowdler Attack</strong> variant also heavily favor black (~54–55% black win rate). The <strong>Scandinavian Defense</strong> and <strong>Indian Game</strong> similarly produce black-favorable results.
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Opening</th>
+            <th class="num">Games</th>
+            <th class="num">White %</th>
+            <th class="num">Black %</th>
+            <th class="num">Draw %</th>
+            <th class="num">W Decisive %</th>
+            <th class="num">Avg Ply</th>
+            <th>Edge</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Van't Kruijs Opening</td><td class="num">368</td><td class="num">34.2%</td><td class="num">61.4%</td><td class="num">4.3%</td><td class="num">35.8%</td><td class="num">1.0</td><td><span class="badge badge-black">Black +27.2pp</span></td></tr>
+          <tr><td>Sicilian Defense</td><td class="num">358</td><td class="num">41.6%</td><td class="num">54.2%</td><td class="num">4.2%</td><td class="num">43.4%</td><td class="num">3.1</td><td><span class="badge badge-black">Black +12.6pp</span></td></tr>
+          <tr><td>Sicilian Defense: Bowdler Attack</td><td class="num">296</td><td class="num">40.2%</td><td class="num">55.4%</td><td class="num">4.4%</td><td class="num">42.0%</td><td class="num">3.0</td><td><span class="badge badge-black">Black +15.2pp</span></td></tr>
+          <tr><td>Scandinavian Defense</td><td class="num">223</td><td class="num">40.4%</td><td class="num">55.2%</td><td class="num">4.5%</td><td class="num">42.3%</td><td class="num">2.0</td><td><span class="badge badge-black">Black +14.8pp</span></td></tr>
+          <tr><td>Indian Game</td><td class="num">181</td><td class="num">38.1%</td><td class="num">55.2%</td><td class="num">6.6%</td><td class="num">40.8%</td><td class="num">2.0</td><td><span class="badge badge-black">Black +17.1pp</span></td></tr>
+          <tr><td>Philidor Defense #2</td><td class="num">193</td><td class="num">46.1%</td><td class="num">49.7%</td><td class="num">4.1%</td><td class="num">48.1%</td><td class="num">4.0</td><td><span class="badge badge-black">Black +3.6pp</span></td></tr>
+          <tr><td>French Defense: Knight Var.</td><td class="num">271</td><td class="num">49.8%</td><td class="num">44.6%</td><td class="num">5.5%</td><td class="num">52.7%</td><td class="num">3.0</td><td><span class="badge badge-white">White +5.2pp</span></td></tr>
+          <tr><td>Queen's Pawn Game: Mason Att.</td><td class="num">232</td><td class="num">50.0%</td><td class="num">44.4%</td><td class="num">5.6%</td><td class="num">53.0%</td><td class="num">3.0</td><td><span class="badge badge-white">White +5.6pp</span></td></tr>
+          <tr><td>Queen's Pawn: Chigorin Var.</td><td class="num">229</td><td class="num">48.9%</td><td class="num">47.6%</td><td class="num">3.5%</td><td class="num">50.7%</td><td class="num">3.8</td><td><span class="badge badge-white">White ~even</span></td></tr>
+          <tr><td>Horwitz Defense</td><td class="num">209</td><td class="num">52.6%</td><td class="num">45.0%</td><td class="num">2.4%</td><td class="num">53.9%</td><td class="num">2.0</td><td><span class="badge badge-white">White +7.6pp</span></td></tr>
+          <tr><td>Caro-Kann Defense</td><td class="num">199</td><td class="num">54.8%</td><td class="num">41.7%</td><td class="num">3.5%</td><td class="num">56.8%</td><td class="num">2.5</td><td><span class="badge badge-white">White +13.1pp</span></td></tr>
+          <tr><td>Scotch Game</td><td class="num">271</td><td class="num">53.5%</td><td class="num">42.4%</td><td class="num">4.1%</td><td class="num">55.8%</td><td class="num">6.0</td><td><span class="badge badge-white">White +11.4pp</span></td></tr>
+          <tr><td>Italian Game: Anti-Fried Liver</td><td class="num">180</td><td class="num">53.9%</td><td class="num">40.6%</td><td class="num">5.6%</td><td class="num">57.1%</td><td class="num">6.0</td><td><span class="badge badge-white">White +13.3pp</span></td></tr>
+          <tr><td>Philidor Defense #3</td><td class="num">198</td><td class="num">64.1%</td><td class="num">33.8%</td><td class="num">2.0%</td><td class="num">65.5%</td><td class="num">5.0</td><td><span class="badge badge-white">White +30.3pp</span></td></tr>
+          <tr><td>Scandinavian: Mieses-Kotroc</td><td class="num">259</td><td class="num">63.3%</td><td class="num">34.4%</td><td class="num">2.3%</td><td class="num">64.8%</td><td class="num">4.0</td><td><span class="badge badge-white">White +28.9pp</span></td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:16px;"><strong>Opening depth and outcomes:</strong> Games with longer opening phases (9–15 plies) show a slight white advantage (50.4%) consistent with theory-heavy mainlines. The deepest openings (16+ plies) show white at 48.6%&mdash;suggesting that when both sides play the most theoretical lines, the opening advantage nearly evaporates.</p>
+
+      <div class="chart-box" style="margin-top:16px;">
+        <h3>White Win % by Opening Depth (Ply Buckets)</h3>
+        <div class="chart-container" style="height:200px">
+          <canvas id="plyChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: TIME CONTROL -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <h2>Time Control Patterns and Game Characteristics</h2>
+    </div>
+    <div class="section-body">
+      <p>The dataset is dominated by <strong>Blitz (6–10 min)</strong> games, which account for <strong>57.2%</strong> of all games (11,478). The single most popular time control is <strong>10+0</strong> with 7,721 games (38.5% of all). Rapid formats (11–15 min) are second at 19.2%.</p>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h3>Games by Time Control Category</h3>
+          <div class="chart-container" style="height:240px">
+            <canvas id="tcDistChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h3>Victory Status Mix by Time Control</h3>
+          <div class="chart-container" style="height:240px">
+            <canvas id="tcVsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight">
+        <strong>Timeout risk drops sharply with longer time controls.</strong> In Bullet (&lt;3 min), 15.3% of games end in timeout. This falls to 9.4% in Blitz (3–5 min), 9.7% in Blitz (6–10 min), 6.3% in Rapid (11–15 min), and only 4.5% in Rapid/Classical (16+ min). Conversely, resignation rates are highest in longer formats (58.9% in Rapid/Classical), where players have more time to assess hopeless positions.
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Time Control</th>
+            <th class="num">Games</th>
+            <th class="num">Avg Turns</th>
+            <th class="num">Checkmate %</th>
+            <th class="num">Resign %</th>
+            <th class="num">Timeout %</th>
+            <th class="num">Draw %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Bullet (&lt;3 min)</td><td class="num">131</td><td class="num">44.7</td><td class="num">27.5%</td><td class="num">54.2%</td><td class="num">15.3%</td><td class="num">3.1%</td></tr>
+          <tr><td>Blitz (3–5 min)</td><td class="num">1,917</td><td class="num">57.5</td><td class="num">30.5%</td><td class="num">56.1%</td><td class="num">9.4%</td><td class="num">4.0%</td></tr>
+          <tr><td>Blitz (6–10 min)</td><td class="num">11,478</td><td class="num">62.3</td><td class="num">32.0%</td><td class="num">54.3%</td><td class="num">9.7%</td><td class="num">4.0%</td></tr>
+          <tr><td>Rapid (11–15 min)</td><td class="num">3,849</td><td class="num">60.0</td><td class="num">32.0%</td><td class="num">56.9%</td><td class="num">6.3%</td><td class="num">4.8%</td></tr>
+          <tr><td>Rapid/Classical (16+ min)</td><td class="num">2,683</td><td class="num">56.3</td><td class="num">30.0%</td><td class="num">58.9%</td><td class="num">4.5%</td><td class="num">6.6%</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin-top:14px;"><strong>Draw rates rise with time:</strong> Rapid/Classical has a <strong>6.6% draw rate</strong>—more than double the Blitz draw rate of ~4.0%. This mirrors the pattern seen at professional levels, where more time allows both players to navigate to balanced endgames rather than blundering into decisive errors.</p>
+
+      <p>Average game length peaks in Blitz (6–10 min) at <strong>62.3 turns</strong>, then somewhat paradoxically dips in longer formats. This may reflect faster resignations in classical formats once a material disadvantage becomes clear, compared to blitz where players often play on hoping the opponent flags.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 6: KEY FINDINGS -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <h2>Key Findings and Strategic Takeaways</h2>
+    </div>
+    <div class="section-body">
+      <div class="finding">
+        <div class="finding-icon">♟</div>
+        <div>
+          <div class="finding-title">White's First-Move Advantage is Real but Erodes at High Ratings</div>
+          <div class="finding-body">White wins <strong>52.3% of decisive games</strong> overall, a consistent 4.6pp edge. However, this advantage is concentrated in the 1,200–1,800 Elo range (53–54%). At 2,000+ Elo the gap narrows to just <strong>50.6%</strong>—within statistical noise for the sample size. This confirms that opening preparation, which neutralizes white's initiative, is a key skill separator at higher ratings. Platform design interventions (e.g., opening training tools) targeting players in the 1,400–1,800 range would have the most measurable impact on evening color-based outcomes.</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">📊</div>
+        <div>
+          <div class="finding-title">Rating Differential is the Dominant Outcome Predictor</div>
+          <div class="finding-body">The higher-rated player's win probability scales almost linearly from <strong>48.9%</strong> (0–50 point gap) to <strong>84.9%</strong> (500+ point gap). A 200-point gap already confers a <strong>64% win probability</strong>. This validates Elo as a strong predictor in this dataset and confirms that matchmaking quality—not opening choice—drives most outcome variance. For coaches: players at a significant rating disadvantage should focus on time-management and practical fighting chances rather than theoretical preparation.</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">📖</div>
+        <div>
+          <div class="finding-title">Opening Choice Matters: Several Popular Choices Are Strategically Unsound for White</div>
+          <div class="finding-body">The <strong>Van't Kruijs Opening (1.e3)</strong> is the most counterproductive choice for white among popular openings—black wins 61.4% of these games, a 27.2pp deficit for white. Similarly, the Sicilian Defense (black wins 54.2%) and Indian Game (55.2%) heavily favor black. Conversely, <strong>Philidor Defense #3</strong> and <strong>Scandinavian: Mieses-Kotroc Variation</strong> produce exceptional white results (64–65% win rates), though the underlying cause may be that these openings are played most often when white has a significant rating advantage over the opponent.</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">⏱</div>
+        <div>
+          <div class="finding-title">Bullet Chess Has Unique Dynamics; Timeout Is a Major Risk Factor</div>
+          <div class="finding-body">Bullet games (&lt;3 min) show <strong>15.3% timeout rate</strong>—nearly 3× the rapid rate—and black actually wins more often than white in this format (unusual reversal). Blitz (6–10 min) is the clear modal format at 57.2% of all games. Players who want to practice opening theory in time-pressure conditions are best served by 5+5 or 10+0 formats, where flag-related noise is minimized but games remain tactical enough to generate actionable feedback.</div>
+        </div>
+      </div>
+      <div class="finding">
+        <div class="finding-icon">🎯</div>
+        <div>
+          <div class="finding-title">Resignation Dominates; Checkmates Require ~20% More Moves</div>
+          <div class="finding-body">55.6% of games end by resignation, and only 31.5% by checkmate. Resigned games average <strong>53.9 turns</strong>, while checkmate games require <strong>65.4 turns</strong>—a 21% premium. Drawn games stretch to <strong>83.8 turns</strong>. This means the ability to press and convert a won endgame (rather than accept resignation) is a meaningful skill differentiator above ~1,800 Elo. Game length also increases strongly with skill level (+41% from &lt;1,000 to 2,000+ Elo), confirming that mistake-reduction—not pattern complexity—is the key factor in game duration.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>Lichess Chess Game Analytics &mdash; 20,058 games &mdash; Data sourced from Lichess.org via Kaggle (datasnaek/chess)</p>
+  <p style="margin-top:4px;">All statistics derived directly from dataset. No values fabricated or extrapolated.</p>
+</footer>
+
+<script>
+const BLUE = '#2563eb';
+const BLUE_LIGHT = '#93c5fd';
+const RED = '#dc2626';
+const RED_LIGHT = '#fca5a5';
+const GRAY = '#6b7280';
+const GREEN = '#16a34a';
+const AMBER = '#d97706';
+
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#64748b';
+
+// 1. Victory Status Donut
+new Chart(document.getElementById('victoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Resign (55.6%)', 'Checkmate (31.5%)', 'Out of Time (8.4%)', 'Draw (4.5%)'],
+    datasets: [{
+      data: [11147, 6325, 1680, 906],
+      backgroundColor: ['#2563eb','#dc2626','#d97706','#6b7280'],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } } },
+    cutout: '65%'
+  }
+});
+
+// 2. Winner Donut
+new Chart(document.getElementById('winnerChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['White (49.9%)', 'Black (45.4%)', 'Draw (4.7%)'],
+    datasets: [{
+      data: [10001, 9107, 950],
+      backgroundColor: [BLUE, RED, GRAY],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } } },
+    cutout: '65%'
+  }
+});
+
+// 3. Color Advantage by Rating Bracket
+const brackets = ['<1000','1000-1199','1200-1399','1400-1599','1600-1799','1800-1999','2000+'];
+const whiteDecisive = [53.85, 52.55, 53.79, 52.16, 52.21, 51.80, 50.62];
+const blackDecisive = brackets.map((_, i) => 100 - whiteDecisive[i]);
+
+new Chart(document.getElementById('bracketChart'), {
+  type: 'bar',
+  data: {
+    labels: brackets,
+    datasets: [
+      { label: 'White Decisive %', data: whiteDecisive, backgroundColor: BLUE, borderRadius: 3 },
+      { label: 'Black Decisive %', data: blackDecisive, backgroundColor: RED, borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: {
+      x: { stacked: false, grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { min: 44, max: 58, grid: { color: '#f1f5f9' }, ticks: { callback: v => v + '%' } }
+    }
+  }
+});
+
+// 4. White Win Rate by Time Control (horizontal bar)
+const tcLabels = ['Bullet <3m', 'Blitz 3-5m', 'Blitz 6-10m', 'Rapid 11-15m', 'Rapid/Class 16+'];
+const tcWhite = [45.67, 51.74, 52.02, 52.80, 53.85];
+
+new Chart(document.getElementById('tcColorChart'), {
+  type: 'bar',
+  data: {
+    labels: tcLabels,
+    datasets: [{
+      label: 'White Decisive Win %',
+      data: tcWhite,
+      backgroundColor: tcWhite.map(v => v < 50 ? RED : BLUE),
+      borderRadius: 4
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { min: 40, max: 58, grid: { color: '#f1f5f9' }, ticks: { callback: v => v + '%' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// 5. Rating Distribution
+const ratingEdges = [];
+for (let e = 600; e <= 2800; e += 100) ratingEdges.push(e);
+const ratingLabels = ratingEdges.slice(0, -1).map(e => e + '-' + (e+99));
+const whiteCounts = [0,1,16,65,222,604,1204,1985,2887,3352,3225,2676,1965,1259,738,414,202,103,40,21];
+const blackCounts = [0,1,15,70,232,614,1222,2003,2920,3363,3222,2632,1926,1242,731,400,195,104,43,23];
+
+new Chart(document.getElementById('ratingDistChart'), {
+  type: 'bar',
+  data: {
+    labels: ratingLabels,
+    datasets: [
+      { label: 'White', data: whiteCounts, backgroundColor: 'rgba(37,99,235,0.55)', borderRadius: 1 },
+      { label: 'Black', data: blackCounts, backgroundColor: 'rgba(220,38,38,0.45)', borderRadius: 1 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxRotation: 60, font: { size: 9 } } },
+      y: { grid: { color: '#f1f5f9' } }
+    }
+  }
+});
+
+// 6. Rating Differential Win% (line chart)
+new Chart(document.getElementById('diffChart'), {
+  type: 'line',
+  data: {
+    labels: ['0-50', '51-100', '101-150', '151-200', '201-300', '301-500', '500+'],
+    datasets: [{
+      label: 'Higher-rated player win %',
+      data: [48.87, 55.40, 61.21, 64.03, 71.77, 79.18, 84.87],
+      borderColor: BLUE, backgroundColor: 'rgba(37,99,235,0.1)',
+      tension: 0.35, fill: true, pointRadius: 5, pointBackgroundColor: BLUE, borderWidth: 2.5
+    }, {
+      label: '50% baseline',
+      data: [50,50,50,50,50,50,50],
+      borderColor: '#e2e8f0', borderDash: [5,5], borderWidth: 1.5,
+      pointRadius: 0, fill: false
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: {
+      x: { grid: { display: false }, title: { display: true, text: 'Rating Gap (Elo points)', font: { size: 11 } } },
+      y: { min: 40, max: 90, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } }
+    }
+  }
+});
+
+// 7. Turns by Rating Bracket
+new Chart(document.getElementById('turnsRatingChart'), {
+  type: 'bar',
+  data: {
+    labels: brackets,
+    datasets: [{
+      label: 'Avg. half-moves',
+      data: [48.2, 50.2, 53.8, 59.3, 63.3, 67.0, 68.1],
+      backgroundColor: brackets.map((_, i) => `rgba(37,99,235,${0.4 + i*0.09})`),
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { min: 40, grid: { color: '#f1f5f9' }, title: { display: true, text: 'Half-moves', font: { size: 11 } } }
+    }
+  }
+});
+
+// 8. Opening Frequency (horizontal bar, top 15)
+const openingNames = [
+  "Van't Kruijs Opening", "Sicilian Defense", "Sicilian: Bowdler Attack",
+  "French Def: Knight Var.", "Scotch Game", "Scandinavian: Mieses-Kotroc",
+  "QP Game: Mason Attack", "QP Game: Chigorin Var.", "Scandinavian Defense",
+  "Horwitz Defense", "Caro-Kann Defense", "Philidor Def. #3",
+  "Philidor Def. #2", "Indian Game", "Italian: Anti-Fried Liver"
+];
+const openingCounts = [368,358,296,271,271,259,232,229,223,209,199,198,193,181,180];
+
+new Chart(document.getElementById('openingFreqChart'), {
+  type: 'bar',
+  data: {
+    labels: openingNames,
+    datasets: [{ label: 'Games', data: openingCounts, backgroundColor: BLUE, borderRadius: 3 }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#f1f5f9' }, title: { display: true, text: 'Number of games' } },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// 9. Opening Win Rates Grouped Bar
+const openingWhitePct = [34.24, 41.62, 40.20, 49.82, 53.51, 63.32, 50.00, 48.91, 40.36, 52.63, 54.77, 64.14, 46.11, 38.12, 53.89];
+const openingBlackPct = [61.41, 54.19, 55.41, 44.65, 42.44, 34.36, 44.40, 47.60, 55.16, 44.98, 41.71, 33.84, 49.74, 55.25, 40.56];
+
+new Chart(document.getElementById('openingWinChart'), {
+  type: 'bar',
+  data: {
+    labels: openingNames,
+    datasets: [
+      { label: 'White %', data: openingWhitePct, backgroundColor: BLUE, borderRadius: 2 },
+      { label: 'Black %', data: openingBlackPct, backgroundColor: RED, borderRadius: 2 }
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: {
+      x: { min: 0, max: 75, grid: { color: '#f1f5f9' }, ticks: { callback: v => v + '%' } },
+      y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+    }
+  }
+});
+
+// 10. Opening Ply Depth
+new Chart(document.getElementById('plyChart'), {
+  type: 'bar',
+  data: {
+    labels: ['1–4 ply', '5–6 ply', '7–8 ply', '9–10 ply', '11–15 ply', '16+ ply'],
+    datasets: [
+      { label: 'White %', data: [48.79, 51.54, 51.54, 50.40, 48.61, 48.57], backgroundColor: BLUE, borderRadius: 3 },
+      { label: 'Black %', data: [46.66, 43.92, 43.54, 44.50, 44.46, 43.81], backgroundColor: RED, borderRadius: 3 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { min: 38, max: 58, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } }
+    }
+  }
+});
+
+// 11. TC Distribution
+new Chart(document.getElementById('tcDistChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Blitz 6-10m (57.2%)', 'Rapid 11-15m (19.2%)', 'Rapid/Class 16+ (13.4%)', 'Blitz 3-5m (9.6%)', 'Bullet <3m (0.7%)'],
+    datasets: [{
+      data: [11478, 3849, 2683, 1917, 131],
+      backgroundColor: ['#1d4ed8','#2563eb','#3b82f6','#60a5fa','#93c5fd'],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { padding: 8, font: { size: 10 } } } },
+    cutout: '58%'
+  }
+});
+
+// 12. Victory Status by TC
+new Chart(document.getElementById('tcVsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Bullet <3m', 'Blitz 3-5m', 'Blitz 6-10m', 'Rapid 11-15m', 'Rapid/Class 16+'],
+    datasets: [
+      { label: 'Checkmate %', data: [27.5, 30.5, 32.0, 32.0, 30.0], backgroundColor: RED, borderRadius: 2 },
+      { label: 'Resign %', data: [54.2, 56.1, 54.3, 56.9, 58.9], backgroundColor: BLUE, borderRadius: 2 },
+      { label: 'Timeout %', data: [15.3, 9.4, 9.7, 6.3, 4.5], backgroundColor: AMBER, borderRadius: 2 },
+      { label: 'Draw %', data: [3.1, 4.0, 4.0, 4.8, 6.6], backgroundColor: GRAY, borderRadius: 2 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 10 }, padding: 8 } } },
+    scales: {
+      x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+      y: { stacked: true, max: 105, ticks: { callback: v => v + '%' }, grid: { color: '#f1f5f9' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

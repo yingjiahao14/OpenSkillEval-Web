@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1020;
+    --card: #0f1730;
+    --muted: #a9b4d0;
+    --text: #e8eeff;
+    --border: rgba(255,255,255,.08);
+    --accent: #6ea8ff;
+    --accent2: #8bffb0;
+    --warn: #ffcc66;
+    --danger: #ff6e6e;
+  }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: radial-gradient(1200px 600px at 10% 0%, rgba(110,168,255,.18), transparent 60%), radial-gradient(1000px 600px at 90% 10%, rgba(139,255,176,.10), transparent 65%), var(--bg); color: var(--text); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 18px 60px; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 22px; max-width: 980px; }
+  h2 { margin: 34px 0 10px; font-size: 22px; }
+  h3 { margin: 18px 0 8px; font-size: 16px; color: var(--muted); font-weight: 650; letter-spacing: .2px; }
+  .grid { display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+  .card { background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 65%), var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 14px; }
+  .kpi { grid-column: span 3; }
+  .kpi .label { color: var(--muted); font-size: 12px; }
+  .kpi .value { font-size: 24px; font-weight: 800; margin-top: 6px; }
+  .kpi .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .span6 { grid-column: span 6; }
+  .span7 { grid-column: span 7; }
+  .span5 { grid-column: span 5; }
+  .span8 { grid-column: span 8; }
+  .span4 { grid-column: span 4; }
+  .span12 { grid-column: span 12; }
+  .small { font-size: 12px; color: var(--muted); }
+  table { width:100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { text-align: left; color: var(--muted); font-weight: 650; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .tag { display:inline-block; padding: 2px 8px; border-radius: 999px; border:1px solid var(--border); color: var(--muted); font-size: 12px; }
+  .pos { color: var(--accent2); font-weight: 650; }
+  .neg { color: var(--danger); font-weight: 650; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+  .callout { border-left: 3px solid var(--accent); padding: 10px 12px; background: rgba(110,168,255,.07); border-radius: 10px; }
+  canvas { width:100% !important; height: 340px !important; }
+  .tight canvas { height: 280px !important; }
+  @media (max-width: 980px) {
+    .kpi { grid-column: span 6; }
+    .span6, .span7, .span5, .span8, .span4 { grid-column: span 12; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</h1>
+  <p class="sub">Data-driven analysis of <b>20,058</b> Lichess games (source: <span class="mono">benchmark/data.csv</span>). Focus areas: first-move advantage, rating differential effects, opening success, and time control dynamics.</p>
+
+  <div class="grid">
+    <div class="card kpi">
+      <div class="label">Total games</div>
+      <div class="value">20,058</div>
+      <div class="note">Rated: 16,155 (80.5%) • Unrated: 3,903 (19.5%)</div>
+    </div>
+    <div class="card kpi">
+      <div class="label">White win rate (decisive)</div>
+      <div class="value">52.3%</div>
+      <div class="note">95% CI: 51.6%–53.0% • Edge vs 50%: 2.34 pp</div>
+    </div>
+    <div class="card kpi">
+      <div class="label">Checkmate rate</div>
+      <div class="value">31.5%</div>
+      <div class="note">Mate: 6,325 • Resign: 11,147 • OOT: 1,680 • Draw: 906</div>
+    </div>
+    <div class="card kpi">
+      <div class="label">Average game length</div>
+      <div class="value">60.5 plies</div>
+      <div class="note">Turns are half-moves (plies) per dataset schema.</div>
+    </div>
+  </div>
+
+  <h2 id="overview">Dataset Overview &amp; Game Distribution</h2>
+  <div class="grid">
+    <div class="card span6">
+      <h3>Winners</h3>
+      <div class="tight"><canvas id="winnersChart"></canvas></div>
+      <div class="small">Counts: White 10,001 • Black 9,107 • Draw 950</div>
+    </div>
+    <div class="card span6">
+      <h3>Game end method (victory_status)</h3>
+      <div class="tight"><canvas id="statusChart"></canvas></div>
+      <div class="small">Most games end by resignation, followed by checkmate.</div>
+    </div>
+  </div>
+
+  <h2 id="color">White vs. Black: The First-Move Advantage</h2>
+  <div class="card callout">
+    <b>Headline:</b> Across decisive games, White wins 52.3% (95% CI 51.6%–53.0%), a 2.34 pp edge over 50%.
+    <div class="small" style="margin-top:6px">Draw-inclusive: White’s average score is 52.2% where win=1, draw=0.5, loss=0.</div>
+  </div>
+
+  <div class="grid" style="margin-top:12px">
+    <div class="card span7">
+      <h3>White win rate by time control bucket (decisive games)</h3>
+      <canvas id="whiteByTc"></canvas>
+      <div class="small">Bucket uses base minutes from <span class="mono">increment_code</span>.</div>
+    </div>
+    <div class="card span5">
+      <h3>Centerpiece: rating × time control heatmap (decisive)</h3>
+      <div class="small">Cells require ≥100 decisive games.</div>
+      <div id="heatmap" style="margin-top:10px"></div>
+      <div class="small" style="margin-top:10px">Largest observed White edge: <span class="tag">1800-1999</span> × <span class="tag">Classical (>=30m)</span> → 59.1% (n=137).</div>
+      <div class="small">Lowest observed White edge: <span class="tag">2000-2199</span> × <span class="tag">Rapid+ (15-29m)</span> → 45.3% (n=254).</div>
+    </div>
+  </div>
+
+  <h2 id="rating">Rating Dynamics and Their Impact on Outcomes</h2>
+  <div class="grid">
+    <div class="card span8">
+      <h3>Win expectation shifts with rating differential</h3>
+      <canvas id="ratingDiff"></canvas>
+      <div class="small">Bins are by <span class="mono">white_rating − black_rating</span>. Y-axis is White’s draw-inclusive score.</div>
+    </div>
+    <div class="card span4">
+      <h3>Higher-rated win rate by |rating gap|</h3>
+      <canvas id="higherRated"></canvas>
+      <div class="small">Point-biserial r = 0.225 (p≈1.43e-225) between |gap| and higher-rated win indicator.</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span12">
+      <h3>Average game length by victory status (plies)</h3>
+      <canvas id="turnsByStatus"></canvas>
+      <div class="small">Drawn games average 83.8 plies vs mates 65.4.</div>
+    </div>
+  </div>
+
+  <h2 id="opening">Opening Analysis: Popular Openings and Their Success Rates</h2>
+  <div class="grid">
+    <div class="card span7">
+      <h3>Top openings by frequency (top 15)</h3>
+      <canvas id="openingsChart"></canvas>
+      <div class="small">Bar = games; line = White score (win=1, draw=0.5).</div>
+    </div>
+    <div class="card span5">
+      <h3>Openings where Black outperforms (within top 15)</h3>
+      <table>
+        <thead><tr><th>Opening</th><th>Games</th><th>White score</th><th>White win (decisive)</th></tr></thead>
+        <tbody>
+          <tr><td><span class='mono'>A00</span> Van't Kruijs Opening</td><td>368</td><td class='neg'>36.4%</td><td>35.8%</td></tr><tr><td><span class='mono'>B30</span> Sicilian Defense: Old Sicilian</td><td>159</td><td class='neg'>39.6%</td><td>39.2%</td></tr><tr><td><span class='mono'>A45</span> Indian Game</td><td>181</td><td class='neg'>41.4%</td><td>40.8%</td></tr><tr><td><span class='mono'>B20</span> Sicilian Defense: Bowdler Attack</td><td>296</td><td class='neg'>42.4%</td><td>42.0%</td></tr><tr><td><span class='mono'>B01</span> Scandinavian Defense</td><td>223</td><td class='neg'>42.6%</td><td>42.3%</td></tr><tr><td><span class='mono'>B50</span> Sicilian Defense</td><td>171</td><td class='neg'>46.8%</td><td>46.6%</td></tr><tr><td><span class='mono'>C20</span> King's Pawn Game: Wayward Queen Attack</td><td>164</td><td class='neg'>47.0%</td><td>46.8%</td></tr><tr><td><span class='mono'>B00</span> Owen Defense</td><td>168</td><td class='neg'>47.9%</td><td>47.8%</td></tr><tr><td><span class='mono'>C41</span> Philidor Defense #2</td><td>193</td><td class='neg'>48.2%</td><td>48.1%</td></tr>
+        </tbody>
+      </table>
+      <div class="small" style="margin-top:8px">Empirical association; selection effects likely.</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span12">
+      <h3>Opening depth (opening_ply) vs outcomes</h3>
+      <canvas id="openingPly"></canvas>
+      <div class="small">Early deviations (lower <span class="mono">opening_ply</span>) coincide with higher mate rates in this dataset.</div>
+    </div>
+  </div>
+
+  <h2 id="time">Time Control Patterns and Game Characteristics</h2>
+  <div class="grid">
+    <div class="card span6">
+      <h3>Timeout share by time control bucket</h3>
+      <canvas id="timeouts"></canvas>
+    </div>
+    <div class="card span6">
+      <h3>Most common increment codes (top 12)</h3>
+      <table>
+        <thead><tr><th>Increment</th><th>Games</th><th>Avg plies</th><th>Mate</th><th>Resign</th><th>OOT</th><th>Draw</th></tr></thead>
+        <tbody>
+          <tr><td class='mono'>10+0</td><td>7,721</td><td>62.8</td><td>32.1%</td><td>54.3%</td><td>9.9%</td><td>3.7%</td></tr><tr><td class='mono'>15+0</td><td>1,311</td><td>60.5</td><td>33.3%</td><td>54.6%</td><td>8.2%</td><td>3.9%</td></tr><tr><td class='mono'>15+15</td><td>850</td><td>57.0</td><td>34.8%</td><td>56.9%</td><td>3.6%</td><td>4.6%</td></tr><tr><td class='mono'>5+5</td><td>738</td><td>61.3</td><td>30.6%</td><td>56.0%</td><td>9.5%</td><td>3.9%</td></tr><tr><td class='mono'>5+8</td><td>697</td><td>54.1</td><td>30.8%</td><td>56.5%</td><td>9.2%</td><td>3.4%</td></tr><tr><td class='mono'>8+0</td><td>588</td><td>67.9</td><td>28.4%</td><td>49.1%</td><td>17.9%</td><td>4.6%</td></tr><tr><td class='mono'>10+5</td><td>579</td><td>56.5</td><td>30.9%</td><td>58.0%</td><td>7.4%</td><td>3.6%</td></tr><tr><td class='mono'>15+10</td><td>461</td><td>63.4</td><td>23.6%</td><td>63.8%</td><td>4.8%</td><td>7.8%</td></tr><tr><td class='mono'>20+0</td><td>448</td><td>57.5</td><td>38.6%</td><td>51.8%</td><td>5.4%</td><td>4.2%</td></tr><tr><td class='mono'>30+0</td><td>375</td><td>53.9</td><td>32.0%</td><td>59.7%</td><td>3.2%</td><td>5.1%</td></tr><tr><td class='mono'>10+10</td><td>355</td><td>60.6</td><td>30.4%</td><td>54.6%</td><td>4.5%</td><td>10.4%</td></tr><tr><td class='mono'>15+5</td><td>314</td><td>62.0</td><td>33.1%</td><td>55.7%</td><td>5.7%</td><td>5.4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 id="findings">Key Findings and Strategic Takeaways</h2>
+  <div class="card">
+    <ul style="margin: 0; padding-left: 18px;">
+      <li><b>White has a measurable edge:</b> 52.3% White wins in decisive games (95% CI 51.6%–53.0%), i.e., 2.34 pp over 50%.</li>
+      <li><b>Rating gaps dominate outcomes:</b> White’s expected score is 35.4% when White is −200 to −150 Elo, versus 67.8% when White is +150 to +200 Elo (draw-inclusive score).</li>
+      <li><b>Color advantage is not uniform:</b> the rating×time heatmap ranges from near-even segments to 59.1% (e.g., 1800-1999 × Classical (>=30m)).</li>
+      <li><b>Openings show large empirical spread:</b> within the top 15, several openings are sub-50% for White; the lowest is A00 Van't Kruijs Opening at 36.4% White score.</li>
+      <li><b>Time pressure shifts termination modes:</b> timeouts are concentrated in faster controls; resignations still dominate across buckets.</li>
+    </ul>
+  </div>
+
+  <div style="margin-top:24px; color: var(--muted); font-size: 12px;">
+    Built from <span class="mono">benchmark/data.csv</span>. All figures computed from the dataset; no external priors.
+  </div>
+</div>
+
+<script>
+const payload = {"winners": [{"label": "White", "value": 10001}, {"label": "Black", "value": 9107}, {"label": "Draw", "value": 950}], "status": [{"label": "Resign", "value": 11147}, {"label": "Mate", "value": 6325}, {"label": "Out of time", "value": 1680}, {"label": "Draw", "value": 906}], "whiteByTc": [{"tc_bucket": "Rapid (9-14m)", "games": 10184, "decisive_games": 9749, "white_win_rate_decisive": 0.5195404656887886, "ci95": [0.5096169469617448, 0.529448590614504]}, {"tc_bucket": "Rapid+ (15-29m)", "games": 4786, "decisive_games": 4538, "white_win_rate_decisive": 0.5301895107977083, "ci95": [0.5156489546715648, 0.5446789968800703]}, {"tc_bucket": "Blitz (4-8m)", "games": 3621, "decisive_games": 3458, "white_win_rate_decisive": 0.5254482359745518, "ci95": [0.5087854917092741, 0.5420545005075853]}, {"tc_bucket": "Classical (>=30m)", "games": 1279, "decisive_games": 1179, "white_win_rate_decisive": 0.5343511450381679, "ci95": [0.5058120741607148, 0.5626670865316383]}, {"tc_bucket": "Bullet (<=3m)", "games": 188, "decisive_games": 184, "white_win_rate_decisive": 0.45108695652173914, "ci95": [0.38091925177759234, 0.5232553293588545]}], "heatCells": [{"rating_bracket": "1000-1199", "tc_bucket": "Blitz (4-8m)", "games": 155, "decisive_games": 148, "white_win_rate_decisive": 0.5675675675675675, "ci95": [0.4870391324215402, 0.6446770771020687], "pp": 0.06756756756756754}, {"rating_bracket": "1000-1199", "tc_bucket": "Classical (>=30m)", "games": 115, "decisive_games": 109, "white_win_rate_decisive": 0.5045871559633027, "ci95": [0.4121794122144945, 0.5966825677645203], "pp": 0.004587155963302725}, {"rating_bracket": "1000-1199", "tc_bucket": "Rapid (9-14m)", "games": 468, "decisive_games": 440, "white_win_rate_decisive": 0.5340909090909091, "ci95": [0.4873861117330935, 0.5802055696234985], "pp": 0.03409090909090906}, {"rating_bracket": "1000-1199", "tc_bucket": "Rapid+ (15-29m)", "games": 328, "decisive_games": 311, "white_win_rate_decisive": 0.5080385852090032, "ci95": [0.45271691916262013, 0.5631640825855606], "pp": 0.008038585209003246}, {"rating_bracket": "1200-1399", "tc_bucket": "Blitz (4-8m)", "games": 676, "decisive_games": 651, "white_win_rate_decisive": 0.511520737327189, "ci95": [0.4731668595548212, 0.549739443282384], "pp": 0.011520737327188946}, {"rating_bracket": "1200-1399", "tc_bucket": "Classical (>=30m)", "games": 256, "decisive_games": 242, "white_win_rate_decisive": 0.5165289256198347, "ci95": [0.4538016228745303, 0.5787396557373887], "pp": 0.016528925619834656}, {"rating_bracket": "1200-1399", "tc_bucket": "Rapid (9-14m)", "games": 1781, "decisive_games": 1725, "white_win_rate_decisive": 0.5489855072463768, "ci95": [0.5254203945943259, 0.5723329218460005], "pp": 0.04898550724637685}, {"rating_bracket": "1200-1399", "tc_bucket": "Rapid+ (15-29m)", "games": 926, "decisive_games": 889, "white_win_rate_decisive": 0.5399325084364455, "ci95": [0.5070676471613771, 0.572453737146881], "pp": 0.03993250843644547}, {"rating_bracket": "1400-1599", "tc_bucket": "Blitz (4-8m)", "games": 1179, "decisive_games": 1122, "white_win_rate_decisive": 0.5311942959001783, "ci95": [0.5019375252954357, 0.5602381839695267], "pp": 0.031194295900178304}, {"rating_bracket": "1400-1599", "tc_bucket": "Classical (>=30m)", "games": 395, "decisive_games": 371, "white_win_rate_decisive": 0.5256064690026954, "ci95": [0.4747921062144524, 0.57589597109607], "pp": 0.025606469002695365}, {"rating_bracket": "1400-1599", "tc_bucket": "Rapid (9-14m)", "games": 2976, "decisive_games": 2873, "white_win_rate_decisive": 0.5050469892098851, "ci95": [0.4867699359943151, 0.523310563397796], "pp": 0.005046989209885111}, {"rating_bracket": "1400-1599", "tc_bucket": "Rapid+ (15-29m)", "games": 1462, "decisive_games": 1403, "white_win_rate_decisive": 0.5481111903064861, "ci95": [0.5219728821710542, 0.5739867482521578], "pp": 0.04811119030648614}, {"rating_bracket": "1600-1799", "tc_bucket": "Blitz (4-8m)", "games": 795, "decisive_games": 763, "white_win_rate_decisive": 0.5124508519003932, "ci95": [0.4770099931625078, 0.5477669620783139], "pp": 0.01245085190039319}, {"rating_bracket": "1600-1799", "tc_bucket": "Classical (>=30m)", "games": 241, "decisive_games": 226, "white_win_rate_decisive": 0.5486725663716814, "ci95": [0.4835193576546399, 0.6121987368939535], "pp": 0.04867256637168138}, {"rating_bracket": "1600-1799", "tc_bucket": "Rapid (9-14m)", "games": 2472, "decisive_games": 2360, "white_win_rate_decisive": 0.5182203389830509, "ci95": [0.4980475120358657, 0.5383339443189087], "pp": 0.018220338983050866}, {"rating_bracket": "1600-1799", "tc_bucket": "Rapid+ (15-29m)", "games": 1140, "decisive_games": 1071, "white_win_rate_decisive": 0.5350140056022409, "ci95": [0.5050700609339229, 0.564707662592967], "pp": 0.03501400560224088}, {"rating_bracket": "1800-1999", "tc_bucket": "Blitz (4-8m)", "games": 489, "decisive_games": 468, "white_win_rate_decisive": 0.5448717948717948, "ci95": [0.4995712954980792, 0.5894416274828532], "pp": 0.04487179487179482}, {"rating_bracket": "1800-1999", "tc_bucket": "Classical (>=30m)", "games": 156, "decisive_games": 137, "white_win_rate_decisive": 0.5912408759124088, "ci95": [0.5075233039118283, 0.6699810697959401], "pp": 0.09124087591240881}, {"rating_bracket": "1800-1999", "tc_bucket": "Rapid (9-14m)", "games": 1718, "decisive_games": 1628, "white_win_rate_decisive": 0.5104422604422605, "ci95": [0.4861631643831216, 0.5346721912053131], "pp": 0.010442260442260487}, {"rating_bracket": "1800-1999", "tc_bucket": "Rapid+ (15-29m)", "games": 573, "decisive_games": 539, "white_win_rate_decisive": 0.5046382189239332, "ci95": [0.46254523116967405, 0.5466655588655775], "pp": 0.004638218923933235}, {"rating_bracket": "2000-2199", "tc_bucket": "Blitz (4-8m)", "games": 230, "decisive_games": 218, "white_win_rate_decisive": 0.5275229357798165, "ci95": [0.4613475844088287, 0.5927450654819041], "pp": 0.02752293577981646}, {"rating_bracket": "2000-2199", "tc_bucket": "Rapid (9-14m)", "games": 610, "decisive_games": 576, "white_win_rate_decisive": 0.5208333333333334, "ci95": [0.48003257333918686, 0.5613580409251226], "pp": 0.02083333333333337}, {"rating_bracket": "2000-2199", "tc_bucket": "Rapid+ (15-29m)", "games": 280, "decisive_games": 254, "white_win_rate_decisive": 0.452755905511811, "ci95": [0.3926979015559767, 0.5142216955920396], "pp": -0.047244094488189003}, {"rating_bracket": "2200-2399", "tc_bucket": "Rapid (9-14m)", "games": 114, "decisive_games": 102, "white_win_rate_decisive": 0.5196078431372549, "ci95": [0.42370956161784173, 0.6140827620053841], "pp": 0.019607843137254943}], "signedBins": [{"rating_diff_bin": "-800.001 to -600", "games": 223, "white_score": 0.16143497757847533, "white_win_rate_decisive": 0.15207373271889402, "draw_rate": 0.026905829596412557}, {"rating_diff_bin": "-600 to -400", "games": 663, "white_score": 0.1817496229260935, "white_win_rate_decisive": 0.1743827160493827, "draw_rate": 0.02262443438914027}, {"rating_diff_bin": "-400 to -300", "games": 752, "white_score": 0.20412234042553193, "white_win_rate_decisive": 0.19478737997256515, "draw_rate": 0.030585106382978722}, {"rating_diff_bin": "-300 to -200", "games": 1310, "white_score": 0.2851145038167939, "white_win_rate_decisive": 0.2746196957566053, "draw_rate": 0.046564885496183206}, {"rating_diff_bin": "-200 to -150", "games": 912, "white_score": 0.3541666666666667, "white_win_rate_decisive": 0.345707656612529, "draw_rate": 0.05482456140350877}, {"rating_diff_bin": "-150 to -100", "games": 1293, "white_score": 0.3805104408352668, "white_win_rate_decisive": 0.3740831295843521, "draw_rate": 0.05104408352668213}, {"rating_diff_bin": "-100 to -75", "games": 812, "white_score": 0.4482758620689655, "white_win_rate_decisive": 0.44502617801047123, "draw_rate": 0.059113300492610835}, {"rating_diff_bin": "-75 to -50", "games": 1006, "white_score": 0.4408548707753479, "white_win_rate_decisive": 0.4371700105596621, "draw_rate": 0.05864811133200795}, {"rating_diff_bin": "-50 to -25", "games": 1178, "white_score": 0.4966044142614601, "white_win_rate_decisive": 0.4964093357271095, "draw_rate": 0.05432937181663837}, {"rating_diff_bin": "-25 to 0", "games": 1621, "white_score": 0.5021591610117212, "white_win_rate_decisive": 0.5022860875244938, "draw_rate": 0.055521283158544106}, {"rating_diff_bin": "0 to 25", "games": 1490, "white_score": 0.5375838926174497, "white_win_rate_decisive": 0.5396039603960396, "draw_rate": 0.05100671140939597}, {"rating_diff_bin": "25 to 50", "games": 1143, "white_score": 0.5201224846894138, "white_win_rate_decisive": 0.5212569316081331, "draw_rate": 0.05336832895888014}, {"rating_diff_bin": "50 to 75", "games": 996, "white_score": 0.5923694779116466, "white_win_rate_decisive": 0.5962343096234309, "draw_rate": 0.040160642570281124}, {"rating_diff_bin": "75 to 100", "games": 889, "white_score": 0.6147356580427447, "white_win_rate_decisive": 0.6214285714285714, "draw_rate": 0.05511811023622047}, {"rating_diff_bin": "100 to 150", "games": 1366, "white_score": 0.6522693997071742, "white_win_rate_decisive": 0.66, "draw_rate": 0.048316251830161056}, {"rating_diff_bin": "150 to 200", "games": 1013, "white_score": 0.6776900296150049, "white_win_rate_decisive": 0.6848049281314168, "draw_rate": 0.0384995064165844}, {"rating_diff_bin": "200 to 300", "games": 1365, "white_score": 0.7648351648351648, "white_win_rate_decisive": 0.7765876052027544, "draw_rate": 0.04249084249084249}, {"rating_diff_bin": "300 to 400", "games": 778, "white_score": 0.7956298200514139, "white_win_rate_decisive": 0.8050397877984085, "draw_rate": 0.030848329048843187}, {"rating_diff_bin": "400 to 600", "games": 778, "white_score": 0.8508997429305912, "white_win_rate_decisive": 0.8699186991869918, "draw_rate": 0.05141388174807198}, {"rating_diff_bin": "600 to 800", "games": 242, "white_score": 0.8636363636363636, "white_win_rate_decisive": 0.8793103448275862, "draw_rate": 0.04132231404958678}], "absBins": [{"abs_rating_diff_bin": "0 to 25", "games": 2848, "higher_rated_win_rate": 0.49297752808988765}, {"abs_rating_diff_bin": "25 to 50", "games": 2332, "higher_rated_win_rate": 0.483704974271012}, {"abs_rating_diff_bin": "50 to 75", "games": 2018, "higher_rated_win_rate": 0.5490584737363726}, {"abs_rating_diff_bin": "75 to 100", "games": 1706, "higher_rated_win_rate": 0.5568581477139508}, {"abs_rating_diff_bin": "100 to 150", "games": 2667, "higher_rated_win_rate": 0.609673790776153}, {"abs_rating_diff_bin": "150 to 200", "games": 1934, "higher_rated_win_rate": 0.6385729058945191}, {"abs_rating_diff_bin": "200 to 300", "games": 2675, "higher_rated_win_rate": 0.7188785046728972}, {"abs_rating_diff_bin": "300 to 400", "games": 1536, "higher_rated_win_rate": 0.7805989583333334}, {"abs_rating_diff_bin": "400 to 600", "games": 1445, "higher_rated_win_rate": 0.815916955017301}, {"abs_rating_diff_bin": "600 to 1000", "games": 632, "higher_rated_win_rate": 0.8607594936708861}], "openings": [{"opening_eco": "A00", "opening_name": "Van't Kruijs Opening", "games": 368, "white_win_rate_decisive": 0.35795454545454547, "black_win_rate_decisive": 0.6420454545454546, "draw_rate": 0.043478260869565216, "white_score": 0.3641304347826087}, {"opening_eco": "B20", "opening_name": "Sicilian Defense: Bowdler Attack", "games": 296, "white_win_rate_decisive": 0.4204946996466431, "black_win_rate_decisive": 0.5795053003533569, "draw_rate": 0.04391891891891892, "white_score": 0.4239864864864865}, {"opening_eco": "C00", "opening_name": "French Defense: Knight Variation", "games": 271, "white_win_rate_decisive": 0.52734375, "black_win_rate_decisive": 0.47265625, "draw_rate": 0.055350553505535055, "white_score": 0.525830258302583}, {"opening_eco": "B01", "opening_name": "Scandinavian Defense: Mieses-Kotroc Variation", "games": 259, "white_win_rate_decisive": 0.6482213438735178, "black_win_rate_decisive": 0.35177865612648224, "draw_rate": 0.023166023166023165, "white_score": 0.6447876447876448}, {"opening_eco": "D00", "opening_name": "Queen's Pawn Game: Mason Attack", "games": 232, "white_win_rate_decisive": 0.5296803652968036, "black_win_rate_decisive": 0.4703196347031963, "draw_rate": 0.05603448275862069, "white_score": 0.5280172413793104}, {"opening_eco": "B01", "opening_name": "Scandinavian Defense", "games": 223, "white_win_rate_decisive": 0.4225352112676056, "black_win_rate_decisive": 0.5774647887323944, "draw_rate": 0.04484304932735426, "white_score": 0.4260089686098655}, {"opening_eco": "A40", "opening_name": "Horwitz Defense", "games": 209, "white_win_rate_decisive": 0.5392156862745098, "black_win_rate_decisive": 0.46078431372549017, "draw_rate": 0.023923444976076555, "white_score": 0.5382775119617225}, {"opening_eco": "C41", "opening_name": "Philidor Defense #3", "games": 198, "white_win_rate_decisive": 0.654639175257732, "black_win_rate_decisive": 0.34536082474226804, "draw_rate": 0.020202020202020204, "white_score": 0.6515151515151515}, {"opening_eco": "C41", "opening_name": "Philidor Defense #2", "games": 193, "white_win_rate_decisive": 0.4810810810810811, "black_win_rate_decisive": 0.518918918918919, "draw_rate": 0.04145077720207254, "white_score": 0.48186528497409326}, {"opening_eco": "A45", "opening_name": "Indian Game", "games": 181, "white_win_rate_decisive": 0.40828402366863903, "black_win_rate_decisive": 0.591715976331361, "draw_rate": 0.06629834254143646, "white_score": 0.4143646408839779}, {"opening_eco": "C55", "opening_name": "Italian Game: Anti-Fried Liver Defense", "games": 180, "white_win_rate_decisive": 0.5705882352941176, "black_win_rate_decisive": 0.4294117647058823, "draw_rate": 0.05555555555555555, "white_score": 0.5666666666666667}, {"opening_eco": "B50", "opening_name": "Sicilian Defense", "games": 171, "white_win_rate_decisive": 0.4658385093167702, "black_win_rate_decisive": 0.5341614906832298, "draw_rate": 0.05847953216374269, "white_score": 0.4678362573099415}, {"opening_eco": "B00", "opening_name": "Owen Defense", "games": 168, "white_win_rate_decisive": 0.4779874213836478, "black_win_rate_decisive": 0.5220125786163522, "draw_rate": 0.05357142857142857, "white_score": 0.4791666666666667}, {"opening_eco": "C20", "opening_name": "King's Pawn Game: Wayward Queen Attack", "games": 164, "white_win_rate_decisive": 0.46835443037974683, "black_win_rate_decisive": 0.5316455696202531, "draw_rate": 0.036585365853658534, "white_score": 0.4695121951219512}, {"opening_eco": "B30", "opening_name": "Sicilian Defense: Old Sicilian", "games": 159, "white_win_rate_decisive": 0.39215686274509803, "black_win_rate_decisive": 0.6078431372549019, "draw_rate": 0.03773584905660377, "white_score": 0.39622641509433965}], "opPlyBins": [{"opening_ply_bin": "0 to 4", "games": 7522, "avg_turns": 58.32650890720553, "mate_rate": 0.34791278915182133, "resign_rate": 0.5184791278915182, "outoftime_rate": 0.0894708854028184, "draw_rate": 0.04639723477798458, "white_win_rate_decisive": 0.4997908824759515}, {"opening_ply_bin": "4 to 6", "games": 6038, "avg_turns": 61.71199072540576, "mate_rate": 0.3188141768797615, "resign_rate": 0.5526664458429944, "outoftime_rate": 0.08512752567075191, "draw_rate": 0.045048029148724744, "white_win_rate_decisive": 0.5456122095039889}, {"opening_ply_bin": "6 to 8", "games": 3364, "avg_turns": 60.230975029726515, "mate_rate": 0.2984542211652794, "resign_rate": 0.5847205707491082, "outoftime_rate": 0.07401902497027349, "draw_rate": 0.045778834720570746, "white_win_rate_decisive": 0.5336448598130841}, {"opening_ply_bin": "8 to 10", "games": 1803, "avg_turns": 62.064891846921796, "mate_rate": 0.266777592900721, "resign_rate": 0.6156405990016639, "outoftime_rate": 0.07210205213533001, "draw_rate": 0.04769828064337216, "white_win_rate_decisive": 0.5200931857891672}, {"opening_ply_bin": "10 to 12", "games": 857, "avg_turns": 63.91365227537923, "mate_rate": 0.23687281213535588, "resign_rate": 0.6102683780630105, "outoftime_rate": 0.09101516919486581, "draw_rate": 0.06301050175029171, "white_win_rate_decisive": 0.5516811955168119}, {"opening_ply_bin": "12 to 14", "games": 269, "avg_turns": 68.04089219330855, "mate_rate": 0.18587360594795538, "resign_rate": 0.6617100371747212, "outoftime_rate": 0.08921933085501858, "draw_rate": 0.06319702602230483, "white_win_rate_decisive": 0.49206349206349204}, {"opening_ply_bin": "14 to 16", "games": 100, "avg_turns": 68.41, "mate_rate": 0.22, "resign_rate": 0.64, "outoftime_rate": 0.06, "draw_rate": 0.1, "white_win_rate_decisive": 0.5111111111111111}, {"opening_ply_bin": "16 to 20", "games": 91, "avg_turns": 69.3956043956044, "mate_rate": 0.23076923076923078, "resign_rate": 0.6593406593406593, "outoftime_rate": 0.03296703296703297, "draw_rate": 0.07692307692307693, "white_win_rate_decisive": 0.5476190476190477}, {"opening_ply_bin": "20 to 60", "games": 14, "avg_turns": 51.785714285714285, "mate_rate": 0.14285714285714285, "resign_rate": 0.5714285714285714, "outoftime_rate": 0.21428571428571427, "draw_rate": 0.07142857142857142, "white_win_rate_decisive": 0.38461538461538464}], "turnsByStatus": [{"status": "draw", "mean": 83.78145695364239}, {"status": "mate", "mean": 65.41501976284584}, {"status": "outoftime", "mean": 72.74285714285715}, {"status": "resign", "mean": 53.91253251996053}], "tcShares": [{"tc_bucket": "Blitz (4-8m)", "victory_status": "resign", "share": 0.5498481082573875}, {"tc_bucket": "Blitz (4-8m)", "victory_status": "mate", "share": 0.3043358188345761}, {"tc_bucket": "Blitz (4-8m)", "victory_status": "outoftime", "share": 0.10273405136702568}, {"tc_bucket": "Blitz (4-8m)", "victory_status": "draw", "share": 0.04308202154101077}, {"tc_bucket": "Bullet (<=3m)", "victory_status": "resign", "share": 0.526595744680851}, {"tc_bucket": "Bullet (<=3m)", "victory_status": "mate", "share": 0.324468085106383}, {"tc_bucket": "Bullet (<=3m)", "victory_status": "outoftime", "share": 0.1276595744680851}, {"tc_bucket": "Bullet (<=3m)", "victory_status": "draw", "share": 0.02127659574468085}, {"tc_bucket": "Classical (>=30m)", "victory_status": "resign", "share": 0.6184519155590305}, {"tc_bucket": "Classical (>=30m)", "victory_status": "mate", "share": 0.26817826426896013}, {"tc_bucket": "Classical (>=30m)", "victory_status": "draw", "share": 0.07818608287724785}, {"tc_bucket": "Classical (>=30m)", "victory_status": "outoftime", "share": 0.035183737294761534}, {"tc_bucket": "Rapid (9-14m)", "victory_status": "resign", "share": 0.5461508248232522}, {"tc_bucket": "Rapid (9-14m)", "victory_status": "mate", "share": 0.3206009426551453}, {"tc_bucket": "Rapid (9-14m)", "victory_status": "outoftime", "share": 0.09397093479968578}, {"tc_bucket": "Rapid (9-14m)", "victory_status": "draw", "share": 0.03927729772191673}, {"tc_bucket": "Rapid+ (15-29m)", "victory_status": "resign", "share": 0.5649811951525282}, {"tc_bucket": "Rapid+ (15-29m)", "victory_status": "mate", "share": 0.32469703301295444}, {"tc_bucket": "Rapid+ (15-29m)", "victory_status": "outoftime", "share": 0.058921855411617215}, {"tc_bucket": "Rapid+ (15-29m)", "victory_status": "draw", "share": 0.05139991642290013}], "topInc": [{"increment_code": "10+0", "games": 7721, "avg_turns": 62.84924232612356, "mate_rate": 0.32146095065406033, "resign_rate": 0.5431938868022277, "outoftime_rate": 0.09882139619220308, "draw_rate": 0.03652376635150887, "white_win_rate_decisive": 0.5191087103308575}, {"increment_code": "15+0", "games": 1311, "avg_turns": 60.532418001525556, "mate_rate": 0.3325705568268497, "resign_rate": 0.5461479786422578, "outoftime_rate": 0.08237986270022883, "draw_rate": 0.038901601830663615, "white_win_rate_decisive": 0.5210484511517077}, {"increment_code": "15+15", "games": 850, "avg_turns": 56.96, "mate_rate": 0.34823529411764703, "resign_rate": 0.5694117647058824, "outoftime_rate": 0.036470588235294116, "draw_rate": 0.04588235294117647, "white_win_rate_decisive": 0.5141800246609125}, {"increment_code": "5+5", "games": 738, "avg_turns": 61.25609756097561, "mate_rate": 0.3062330623306233, "resign_rate": 0.559620596205962, "outoftime_rate": 0.0948509485094851, "draw_rate": 0.03929539295392954, "white_win_rate_decisive": 0.5345557122708039}, {"increment_code": "5+8", "games": 697, "avg_turns": 54.07604017216643, "mate_rate": 0.3084648493543759, "resign_rate": 0.5652797704447633, "outoftime_rate": 0.09182209469153516, "draw_rate": 0.03443328550932568, "white_win_rate_decisive": 0.5141158989598811}, {"increment_code": "8+0", "games": 588, "avg_turns": 67.93027210884354, "mate_rate": 0.28401360544217685, "resign_rate": 0.4914965986394558, "outoftime_rate": 0.17857142857142858, "draw_rate": 0.04591836734693878, "white_win_rate_decisive": 0.5306859205776173}, {"increment_code": "10+5", "games": 579, "avg_turns": 56.46286701208981, "mate_rate": 0.30915371329879104, "resign_rate": 0.5803108808290155, "outoftime_rate": 0.07426597582037997, "draw_rate": 0.03626943005181347, "white_win_rate_decisive": 0.510752688172043}, {"increment_code": "15+10", "games": 461, "avg_turns": 63.4295010845987, "mate_rate": 0.23644251626898047, "resign_rate": 0.6377440347071583, "outoftime_rate": 0.04772234273318872, "draw_rate": 0.07809110629067245, "white_win_rate_decisive": 0.5529411764705883}, {"increment_code": "20+0", "games": 448, "avg_turns": 57.453125, "mate_rate": 0.3861607142857143, "resign_rate": 0.5178571428571429, "outoftime_rate": 0.05357142857142857, "draw_rate": 0.04241071428571429, "white_win_rate_decisive": 0.5198135198135199}, {"increment_code": "30+0", "games": 375, "avg_turns": 53.896, "mate_rate": 0.32, "resign_rate": 0.5973333333333334, "outoftime_rate": 0.032, "draw_rate": 0.050666666666666665, "white_win_rate_decisive": 0.5196629213483146}, {"increment_code": "10+10", "games": 355, "avg_turns": 60.628169014084506, "mate_rate": 0.30422535211267604, "resign_rate": 0.5464788732394367, "outoftime_rate": 0.04507042253521127, "draw_rate": 0.10422535211267606, "white_win_rate_decisive": 0.5251572327044025}, {"increment_code": "15+5", "games": 314, "avg_turns": 62.0, "mate_rate": 0.33121019108280253, "resign_rate": 0.5573248407643312, "outoftime_rate": 0.05732484076433121, "draw_rate": 0.054140127388535034, "white_win_rate_decisive": 0.5185185185185185}]};
+
+function gridColor(value) {
+  const d = Math.max(-0.15, Math.min(0.15, value - 0.5));
+  const t = (d + 0.15) / 0.30;
+  const r0=[255,110,110], r1=[255,255,255], r2=[139,255,176];
+  let c;
+  if (t<0.5) {
+    const u=t/0.5;
+    c=[r0[0]+(r1[0]-r0[0])*u, r0[1]+(r1[1]-r0[1])*u, r0[2]+(r1[2]-r0[2])*u];
+  } else {
+    const u=(t-0.5)/0.5;
+    c=[r1[0]+(r2[0]-r1[0])*u, r1[1]+(r2[1]-r1[1])*u, r1[2]+(r2[2]-r1[2])*u];
+  }
+  return `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},0.18)`;
+}
+
+function makeHeatmap() {
+  const heatCells = payload.heatCells;
+  const el=document.getElementById('heatmap');
+  const rb=[...new Set(heatCells.map(d=>d.rating_bracket))];
+  const tc=[...new Set(heatCells.map(d=>d.tc_bucket))];
+  const tcOrder=['Bullet (<=3m)','Blitz (4-8m)','Rapid (9-14m)','Rapid+ (15-29m)','Classical (>=30m)'];
+  tc.sort((a,b)=>tcOrder.indexOf(a)-tcOrder.indexOf(b));
+
+  const table=document.createElement('table');
+  const thead=document.createElement('thead');
+  const trh=document.createElement('tr');
+  trh.innerHTML = `<th></th>${tc.map(x=>`<th>${x.replace(' (','<br>(')}</th>`).join('')}`;
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const map=new Map(heatCells.map(d=>[`${d.rating_bracket}||${d.tc_bucket}`, d]));
+  const tbody=document.createElement('tbody');
+  rb.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td><span class='tag'>${r}</span></td>` + tc.map(t=>{
+      const d=map.get(`${r}||${t}`);
+      if(!d) return `<td class='small'>—</td>`;
+      const v=d.white_win_rate_decisive;
+      const bg=gridColor(v);
+      const cls=v>=0.5?'pos':'neg';
+      return `<td style='background:${bg}; border:1px solid rgba(255,255,255,.06); border-radius:10px;'><div class='${cls}' style='font-weight:800;'>${(v*100).toFixed(1)}%</div><div class='small'>n=${d.decisive_games}</div></td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  el.appendChild(table);
+}
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color: '#c7d2f0' } },
+    tooltip: { mode:'index', intersect:false }
+  },
+  scales: {
+    x: { ticks: { color:'#c7d2f0' }, grid: { color: 'rgba(255,255,255,.06)' } },
+    y: { ticks: { color:'#c7d2f0' }, grid: { color: 'rgba(255,255,255,.06)' } }
+  }
+};
+
+new Chart(document.getElementById('winnersChart'), {
+  type: 'doughnut',
+  data: { labels: payload.winners.map(d=>d.label), datasets: [{ data: payload.winners.map(d=>d.value), backgroundColor:['#6ea8ff','#ff6e6e','#ffcc66'] }] },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { position:'bottom', labels: { color:'#c7d2f0' } } } }
+});
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: { labels: payload.status.map(d=>d.label), datasets: [{ data: payload.status.map(d=>d.value), backgroundColor:['#8bffb0','#6ea8ff','#ff6e6e','#ffcc66'] }] },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { position:'bottom', labels: { color:'#c7d2f0' } } } }
+});
+
+const tc = payload.whiteByTc.filter(d=>d.tc_bucket!=='Unknown');
+new Chart(document.getElementById('whiteByTc'), {
+  type: 'bar',
+  data: { labels: tc.map(d=>d.tc_bucket), datasets: [{ label:'White win rate (decisive)', data: tc.map(d=>d.white_win_rate_decisive), backgroundColor:'#6ea8ff' }] },
+  options: { ...chartDefaults, scales: { x: chartDefaults.scales.x, y: { ...chartDefaults.scales.y, min:0.42, max:0.58, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+new Chart(document.getElementById('ratingDiff'), {
+  type: 'line',
+  data: { labels: payload.signedBins.map(d=>d.rating_diff_bin), datasets: [{ label:'White score (win=1, draw=0.5)', data: payload.signedBins.map(d=>d.white_score), borderColor:'#8bffb0', backgroundColor:'rgba(139,255,176,.12)', pointRadius:3, tension:0.25, fill:true }] },
+  options: { ...chartDefaults, scales: { x: { ...chartDefaults.scales.x, ticks: { color:'#c7d2f0', maxRotation: 90, minRotation: 60 } }, y: { ...chartDefaults.scales.y, min:0.1, max:0.9, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+new Chart(document.getElementById('higherRated'), {
+  type: 'bar',
+  data: { labels: payload.absBins.map(d=>d.abs_rating_diff_bin), datasets: [{ label:'Higher-rated win rate', data: payload.absBins.map(d=>d.higher_rated_win_rate), backgroundColor:'#ffcc66' }] },
+  options: { ...chartDefaults, scales: { x: { ...chartDefaults.scales.x, ticks: { color:'#c7d2f0', maxRotation: 80, minRotation: 50 } }, y: { ...chartDefaults.scales.y, min:0.35, max:0.95, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+new Chart(document.getElementById('turnsByStatus'), {
+  type: 'bar',
+  data: { labels: payload.turnsByStatus.map(d=>d.status), datasets: [{ label:'Average plies', data: payload.turnsByStatus.map(d=>d.mean), backgroundColor:'#6ea8ff' }] },
+  options: { ...chartDefaults }
+});
+
+new Chart(document.getElementById('openingsChart'), {
+  data: {
+    labels: payload.openings.map(o=>`${o.opening_eco} ${o.opening_name}`),
+    datasets: [
+      { type:'bar', label:'Games', yAxisID:'y', data: payload.openings.map(o=>o.games), backgroundColor:'rgba(110,168,255,.45)', borderColor:'#6ea8ff' },
+      { type:'line', label:'White score', yAxisID:'y1', data: payload.openings.map(o=>o.white_score), borderColor:'#8bffb0', backgroundColor:'rgba(139,255,176,.12)', pointRadius:3, tension:0.25 }
+    ]
+  },
+  options: { ...chartDefaults, scales: { x: { ...chartDefaults.scales.x, ticks: { color:'#c7d2f0', maxRotation: 85, minRotation: 60 } }, y: { ...chartDefaults.scales.y, position:'left' }, y1: { ...chartDefaults.scales.y, position:'right', min:0.3, max:0.7, grid: { drawOnChartArea:false }, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+new Chart(document.getElementById('openingPly'), {
+  data: {
+    labels: payload.opPlyBins.map(d=>d.opening_ply_bin),
+    datasets: [
+      { type:'line', label:'Avg plies', yAxisID:'y', data: payload.opPlyBins.map(d=>d.avg_turns), borderColor:'#6ea8ff', pointRadius:3, tension:0.25 },
+      { type:'bar', label:'Mate rate', yAxisID:'y1', data: payload.opPlyBins.map(d=>d.mate_rate), backgroundColor:'rgba(139,255,176,.35)' },
+      { type:'bar', label:'Resign rate', yAxisID:'y1', data: payload.opPlyBins.map(d=>d.resign_rate), backgroundColor:'rgba(255,204,102,.30)' },
+      { type:'bar', label:'OOT rate', yAxisID:'y1', data: payload.opPlyBins.map(d=>d.outoftime_rate), backgroundColor:'rgba(255,110,110,.30)' }
+    ]
+  },
+  options: { ...chartDefaults, scales: { x: chartDefaults.scales.x, y: { ...chartDefaults.scales.y, position:'left' }, y1: { ...chartDefaults.scales.y, position:'right', min:0, max:0.75, grid: { drawOnChartArea:false }, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+const oot = {};
+for (const r of payload.tcShares) { if (r.victory_status==='outoftime') oot[r.tc_bucket]=r.share; }
+const tcOrder=['Bullet (<=3m)','Blitz (4-8m)','Rapid (9-14m)','Rapid+ (15-29m)','Classical (>=30m)'];
+new Chart(document.getElementById('timeouts'), {
+  type: 'bar',
+  data: { labels: tcOrder, datasets: [{ label:'Out-of-time share', data: tcOrder.map(k=>oot[k]||0), backgroundColor:'#ff6e6e' }] },
+  options: { ...chartDefaults, scales: { x: chartDefaults.scales.x, y: { ...chartDefaults.scales.y, min:0, max:0.20, ticks: { color:'#c7d2f0', callback:(v)=> (v*100).toFixed(0)+'%' } } } }
+});
+
+makeHeatmap();
+</script>
+</body>
+</html>

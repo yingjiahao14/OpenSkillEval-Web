@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon Product Catalog Performance &amp; Customer Sentiment Analysis</title>
+<style>
+  :root {
+    --primary: #1a1a2e;
+    --accent: #4A90D9;
+    --accent2: #E8734A;
+    --green: #50C878;
+    --bg: #f8f9fc;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-light: #7f8c8d;
+    --border: #e8ecf1;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .report-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+  .report-header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 48px 32px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d3561 100%);
+    border-radius: 16px;
+    color: #fff;
+  }
+  .report-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+  .report-header .subtitle {
+    font-size: 15px;
+    opacity: 0.85;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .report-header .meta {
+    font-size: 12px;
+    opacity: 0.6;
+    margin-top: 16px;
+  }
+
+  .section {
+    margin-bottom: 48px;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 3px solid var(--accent);
+    display: inline-block;
+  }
+  .section-desc {
+    color: var(--text-light);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .kpi-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    transition: box-shadow 0.2s;
+  }
+  .kpi-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.orange { color: var(--accent2); }
+  .kpi-label {
+    font-size: 13px;
+    color: var(--text-light);
+    font-weight: 500;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--primary);
+  }
+
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 800px) {
+    .chart-row { grid-template-columns: 1fr; }
+  }
+  .chart-container {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    overflow-x: auto;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table th {
+    background: #f1f4f8;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table tbody tr:hover {
+    background: #f8fafd;
+  }
+  .data-table.compact td, .data-table.compact th {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .insight-box {
+    background: #eef5ff;
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .insight-box.warning {
+    background: #fff8ee;
+    border-left-color: var(--accent2);
+  }
+  .insight-box.success {
+    background: #eefbf3;
+    border-left-color: var(--green);
+  }
+
+  .rec-list {
+    list-style: none;
+    counter-reset: rec;
+  }
+  .rec-list li {
+    counter-increment: rec;
+    padding: 20px 20px 20px 56px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .rec-list li:last-child { border-bottom: none; }
+  .rec-list li::before {
+    content: counter(rec);
+    position: absolute;
+    left: 16px;
+    top: 20px;
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .rec-list li strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .rec-list li .data-point {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 12px;
+    padding: 32px 0 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="report-container">
+
+<!-- HEADER -->
+<div class="report-header">
+  <h1>Amazon Product Catalog Performance &amp; Customer Sentiment Analysis</h1>
+  <div class="subtitle">A comprehensive analysis of 1,465 Amazon India products examining pricing strategies, discount effectiveness, customer ratings, and category-level performance.</div>
+  <div class="meta">Dataset: Amazon India Catalog &bull; Products Analyzed: 1,465 &bull; Report Date: April 2026</div>
+</div>
+
+<!-- SECTION 1: EXECUTIVE OVERVIEW -->
+<div class="section" id="executive-overview">
+  <h2 class="section-title">Executive Overview</h2>
+  <p class="section-desc">Headline KPIs providing a snapshot of catalog health, promotional intensity, and customer engagement.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value">1,465</div>
+      <div class="kpi-label">Products Analyzed</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value green">4.10</div>
+      <div class="kpi-label">Average Product Rating</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value orange">47.7%</div>
+      <div class="kpi-label">Average Discount Percentage</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">5,179</div>
+      <div class="kpi-label">Median Rating Count</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value green">75.8%</div>
+      <div class="kpi-label">Products Rated 4.0+</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">-0.155</div>
+      <div class="kpi-label">Discount-Rating Correlation</div>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <strong>Key Takeaway:</strong> The catalog shows strong overall quality — <strong>75.8%</strong> of products maintain a 4.0+ rating. The average discount of <strong>47.7%</strong> is substantial, yet the near-zero correlation (-0.155) between discounts and ratings indicates that deeper discounts do not meaningfully improve customer satisfaction.
+  </div>
+</div>
+
+<!-- SECTION 2: CATEGORY PERFORMANCE -->
+<div class="section" id="category-analysis">
+  <h2 class="section-title">Category Performance Breakdown</h2>
+  <p class="section-desc">How products are distributed across top-level categories, and which segments lead or lag in ratings and engagement.</p>
+
+  <div class="chart-row">
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="700" height="350.0" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="350.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Product Count by Top-Level Category</text>
+<text x="172" y="67.0" text-anchor="end" fill="#333" font-size="11">Electronics</text>
+<rect x="180" y="50.0" width="460.0" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="645.0" y="67.0" fill="#333" font-size="11">526</text>
+<text x="172" y="97.0" text-anchor="end" fill="#333" font-size="11">Computers&Accessories</text>
+<rect x="180" y="80.0" width="396.2" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="581.1596958174905" y="97.0" fill="#333" font-size="11">453</text>
+<text x="172" y="127.0" text-anchor="end" fill="#333" font-size="11">Home&Kitchen</text>
+<rect x="180" y="110.0" width="391.8" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="576.787072243346" y="127.0" fill="#333" font-size="11">448</text>
+<text x="172" y="157.0" text-anchor="end" fill="#333" font-size="11">OfficeProducts</text>
+<rect x="180" y="140.0" width="27.1" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="212.1102661596958" y="157.0" fill="#333" font-size="11">31</text>
+<text x="172" y="187.0" text-anchor="end" fill="#333" font-size="11">MusicalInstruments</text>
+<rect x="180" y="170.0" width="1.7" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="186.7490494296578" y="187.0" fill="#333" font-size="11">2</text>
+<text x="172" y="217.0" text-anchor="end" fill="#333" font-size="11">HomeImprovement</text>
+<rect x="180" y="200.0" width="1.7" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="186.7490494296578" y="217.0" fill="#333" font-size="11">2</text>
+<text x="172" y="247.0" text-anchor="end" fill="#333" font-size="11">Car&Motorbike</text>
+<rect x="180" y="230.0" width="0.9" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="185.8745247148289" y="247.0" fill="#333" font-size="11">1</text>
+<text x="172" y="277.0" text-anchor="end" fill="#333" font-size="11">Health&PersonalCare</text>
+<rect x="180" y="260.0" width="0.9" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="185.8745247148289" y="277.0" fill="#333" font-size="11">1</text>
+<text x="172" y="307.0" text-anchor="end" fill="#333" font-size="11">Toys&Games</text>
+<rect x="180" y="290.0" width="0.9" height="26.0" fill="#4A90D9" rx="3" opacity="0.85"/>
+<text x="185.8745247148289" y="307.0" fill="#333" font-size="11">1</text>
+</svg></div>
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="440" height="380" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="220.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Category Share of Catalog</text>
+<path d="M 220.0 100.0 L 220.0 55.0 A 100 100 0 0 1 297.4 218.3 L 262.6 189.8 A 55 55 0 0 0 220.0 100.0 Z" fill="#4A90D9" opacity="0.85"/>
+<path d="M 262.6 189.8 L 297.4 218.3 A 100 100 0 0 1 132.9 204.1 L 172.1 182.0 A 55 55 0 0 0 262.6 189.8 Z" fill="#E8734A" opacity="0.85"/>
+<path d="M 172.1 182.0 L 132.9 204.1 A 100 100 0 0 1 203.8 56.3 L 211.1 100.7 A 55 55 0 0 0 172.1 182.0 Z" fill="#50C878" opacity="0.85"/>
+<path d="M 211.1 100.7 L 203.8 56.3 A 100 100 0 0 1 217.0 55.0 L 218.3 100.0 A 55 55 0 0 0 211.1 100.7 Z" fill="#9B59B6" opacity="0.85"/>
+<path d="M 218.3 100.0 L 217.0 55.0 A 100 100 0 0 1 217.9 55.0 L 218.8 100.0 A 55 55 0 0 0 218.3 100.0 Z" fill="#F4D03F" opacity="0.85"/>
+<path d="M 218.8 100.0 L 217.9 55.0 A 100 100 0 0 1 218.7 55.0 L 219.3 100.0 A 55 55 0 0 0 218.8 100.0 Z" fill="#E74C3C" opacity="0.85"/>
+<path d="M 219.3 100.0 L 218.7 55.0 A 100 100 0 0 1 220.0 55.0 L 220.0 100.0 A 55 55 0 0 0 219.3 100.0 Z" fill="#1ABC9C" opacity="0.85"/>
+<rect x="15.0" y="270" width="10" height="10" fill="#4A90D9" rx="2"/>
+<text x="29.0" y="280" fill="#333" font-size="10">Electronics (35.9%)</text>
+<rect x="235.0" y="270" width="10" height="10" fill="#E8734A" rx="2"/>
+<text x="249.0" y="280" fill="#333" font-size="10">Computers&Accessories (30.9%)</text>
+<rect x="15.0" y="288" width="10" height="10" fill="#50C878" rx="2"/>
+<text x="29.0" y="298" fill="#333" font-size="10">Home&Kitchen (30.6%)</text>
+<rect x="235.0" y="288" width="10" height="10" fill="#9B59B6" rx="2"/>
+<text x="249.0" y="298" fill="#333" font-size="10">OfficeProducts (2.1%)</text>
+<rect x="15.0" y="306" width="10" height="10" fill="#F4D03F" rx="2"/>
+<text x="29.0" y="316" fill="#333" font-size="10">MusicalInstruments (0.1%)</text>
+<rect x="235.0" y="306" width="10" height="10" fill="#E74C3C" rx="2"/>
+<text x="249.0" y="316" fill="#333" font-size="10">HomeImprovement (0.1%)</text>
+<rect x="15.0" y="324" width="10" height="10" fill="#1ABC9C" rx="2"/>
+<text x="29.0" y="334" fill="#333" font-size="10">Other (0.2%)</text>
+</svg></div>
+  </div>
+
+  <div class="card">
+    <h3>Rating vs. Discount by Category</h3>
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="416" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="360.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Rating vs. Discount by Category</text>
+<rect x="240.0" y="36" width="14" height="14" fill="#50C878" rx="2"/><text x="258.0" y="48" fill="#333" font-size="11">Avg Rating</text>
+<rect x="370.0" y="36" width="14" height="14" fill="#E8734A" rx="2"/><text x="388.0" y="48" fill="#333" font-size="11">Avg Discount %</text>
+<text x="172" y="89.0" text-anchor="end" fill="#333" font-size="11">Electronics</text>
+<rect x="180" y="70" width="32.7" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="216.65399239543726" y="81" fill="#333" font-size="10">4.1</text>
+<rect x="180" y="85" width="406.6" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="590.6311787072243" y="96" fill="#333" font-size="10">50.8</text>
+<text x="172" y="123.0" text-anchor="end" fill="#333" font-size="11">Computers&Accessories</text>
+<rect x="180" y="104" width="33.2" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="217.23973509933774" y="115" fill="#333" font-size="10">4.2</text>
+<rect x="180" y="119" width="432.2" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="616.1942604856513" y="130" fill="#333" font-size="10">54.0</text>
+<text x="172" y="157.0" text-anchor="end" fill="#333" font-size="11">Home&Kitchen</text>
+<rect x="180" y="138" width="32.3" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="216.32572706935122" y="149" fill="#333" font-size="10">4.0</text>
+<rect x="180" y="153" width="321.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="504.9642857142857" y="164" fill="#333" font-size="10">40.1</text>
+<text x="172" y="191.0" text-anchor="end" fill="#333" font-size="11">OfficeProducts</text>
+<rect x="180" y="172" width="34.5" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="218.4774193548387" y="183" fill="#333" font-size="10">4.3</text>
+<rect x="180" y="187" width="98.8" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="282.8387096774194" y="198" fill="#333" font-size="10">12.4</text>
+<text x="172" y="225.0" text-anchor="end" fill="#333" font-size="11">MusicalInstruments</text>
+<rect x="180" y="206" width="31.2" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="215.2" y="217" fill="#333" font-size="10">3.9</text>
+<rect x="180" y="221" width="368.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="552.0" y="232" fill="#333" font-size="10">46.0</text>
+<text x="172" y="259.0" text-anchor="end" fill="#333" font-size="11">HomeImprovement</text>
+<rect x="180" y="240" width="34.0" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="218.0" y="251" fill="#333" font-size="10">4.2</text>
+<rect x="180" y="255" width="460.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="644.0" y="266" fill="#333" font-size="10">57.5</text>
+<text x="172" y="293.0" text-anchor="end" fill="#333" font-size="11">Car&Motorbike</text>
+<rect x="180" y="274" width="30.4" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="214.4" y="285" fill="#333" font-size="10">3.8</text>
+<rect x="180" y="289" width="336.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="520.0" y="300" fill="#333" font-size="10">42.0</text>
+<text x="172" y="327.0" text-anchor="end" fill="#333" font-size="11">Health&PersonalCare</text>
+<rect x="180" y="308" width="32.0" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="216.0" y="319" fill="#333" font-size="10">4.0</text>
+<rect x="180" y="323" width="424.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="608.0" y="334" fill="#333" font-size="10">53.0</text>
+<text x="172" y="361.0" text-anchor="end" fill="#333" font-size="11">Toys&Games</text>
+<rect x="180" y="342" width="34.4" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="218.4" y="353" fill="#333" font-size="10">4.3</text>
+<rect x="180" y="357" width="0.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="184.0" y="368" fill="#333" font-size="10">0.0</text>
+</svg>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <h3>Top 5 Categories by Rating</h3>
+      <table class="data-table "><thead><tr><th>Category</th><th>Avg Rating</th><th>Products</th><th>Avg Discount %</th><th>Median Reviews</th></tr></thead><tbody><tr><td>OfficeProducts</td><td>4.31</td><td>31</td><td>12.35</td><td>4,426.00</td></tr><tr><td>Toys&Games</td><td>4.30</td><td>1</td><td>0.00</td><td>15,867.00</td></tr><tr><td>HomeImprovement</td><td>4.25</td><td>2</td><td>57.50</td><td>4,283.00</td></tr><tr><td>Computers&Accessories</td><td>4.15</td><td>453</td><td>54.02</td><td>7,732.00</td></tr><tr><td>Electronics</td><td>4.08</td><td>526</td><td>50.83</td><td>10,689.00</td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <h3>Bottom 5 Categories by Rating (min 5 products)</h3>
+      <table class="data-table "><thead><tr><th>Category</th><th>Avg Rating</th><th>Products</th><th>Avg Discount %</th><th>Median Reviews</th></tr></thead><tbody><tr><td>Home&Kitchen</td><td>4.04</td><td>448</td><td>40.12</td><td>2,305.50</td></tr><tr><td>Electronics</td><td>4.08</td><td>526</td><td>50.83</td><td>10,689.00</td></tr><tr><td>Computers&Accessories</td><td>4.15</td><td>453</td><td>54.02</td><td>7,732.00</td></tr><tr><td>OfficeProducts</td><td>4.31</td><td>31</td><td>12.35</td><td>4,426.00</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Average Rating by Category</h3>
+    <svg xmlns="http://www.w3.org/2000/svg" width="700" height="350.0" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="350.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Average Rating by Category (Top 10)</text>
+<text x="172" y="67.0" text-anchor="end" fill="#333" font-size="11">OfficeProducts</text>
+<rect x="180" y="50.0" width="460.0" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="645.0" y="67.0" fill="#333" font-size="11">4.31</text>
+<text x="172" y="97.0" text-anchor="end" fill="#333" font-size="11">Toys&Games</text>
+<rect x="180" y="80.0" width="459.0" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="643.9670658682635" y="97.0" fill="#333" font-size="11">4.30</text>
+<text x="172" y="127.0" text-anchor="end" fill="#333" font-size="11">HomeImprovement</text>
+<rect x="180" y="110.0" width="453.6" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="638.6302395209582" y="127.0" fill="#333" font-size="11">4.25</text>
+<text x="172" y="157.0" text-anchor="end" fill="#333" font-size="11">Computers&Accessories</text>
+<rect x="180" y="140.0" width="443.5" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="628.4867351389936" y="157.0" fill="#333" font-size="11">4.15</text>
+<text x="172" y="187.0" text-anchor="end" fill="#333" font-size="11">Electronics</text>
+<rect x="180" y="170.0" width="435.7" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="620.6717174016985" y="187.0" fill="#333" font-size="11">4.08</text>
+<text x="172" y="217.0" text-anchor="end" fill="#333" font-size="11">Home&Kitchen</text>
+<rect x="180" y="200.0" width="431.3" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="616.2919797987918" y="217.0" fill="#333" font-size="11">4.04</text>
+<text x="172" y="247.0" text-anchor="end" fill="#333" font-size="11">Health&PersonalCare</text>
+<rect x="180" y="230.0" width="426.9" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="611.9461077844312" y="247.0" fill="#333" font-size="11">4.00</text>
+<text x="172" y="277.0" text-anchor="end" fill="#333" font-size="11">MusicalInstruments</text>
+<rect x="180" y="260.0" width="416.3" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="601.2724550898204" y="277.0" fill="#333" font-size="11">3.90</text>
+<text x="172" y="307.0" text-anchor="end" fill="#333" font-size="11">Car&Motorbike</text>
+<rect x="180" y="290.0" width="405.6" height="26.0" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="590.5988023952095" y="307.0" fill="#333" font-size="11">3.80</text>
+</svg>
+  </div>
+
+  <div class="insight-box success">
+    <strong>Insight:</strong> OfficeProducts leads with an average rating of <strong>4.31</strong>, while Home&Kitchen trails at <strong>4.04</strong>. Categories with the highest product counts don't always deliver the best satisfaction — volume does not equal quality.
+  </div>
+</div>
+
+<!-- SECTION 3: PRICING & DISCOUNT STRATEGY -->
+<div class="section" id="pricing-discount-analysis">
+  <h2 class="section-title">Pricing &amp; Discount Strategy Analysis</h2>
+  <p class="section-desc">Examining whether deeper discounts correlate with higher customer satisfaction or merely drive review volume.</p>
+
+  <div class="card">
+    <h3>Discount vs. Rating — Scatter Analysis</h3>
+    <svg xmlns="http://www.w3.org/2000/svg" width="620" height="380" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="310.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Discount % vs. Rating (r = -0.155)</text>
+<text x="327.5" y="372" text-anchor="middle" fill="#666" font-size="11">Discount Percentage (%)</text>
+<text x="14" y="187.5" text-anchor="middle" transform="rotate(-90,14,187.5)" fill="#666" font-size="11">Rating (1-5)</text>
+<line x1="65" y1="50" x2="65" y2="325" stroke="#ccc" stroke-width="1"/>
+<line x1="65" y1="325" x2="590" y2="325" stroke="#ccc" stroke-width="1"/>
+<text x="65.0" y="341" text-anchor="middle" fill="#666" font-size="9">0</text>
+<text x="57" y="328.0" text-anchor="end" fill="#666" font-size="9">2.0</text>
+<line x1="65" y1="325.0" x2="590" y2="325.0" stroke="#eee" stroke-width="0.5"/>
+<text x="196.2" y="341" text-anchor="middle" fill="#666" font-size="9">24</text>
+<text x="57" y="259.2" text-anchor="end" fill="#666" font-size="9">2.8</text>
+<line x1="65" y1="256.2" x2="590" y2="256.2" stroke="#eee" stroke-width="0.5"/>
+<text x="327.5" y="341" text-anchor="middle" fill="#666" font-size="9">47</text>
+<text x="57" y="190.5" text-anchor="end" fill="#666" font-size="9">3.5</text>
+<line x1="65" y1="187.5" x2="590" y2="187.5" stroke="#eee" stroke-width="0.5"/>
+<text x="458.8" y="341" text-anchor="middle" fill="#666" font-size="9">70</text>
+<text x="57" y="121.8" text-anchor="end" fill="#666" font-size="9">4.2</text>
+<line x1="65" y1="118.8" x2="590" y2="118.8" stroke="#eee" stroke-width="0.5"/>
+<text x="590.0" y="341" text-anchor="middle" fill="#666" font-size="9">94</text>
+<text x="57" y="53.0" text-anchor="end" fill="#666" font-size="9">5.0</text>
+<line x1="65" y1="50.0" x2="590" y2="50.0" stroke="#eee" stroke-width="0.5"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="87.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="171.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="81.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="495.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="266.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="534.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="506.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="573.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="171.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="98.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="573.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="266.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="506.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="550.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="233.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="104.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="517.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="132.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="573.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="109.7" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="159.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="523.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="77.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="517.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="143.2" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="517.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="126.4" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="126.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="171.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="233.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="266.1" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="282.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="495.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="159.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="444.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="266.1" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="495.1" cy="224.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="573.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="126.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="528.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="126.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="282.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="556.5" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="506.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="68.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="215.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="104.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="115.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="517.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="495.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="467.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="297.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="517.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="92.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="171.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="182.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="92.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="556.5" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="143.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="143.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="556.5" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="444.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="567.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="467.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="467.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="590.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="77.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="126.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="171.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="92.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="495.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="550.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="86.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="143.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="109.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="196.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="444.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="132.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="545.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="444.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="77.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="137.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="159.9" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="77.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="394.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="294.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="132.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="77.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="282.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="355.4" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="539.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="523.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="500.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="227.0" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="478.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="254.9" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="506.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="372.2" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="288.4" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="405.7" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="120.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="528.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="550.9" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="325.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="310.7" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="321.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="489.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="154.4" cy="178.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="439.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="461.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="433.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="573.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="68.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="282.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="483.9" cy="50.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="422.4" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="416.9" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="199.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="271.6" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="377.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="187.9" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="193.5" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="109.7" cy="187.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="215.8" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="221.4" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="327.5" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="204.6" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="176.7" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="266.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="456.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="238.1" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="349.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="148.8" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="76.2" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="428.0" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="224.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="316.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="366.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="338.7" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="411.3" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="450.4" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="299.6" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="165.5" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="249.3" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="361.0" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="150.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="472.7" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="205.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="444.8" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="282.8" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="383.4" cy="105.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="305.2" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="143.2" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="243.7" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="87.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="123.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="511.8" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="232.6" cy="114.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="260.5" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="277.2" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="98.5" cy="141.7" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="400.1" cy="233.3" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="154.4" cy="160.0" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="210.2" cy="95.8" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="388.9" cy="169.2" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="344.3" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="333.1" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+<circle cx="65.0" cy="132.5" r="3" fill="#4A90D9" opacity="0.35"/>
+</svg>
+    <div class="insight-box" style="margin-top:16px;">
+      <strong>Correlation Analysis:</strong> Discount % vs. Rating shows a Pearson correlation of <strong>-0.155</strong> — a negligible relationship. Discount % vs. Review Count shows r = <strong>+0.012</strong>. Discounts are not meaningfully associated with review volume either.
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="600" height="240" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="300.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Average Rating by Discount Range</text>
+<text x="172" y="68.0" text-anchor="end" fill="#333" font-size="11">0-20%</text>
+<rect x="180" y="50" width="360.0" height="28" fill="#9B59B6" rx="3" opacity="0.85"/>
+<text x="545.0" y="68.0" fill="#333" font-size="11">4.17</text>
+<text x="172" y="100.0" text-anchor="end" fill="#333" font-size="11">20-40%</text>
+<rect x="180" y="82" width="356.0" height="28" fill="#9B59B6" rx="3" opacity="0.85"/>
+<text x="541.0058815094501" y="100.0" fill="#333" font-size="11">4.13</text>
+<text x="172" y="132.0" text-anchor="end" fill="#333" font-size="11">40-60%</text>
+<rect x="180" y="114" width="352.0" height="28" fill="#9B59B6" rx="3" opacity="0.85"/>
+<text x="536.9508245630495" y="132.0" fill="#333" font-size="11">4.08</text>
+<text x="172" y="164.0" text-anchor="end" fill="#333" font-size="11">60-80%</text>
+<rect x="180" y="146" width="351.7" height="28" fill="#9B59B6" rx="3" opacity="0.85"/>
+<text x="536.6680031850949" y="164.0" fill="#333" font-size="11">4.08</text>
+<text x="172" y="196.0" text-anchor="end" fill="#333" font-size="11">80-100%</text>
+<rect x="180" y="178" width="343.1" height="28" fill="#9B59B6" rx="3" opacity="0.85"/>
+<text x="528.0591983588663" y="196.0" fill="#333" font-size="11">3.98</text>
+</svg></div>
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="600" height="240" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="300.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Median Review Count by Discount Range</text>
+<text x="172" y="68.0" text-anchor="end" fill="#333" font-size="11">0-20%</text>
+<rect x="180" y="50" width="332.2" height="28" fill="#E8734A" rx="3" opacity="0.85"/>
+<text x="517.2413793103449" y="68.0" fill="#333" font-size="11">6744</text>
+<text x="172" y="100.0" text-anchor="end" fill="#333" font-size="11">20-40%</text>
+<rect x="180" y="82" width="360.0" height="28" fill="#E8734A" rx="3" opacity="0.85"/>
+<text x="545.0" y="100.0" fill="#333" font-size="11">7308</text>
+<text x="172" y="132.0" text-anchor="end" fill="#333" font-size="11">40-60%</text>
+<rect x="180" y="114" width="157.5" height="28" fill="#E8734A" rx="3" opacity="0.85"/>
+<text x="342.53694581280786" y="132.0" fill="#333" font-size="11">3198</text>
+<text x="172" y="164.0" text-anchor="end" fill="#333" font-size="11">60-80%</text>
+<rect x="180" y="146" width="278.0" height="28" fill="#E8734A" rx="3" opacity="0.85"/>
+<text x="462.9802955665025" y="164.0" fill="#333" font-size="11">5643</text>
+<text x="172" y="196.0" text-anchor="end" fill="#333" font-size="11">80-100%</text>
+<rect x="180" y="178" width="233.5" height="28" fill="#E8734A" rx="3" opacity="0.85"/>
+<text x="418.49753694581284" y="196.0" fill="#333" font-size="11">4740</text>
+</svg></div>
+  </div>
+
+  <div class="card">
+    <h3>Discount Bucket Breakdown</h3>
+    <table class="data-table "><thead><tr><th>Discount Range</th><th>Products</th><th>Avg Rating</th><th>Median Reviews</th><th>Avg Discounted Price (₹)</th></tr></thead><tbody><tr><td>0-20%</td><td>180</td><td>4.17</td><td>6,744.50</td><td>3,792.36</td></tr><tr><td>20-40%</td><td>338</td><td>4.13</td><td>7,308.00</td><td>6,534.71</td></tr><tr><td>40-60%</td><td>508</td><td>4.08</td><td>3,198.00</td><td>2,561.60</td></tr><tr><td>60-80%</td><td>380</td><td>4.08</td><td>5,643.00</td><td>941.54</td></tr><tr><td>80-100%</td><td>59</td><td>3.98</td><td>4,740.00</td><td>477.05</td></tr></tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Performance by Price Segment</h3>
+    <svg xmlns="http://www.w3.org/2000/svg" width="720" height="280" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="360.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Rating & Discount by Price Segment</text>
+<rect x="240.0" y="36" width="14" height="14" fill="#50C878" rx="2"/><text x="258.0" y="48" fill="#333" font-size="11">Avg Rating</text>
+<rect x="370.0" y="36" width="14" height="14" fill="#E8734A" rx="2"/><text x="388.0" y="48" fill="#333" font-size="11">Avg Discount %</text>
+<text x="172" y="89.0" text-anchor="end" fill="#333" font-size="11">Under ₹500</text>
+<rect x="180" y="70" width="33.6" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="217.60123253135797" y="81" fill="#333" font-size="10">4.1</text>
+<rect x="180" y="85" width="460.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="644.0" y="96" fill="#333" font-size="10">55.8</text>
+<text x="172" y="123.0" text-anchor="end" fill="#333" font-size="11">₹500-1K</text>
+<rect x="180" y="104" width="34.0" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="217.95241504115108" y="115" fill="#333" font-size="10">4.1</text>
+<rect x="180" y="119" width="379.8" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="563.841620609774" y="130" fill="#333" font-size="10">46.1</text>
+<text x="172" y="157.0" text-anchor="end" fill="#333" font-size="11">₹1K-5K</text>
+<rect x="180" y="138" width="33.6" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="217.6256651420473" y="149" fill="#333" font-size="10">4.1</text>
+<rect x="180" y="153" width="367.9" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="551.8512065521251" y="164" fill="#333" font-size="10">44.6</text>
+<text x="172" y="191.0" text-anchor="end" fill="#333" font-size="11">₹5K-20K</text>
+<rect x="180" y="172" width="34.2" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="218.2373355796542" y="183" fill="#333" font-size="10">4.2</text>
+<rect x="180" y="187" width="282.3" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="466.25184965045145" y="198" fill="#333" font-size="10">34.2</text>
+<text x="172" y="225.0" text-anchor="end" fill="#333" font-size="11">Over ₹20K</text>
+<rect x="180" y="206" width="35.0" height="12" fill="#50C878" rx="2" opacity="0.85"/>
+<text x="218.95977429223737" y="217" fill="#333" font-size="10">4.2</text>
+<rect x="180" y="221" width="259.0" height="12" fill="#E8734A" rx="2" opacity="0.85"/>
+<text x="443.04513605996414" y="232" fill="#333" font-size="10">31.4</text>
+</svg>
+    <div style="margin-top:16px;">
+    <table class="data-table "><thead><tr><th>Price Segment</th><th>Products</th><th>Avg Rating</th><th>Avg Discount %</th><th>Median Reviews</th></tr></thead><tbody><tr><td>Under ₹500</td><td>576</td><td>4.07</td><td>55.78</td><td>3,080.50</td></tr><tr><td>₹500-1K</td><td>252</td><td>4.12</td><td>46.06</td><td>6,350.50</td></tr><tr><td>₹1K-5K</td><td>431</td><td>4.08</td><td>44.61</td><td>7,681.00</td></tr><tr><td>₹5K-20K</td><td>155</td><td>4.15</td><td>34.23</td><td>6,662.00</td></tr><tr><td>Over ₹20K</td><td>51</td><td>4.24</td><td>31.41</td><td>7,109.00</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="insight-box warning">
+    <strong>Key Finding:</strong> Products in the <strong>Over ₹20K</strong> segment achieve the highest average rating (4.24), suggesting that customer satisfaction is more closely tied to product quality and price positioning than to promotional discounting. The heaviest-discounted products (80-100%) average 3.98 in ratings — comparable to the catalog average of 4.10.
+  </div>
+</div>
+
+<!-- SECTION 4: CUSTOMER ENGAGEMENT & RATING DISTRIBUTION -->
+<div class="section" id="customer-engagement">
+  <h2 class="section-title">Customer Engagement &amp; Rating Distribution</h2>
+  <p class="section-desc">Profiling the distribution of ratings and review volumes across the catalog.</p>
+
+  <div class="chart-row">
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="620" height="300" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="310.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Distribution of Product Ratings</text>
+<text x="14" y="150.0" text-anchor="middle" transform="rotate(-90,14,150.0)" fill="#666" font-size="11">Number of Products</text>
+<text x="325.0" y="292" text-anchor="middle" fill="#666" font-size="11">Rating (1-5)</text>
+<rect x="60.0" y="249.6" width="34.3" height="0.4" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="77.7" y="245.6" text-anchor="middle" fill="#333" font-size="9">1</text>
+<text x="77.7" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="95.3" y="249.6" width="34.3" height="0.4" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="113.0" y="245.6" text-anchor="middle" fill="#333" font-size="9">1</text>
+<text x="113.0" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="130.7" y="250.0" width="34.3" height="0.0" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="148.3" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="166.0" y="249.6" width="34.3" height="0.4" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="183.7" y="245.6" text-anchor="middle" fill="#333" font-size="9">1</text>
+<text x="183.7" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="201.3" y="248.7" width="34.3" height="1.3" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="219.0" y="244.7" text-anchor="middle" fill="#333" font-size="9">3</text>
+<text x="219.0" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="236.7" y="246.5" width="34.3" height="3.5" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="254.3" y="242.5" text-anchor="middle" fill="#333" font-size="9">8</text>
+<text x="254.3" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="272.0" y="237.8" width="34.3" height="12.2" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="289.7" y="233.8" text-anchor="middle" fill="#333" font-size="9">28</text>
+<text x="289.7" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="307.3" y="238.6" width="34.3" height="11.4" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="325.0" y="234.6" text-anchor="middle" fill="#333" font-size="9">26</text>
+<text x="325.0" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="342.7" y="216.4" width="34.3" height="33.6" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="360.3" y="212.4" text-anchor="middle" fill="#333" font-size="9">77</text>
+<text x="360.3" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="378.0" y="158.7" width="34.3" height="91.3" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="395.7" y="154.7" text-anchor="middle" fill="#333" font-size="9">209</text>
+<text x="395.7" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="413.3" y="64.4" width="34.3" height="185.6" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="431.0" y="60.4" text-anchor="middle" fill="#333" font-size="9">425</text>
+<text x="431.0" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="448.7" y="50.0" width="34.3" height="200.0" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="466.3" y="46.0" text-anchor="middle" fill="#333" font-size="9">458</text>
+<text x="466.3" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="484.0" y="163.5" width="34.3" height="86.5" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="501.7" y="159.5" text-anchor="middle" fill="#333" font-size="9">198</text>
+<text x="501.7" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="519.3" y="238.6" width="34.3" height="11.4" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="537.0" y="234.6" text-anchor="middle" fill="#333" font-size="9">26</text>
+<text x="537.0" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<rect x="554.7" y="248.7" width="34.3" height="1.3" fill="#4A90D9" opacity="0.8" rx="1"/>
+<text x="572.3" y="244.7" text-anchor="middle" fill="#333" font-size="9">3</text>
+<text x="572.3" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<text x="590.0" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<line x1="60" y1="50" x2="60" y2="250" stroke="#999" stroke-width="1"/>
+<line x1="60" y1="250" x2="590" y2="250" stroke="#999" stroke-width="1"/>
+</svg></div>
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="620" height="300" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="310.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Distribution of Review Counts (log10 scale)</text>
+<text x="14" y="150.0" text-anchor="middle" transform="rotate(-90,14,150.0)" fill="#666" font-size="11">Number of Products</text>
+<text x="325.0" y="292" text-anchor="middle" fill="#666" font-size="11">log10(Rating Count)</text>
+<rect x="60.0" y="246.4" width="34.3" height="3.6" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="77.7" y="242.4" text-anchor="middle" fill="#333" font-size="9">5</text>
+<text x="77.7" y="266" text-anchor="middle" fill="#666" font-size="9">0</text>
+<rect x="95.3" y="245.6" width="34.3" height="4.4" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="113.0" y="241.6" text-anchor="middle" fill="#333" font-size="9">6</text>
+<text x="113.0" y="266" text-anchor="middle" fill="#666" font-size="9">1</text>
+<rect x="130.7" y="242.0" width="34.3" height="8.0" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="148.3" y="238.0" text-anchor="middle" fill="#333" font-size="9">11</text>
+<text x="148.3" y="266" text-anchor="middle" fill="#666" font-size="9">1</text>
+<rect x="166.0" y="236.2" width="34.3" height="13.8" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="183.7" y="232.2" text-anchor="middle" fill="#333" font-size="9">19</text>
+<text x="183.7" y="266" text-anchor="middle" fill="#666" font-size="9">1</text>
+<rect x="201.3" y="219.5" width="34.3" height="30.5" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="219.0" y="215.5" text-anchor="middle" fill="#333" font-size="9">42</text>
+<text x="219.0" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="236.7" y="201.3" width="34.3" height="48.7" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="254.3" y="197.3" text-anchor="middle" fill="#333" font-size="9">67</text>
+<text x="254.3" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="272.0" y="163.5" width="34.3" height="86.5" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="289.7" y="159.5" text-anchor="middle" fill="#333" font-size="9">119</text>
+<text x="289.7" y="266" text-anchor="middle" fill="#666" font-size="9">2</text>
+<rect x="307.3" y="157.6" width="34.3" height="92.4" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="325.0" y="153.6" text-anchor="middle" fill="#333" font-size="9">127</text>
+<text x="325.0" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="342.7" y="101.6" width="34.3" height="148.4" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="360.3" y="97.6" text-anchor="middle" fill="#333" font-size="9">204</text>
+<text x="360.3" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="378.0" y="101.6" width="34.3" height="148.4" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="395.7" y="97.6" text-anchor="middle" fill="#333" font-size="9">204</text>
+<text x="395.7" y="266" text-anchor="middle" fill="#666" font-size="9">3</text>
+<rect x="413.3" y="50.0" width="34.3" height="200.0" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="431.0" y="46.0" text-anchor="middle" fill="#333" font-size="9">275</text>
+<text x="431.0" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="448.7" y="82.0" width="34.3" height="168.0" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="466.3" y="78.0" text-anchor="middle" fill="#333" font-size="9">231</text>
+<text x="466.3" y="266" text-anchor="middle" fill="#666" font-size="9">4</text>
+<rect x="484.0" y="189.6" width="34.3" height="60.4" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="501.7" y="185.6" text-anchor="middle" fill="#333" font-size="9">83</text>
+<text x="501.7" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<rect x="519.3" y="212.9" width="34.3" height="37.1" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="537.0" y="208.9" text-anchor="middle" fill="#333" font-size="9">51</text>
+<text x="537.0" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<rect x="554.7" y="236.2" width="34.3" height="13.8" fill="#E8734A" opacity="0.8" rx="1"/>
+<text x="572.3" y="232.2" text-anchor="middle" fill="#333" font-size="9">19</text>
+<text x="572.3" y="266" text-anchor="middle" fill="#666" font-size="9">5</text>
+<text x="590.0" y="266" text-anchor="middle" fill="#666" font-size="9">6</text>
+<line x1="60" y1="50" x2="60" y2="250" stroke="#999" stroke-width="1"/>
+<line x1="60" y1="250" x2="590" y2="250" stroke="#999" stroke-width="1"/>
+</svg></div>
+  </div>
+
+  <div class="card">
+    <h3>Top 10 Most-Reviewed Products</h3>
+    <table class="data-table compact"><thead><tr><th>Product</th><th>Category</th><th>Rating</th><th>Reviews</th><th>Discount %</th><th>Price (₹)</th></tr></thead><tbody><tr><td>AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60Hz, 18…</td><td>Electronics</td><td>4.40</td><td>426,973.00</td><td>69.00</td><td>219.00</td></tr><tr><td>Amazon Basics High-Speed HDMI Cable, 6 Feet - Supports Ether…</td><td>Electronics</td><td>4.40</td><td>426,973.00</td><td>35.00</td><td>309.00</td></tr><tr><td>Amazon Basics High-Speed HDMI Cable, 6 Feet (2-Pack),Black</td><td>Electronics</td><td>4.40</td><td>426,973.00</td><td>78.00</td><td>309.00</td></tr><tr><td>AmazonBasics Flexible Premium HDMI Cable (Black, 4K@60Hz, 18…</td><td>Electronics</td><td>4.40</td><td>426,972.00</td><td>69.00</td><td>219.00</td></tr><tr><td>boAt Bassheads 100 in Ear Wired Earphones with Mic(Taffy Pin…</td><td>Electronics</td><td>4.10</td><td>363,713.00</td><td>65.00</td><td>349.00</td></tr><tr><td>boAt Bassheads 100 in Ear Wired Earphones with Mic(Furious R…</td><td>Electronics</td><td>4.10</td><td>363,713.00</td><td>62.00</td><td>379.00</td></tr><tr><td>boAt BassHeads 100 in-Ear Wired Headphones with Mic (Black)</td><td>Electronics</td><td>4.10</td><td>363,711.00</td><td>63.00</td><td>365.00</td></tr><tr><td>Redmi 9 Activ (Carbon Black, 4GB RAM, 64GB Storage) | Octa-c…</td><td>Electronics</td><td>4.10</td><td>313,836.00</td><td>23.00</td><td>8,499.00</td></tr><tr><td>Redmi 9A Sport (Coral Green, 2GB RAM, 32GB Storage) | 2GHz O…</td><td>Electronics</td><td>4.10</td><td>313,836.00</td><td>24.00</td><td>6,499.00</td></tr><tr><td>Redmi 9A Sport (Carbon Black, 2GB RAM, 32GB Storage) | 2GHz …</td><td>Electronics</td><td>4.10</td><td>313,832.00</td><td>19.00</td><td>6,499.00</td></tr></tbody></table>
+  </div>
+
+  <div class="insight-box success">
+    <strong>Insight:</strong> The most-engaged products tend to be in accessible price points (under &#8377;357) with moderate to high discounts. High engagement doesn't require premium pricing — it requires the right combination of value, visibility, and product-market fit.
+  </div>
+</div>
+
+<!-- SECTION 5: REVIEW SENTIMENT SNAPSHOT -->
+<div class="section" id="review-sentiment-snapshot">
+  <h2 class="section-title">Review Sentiment Snapshot</h2>
+  <p class="section-desc">High-level qualitative overview of recurring themes in customer review titles and content.</p>
+
+  <div class="chart-row">
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="600" height="350.0" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="300.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Most Frequent Positive Sentiment Keywords</text>
+<text x="172" y="63.25" text-anchor="end" fill="#333" font-size="11">good</text>
+<rect x="180" y="50.0" width="360.0" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="545.0" y="63.25" fill="#333" font-size="11">2795 mentions</text>
+<text x="172" y="85.75" text-anchor="end" fill="#333" font-size="11">quality</text>
+<rect x="180" y="72.5" width="196.0" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="381.035778175313" y="85.75" fill="#333" font-size="11">1522 mentions</text>
+<text x="172" y="108.25" text-anchor="end" fill="#333" font-size="11">nice</text>
+<rect x="180" y="95.0" width="181.5" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="366.4812164579606" y="108.25" fill="#333" font-size="11">1409 mentions</text>
+<text x="172" y="130.75" text-anchor="end" fill="#333" font-size="11">best</text>
+<rect x="180" y="117.5" width="123.6" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="308.649373881932" y="130.75" fill="#333" font-size="11">960 mentions</text>
+<text x="172" y="153.25" text-anchor="end" fill="#333" font-size="11">great</text>
+<rect x="180" y="140.0" width="91.1" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="276.06261180679786" y="153.25" fill="#333" font-size="11">707 mentions</text>
+<text x="172" y="175.75" text-anchor="end" fill="#333" font-size="11">worth</text>
+<rect x="180" y="162.5" width="90.3" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="275.28980322003576" y="175.75" fill="#333" font-size="11">701 mentions</text>
+<text x="172" y="198.25" text-anchor="end" fill="#333" font-size="11">fast</text>
+<rect x="180" y="185.0" width="64.8" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="249.7871198568873" y="198.25" fill="#333" font-size="11">503 mentions</text>
+<text x="172" y="220.75" text-anchor="end" fill="#333" font-size="11">super</text>
+<rect x="180" y="207.5" width="53.5" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="238.4525939177102" y="220.75" fill="#333" font-size="11">415 mentions</text>
+<text x="172" y="243.25" text-anchor="end" fill="#333" font-size="11">perfect</text>
+<rect x="180" y="230.0" width="52.8" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="237.80858676207512" y="243.25" fill="#333" font-size="11">410 mentions</text>
+<text x="172" y="265.75" text-anchor="end" fill="#333" font-size="11">recommend</text>
+<rect x="180" y="252.5" width="49.5" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="234.4597495527728" y="265.75" fill="#333" font-size="11">384 mentions</text>
+<text x="172" y="288.25" text-anchor="end" fill="#333" font-size="11">excellent</text>
+<rect x="180" y="275.0" width="46.5" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="231.4973166368515" y="288.25" fill="#333" font-size="11">361 mentions</text>
+<text x="172" y="310.75" text-anchor="end" fill="#333" font-size="11">sturdy</text>
+<rect x="180" y="297.5" width="43.7" height="18.5" fill="#50C878" rx="3" opacity="0.85"/>
+<text x="228.66368515205724" y="310.75" fill="#333" font-size="11">339 mentions</text>
+</svg></div>
+    <div class="chart-container"><svg xmlns="http://www.w3.org/2000/svg" width="600" height="350.0" style="font-family:Inter,Segoe UI,sans-serif;font-size:12px;">
+<text x="300.0" y="24" text-anchor="middle" font-size="14" font-weight="600" fill="#1a1a2e">Most Frequent Negative Sentiment Keywords</text>
+<text x="172" y="63.25" text-anchor="end" fill="#333" font-size="11">issue</text>
+<rect x="180" y="50.0" width="360.0" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="545.0" y="63.25" fill="#333" font-size="11">481 mentions</text>
+<text x="172" y="85.75" text-anchor="end" fill="#333" font-size="11">bad</text>
+<rect x="180" y="72.5" width="254.5" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="439.46985446985445" y="85.75" fill="#333" font-size="11">340 mentions</text>
+<text x="172" y="108.25" text-anchor="end" fill="#333" font-size="11">problem</text>
+<rect x="180" y="95.0" width="233.5" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="418.51351351351354" y="108.25" fill="#333" font-size="11">312 mentions</text>
+<text x="172" y="130.75" text-anchor="end" fill="#333" font-size="11">cheap</text>
+<rect x="180" y="117.5" width="166.9" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="351.9022869022869" y="130.75" fill="#333" font-size="11">223 mentions</text>
+<text x="172" y="153.25" text-anchor="end" fill="#333" font-size="11">not working</text>
+<rect x="180" y="140.0" width="143.0" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="327.95218295218297" y="153.25" fill="#333" font-size="11">191 mentions</text>
+<text x="172" y="175.75" text-anchor="end" fill="#333" font-size="11">damage</text>
+<rect x="180" y="162.5" width="126.5" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="311.4864864864865" y="175.75" fill="#333" font-size="11">169 mentions</text>
+<text x="172" y="198.25" text-anchor="end" fill="#333" font-size="11">poor</text>
+<rect x="180" y="185.0" width="106.3" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="291.2785862785863" y="198.25" fill="#333" font-size="11">142 mentions</text>
+<text x="172" y="220.75" text-anchor="end" fill="#333" font-size="11">slow</text>
+<rect x="180" y="207.5" width="102.5" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="287.5363825363826" y="220.75" fill="#333" font-size="11">137 mentions</text>
+<text x="172" y="243.25" text-anchor="end" fill="#333" font-size="11">return</text>
+<rect x="180" y="230.0" width="96.5" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="281.5488565488565" y="243.25" fill="#333" font-size="11">129 mentions</text>
+<text x="172" y="265.75" text-anchor="end" fill="#333" font-size="11">stopped</text>
+<rect x="180" y="252.5" width="83.8" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="268.82536382536387" y="265.75" fill="#333" font-size="11">112 mentions</text>
+<text x="172" y="288.25" text-anchor="end" fill="#333" font-size="11">waste</text>
+<rect x="180" y="275.0" width="59.1" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="244.12681912681913" y="288.25" fill="#333" font-size="11">79 mentions</text>
+<text x="172" y="310.75" text-anchor="end" fill="#333" font-size="11">worst</text>
+<rect x="180" y="297.5" width="58.4" height="18.5" fill="#E74C3C" rx="3" opacity="0.85"/>
+<text x="243.3783783783784" y="310.75" fill="#333" font-size="11">78 mentions</text>
+</svg></div>
+  </div>
+
+  <div class="two-col">
+    <div class="insight-box success">
+      <strong>Positive Themes:</strong> Customers most frequently praise products as "<strong>good</strong>" (2,795 mentions), "<strong>quality</strong>" (1,522), and "<strong>nice</strong>" (1,409). Satisfaction drivers center on perceived value, quality, and performance meeting expectations.
+    </div>
+    <div class="insight-box warning">
+      <strong>Negative Themes:</strong> The most common complaints involve "<strong>issue</strong>" (481 mentions), "<strong>bad</strong>" (340), and "<strong>problem</strong>" (312). These point to quality inconsistency and durability concerns as the primary dissatisfaction drivers.
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 6: STRATEGIC RECOMMENDATIONS -->
+<div class="section" id="recommendations">
+  <h2 class="section-title">Strategic Recommendations</h2>
+  <p class="section-desc">Actionable recommendations synthesized directly from the data analysis above.</p>
+
+  <div class="card">
+    <ol class="rec-list">
+      <li>
+        <strong>Shift from Deep Discounting to Value Positioning</strong>
+        The near-zero correlation (r = -0.155) between discount depth and customer ratings proves that slashing prices doesn't improve satisfaction. Instead, focus on communicating product quality and value at moderate discount levels (40-60% range shows the strongest rating performance at 4.08).
+        <div class="data-point">Supporting data: Discount-Rating correlation = -0.155; 40-60% discount bucket avg rating = 4.08</div>
+      </li>
+      <li>
+        <strong>Prioritize Quality Improvement in Underperforming Categories</strong>
+        Home&Kitchen averages only 4.04 stars across 448 products. Invest in supplier quality audits and listing improvements for bottom-tier categories to lift catalog-wide satisfaction.
+        <div class="data-point">Supporting data: Bottom category rating = 4.04 vs. catalog average = 4.10</div>
+      </li>
+      <li>
+        <strong>Leverage the Over ₹20K Sweet Spot</strong>
+        Products in this segment achieve the highest satisfaction (4.24 avg rating). Expand assortment and promotional visibility in this price band where customers find the best value-quality balance.
+        <div class="data-point">Supporting data: Over ₹20K segment avg rating = 4.24; product count = 51</div>
+      </li>
+      <li>
+        <strong>Address Durability and Quality Consistency Concerns</strong>
+        Negative sentiment analysis reveals "<strong>issue</strong>" and "<strong>bad</strong>" as the top complaint themes. Implement stricter quality gates for products with recurring durability complaints, and consider enhanced product descriptions to set accurate expectations.
+        <div class="data-point">Supporting data: "issue" appears in 481 reviews; "bad" in 340</div>
+      </li>
+      <li>
+        <strong>Replicate High-Engagement Product Characteristics</strong>
+        The top 10 most-reviewed products share common traits: accessible pricing (median &#8377;357), strong ratings (4.2 avg), and are concentrated in Electronics. Use these patterns as a template for new product curation and promotional placement.
+        <div class="data-point">Supporting data: Top-10 median price = &#8377;357; avg rating = 4.22; median reviews = 363,713</div>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  Amazon Product Catalog Performance Report &bull; Data Source: Amazon India (Kaggle) &bull; 1,465 products analyzed &bull; Generated April 2026
+</div>
+
+</div>
+</body>
+</html>

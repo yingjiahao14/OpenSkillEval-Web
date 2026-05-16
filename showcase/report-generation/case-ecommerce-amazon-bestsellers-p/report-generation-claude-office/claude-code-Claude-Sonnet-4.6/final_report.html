@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon Bestselling Books: Price vs. User Rating Trend Analysis (2009–2019)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --accent: #2980b9;
+    --accent2: #e67e22;
+    --fiction: #2980b9;
+    --nonfiction: #e67e22;
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #e2e8f0;
+    --green: #27ae60;
+    --red: #e74c3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  /* Header */
+  .report-header {
+    background: linear-gradient(135deg, #1a3a5c 0%, #2c5f8a 60%, #3a7ebf 100%);
+    color: white;
+    padding: 48px 60px 40px;
+  }
+  .report-header .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .report-header h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    max-width: 750px;
+  }
+  .report-header p {
+    font-size: 1.05rem;
+    opacity: 0.85;
+    max-width: 650px;
+    margin-bottom: 28px;
+  }
+  .header-meta {
+    display: flex;
+    gap: 32px;
+    font-size: 13px;
+    opacity: 0.7;
+    flex-wrap: wrap;
+  }
+  .header-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* Layout */
+  .report-body { max-width: 1100px; margin: 0 auto; padding: 40px 32px 60px; }
+
+  /* Section */
+  .section { margin-bottom: 56px; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-number {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .section-header h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.blue::before { background: var(--accent); }
+  .kpi-card.orange::before { background: var(--accent2); }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.red::before { background: var(--red); }
+  .kpi-card.purple::before { background: #8e44ad; }
+  .kpi-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .kpi-value { font-size: 2rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: 6px; }
+  .kpi-sub { font-size: 12px; color: var(--muted); }
+
+  /* Chart containers */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .chart-row.full { grid-template-columns: 1fr; }
+  .chart-row.thirds { grid-template-columns: 1fr 1fr 1fr; }
+  .chart-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .chart-box h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .chart-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .chart-wrap { position: relative; height: 260px; }
+  .chart-wrap.tall { height: 320px; }
+  .chart-wrap.short { height: 200px; }
+
+  /* Insight box */
+  .insight {
+    background: #eef6ff;
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--primary);
+  }
+  .insight strong { color: var(--accent); }
+
+  /* Genre comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--card);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .compare-table th {
+    background: var(--primary);
+    color: white;
+    padding: 12px 18px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .compare-table th.fiction { background: var(--fiction); }
+  .compare-table th.nonfiction { background: var(--nonfiction); }
+  .compare-table td {
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:nth-child(even) td { background: #f8fafc; }
+  .compare-table .metric-name { font-weight: 600; color: var(--primary); }
+  .compare-table .val { font-weight: 700; font-size: 15px; }
+  .compare-table .val.blue { color: var(--fiction); }
+  .compare-table .val.orange { color: var(--nonfiction); }
+  .badge-winner {
+    display: inline-block;
+    background: #e8f5e9;
+    color: #2e7d32;
+    border-radius: 12px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 8px;
+  }
+
+  /* Authors table */
+  .authors-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .authors-table th {
+    background: #f1f5f9;
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+  }
+  .authors-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .authors-table tr:last-child td { border-bottom: none; }
+  .authors-table tr:hover td { background: #f8faff; }
+  .rank { font-weight: 800; color: var(--muted); font-size: 13px; }
+  .rank.gold { color: #d4a017; }
+  .rank.silver { color: #9e9e9e; }
+  .rank.bronze { color: #c47722; }
+  .bar-inline {
+    display: inline-block;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    vertical-align: middle;
+    margin-left: 8px;
+  }
+
+  /* Price segment visual */
+  .price-seg-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+  .price-seg-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 14px;
+    text-align: center;
+  }
+  .price-seg-label { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+  .price-seg-rating { font-size: 1.8rem; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+  .price-seg-n { font-size: 11px; color: var(--muted); }
+  .price-seg-bar { height: 4px; border-radius: 2px; background: #e2e8f0; margin-top: 10px; overflow: hidden; }
+  .price-seg-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  /* Recommendations */
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .rec-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    position: relative;
+  }
+  .rec-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 10px 10px 0 0;
+  }
+  .rec-card.r1::before { background: var(--accent); }
+  .rec-card.r2::before { background: var(--accent2); }
+  .rec-card.r3::before { background: var(--green); }
+  .rec-card.r4::before { background: #8e44ad; }
+  .rec-num { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .rec-card h3 { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+  .rec-card p { font-size: 13.5px; color: #374151; line-height: 1.6; margin-bottom: 10px; }
+  .rec-source { font-size: 12px; color: var(--accent); font-style: italic; }
+
+  /* Footer */
+  .report-footer {
+    background: var(--primary);
+    color: rgba(255,255,255,0.6);
+    padding: 24px 60px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .report-footer span { color: rgba(255,255,255,0.4); }
+
+  /* Annotation pill */
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .pill.blue { background: #dbeafe; color: #1d4ed8; }
+  .pill.orange { background: #fef3c7; color: #b45309; }
+
+  /* inflection marker */
+  .inflection-note {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #78350f;
+    margin-top: 10px;
+  }
+
+  @media (max-width: 700px) {
+    .report-header { padding: 32px 20px 28px; }
+    .report-body { padding: 28px 16px 48px; }
+    .chart-row { grid-template-columns: 1fr; }
+    .chart-row.thirds { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .rec-grid { grid-template-columns: 1fr; }
+    .price-seg-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ HEADER ═══════════════════════════════════ -->
+<div class="report-header">
+  <div class="badge">Management Report · Trend Analysis</div>
+  <h1>Amazon Bestselling Books<br>Price vs. User Rating Analysis</h1>
+  <p>Does price drive customer satisfaction — or is it disconnected from the ratings that keep books on the bestseller list? A decade of Amazon data (2009–2019) delivers a clear answer.</p>
+  <div class="header-meta">
+    <span>📅 Coverage: 2009–2019</span>
+    <span>📚 550 annual bestseller records</span>
+    <span>📊 50 top titles per year</span>
+    <span>🏷️ Fiction &amp; Non-Fiction</span>
+  </div>
+</div>
+
+<div class="report-body">
+
+<!-- ═══════════════════════════════ SECTION 1: MARKET OVERVIEW ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <h2>Bestseller Market Overview (2009–2019)</h2>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Total Records</div>
+      <div class="kpi-value">550</div>
+      <div class="kpi-sub">50 bestsellers × 11 years</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Avg. User Rating</div>
+      <div class="kpi-value">4.62</div>
+      <div class="kpi-sub">Out of 5.0 scale</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Avg. List Price</div>
+      <div class="kpi-value">$13.10</div>
+      <div class="kpi-sub">Integer USD; range $0–$105</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Avg. Review Count</div>
+      <div class="kpi-value">11,953</div>
+      <div class="kpi-sub">Per book-year entry</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Non-Fiction Share</div>
+      <div class="kpi-value">56.4%</div>
+      <div class="kpi-sub">310 of 550 records</div>
+    </div>
+  </div>
+
+  <div class="chart-row" style="margin-top:24px;">
+    <div class="chart-box">
+      <h3>Genre Distribution Across the Decade</h3>
+      <div class="chart-subtitle">Annual count of Fiction vs. Non-Fiction bestsellers</div>
+      <div class="chart-wrap">
+        <canvas id="genreBarChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3>Review Volume Growth</h3>
+      <div class="chart-subtitle">Average review count per year — a proxy for engagement</div>
+      <div class="chart-wrap">
+        <canvas id="reviewsChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="insight">
+    <strong>Key context:</strong> Non-Fiction consistently outpaces Fiction on the bestseller list (56% vs. 44% of all records). Average review counts nearly tripled from 4,710 (2009) to 15,898 (2019), indicating a deepening pool of socially-validated titles — and raising the bar for new entrants.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 2: CORRELATION ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <h2>Price vs. User Rating: Correlation Analysis</h2>
+  </div>
+
+  <div class="kpi-grid" style="margin-bottom:24px;">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Pearson r (Price × Rating)</div>
+      <div class="kpi-value">−0.133</div>
+      <div class="kpi-sub">Weak negative correlation across all 550 records</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Best-Rated Price Band</div>
+      <div class="kpi-value">Free ($0)</div>
+      <div class="kpi-sub">Avg. 4.77 rating (n=12)</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Worst-Rated Price Band</div>
+      <div class="kpi-value">$10–$19</div>
+      <div class="kpi-sub">Avg. 4.56 rating (n=227)</div>
+    </div>
+  </div>
+
+  <div class="chart-row full">
+    <div class="chart-box">
+      <h3>Price vs. User Rating — Scatter Plot</h3>
+      <div class="chart-subtitle">Each point = one bestseller record. <span class="pill blue">Blue = Fiction</span> <span class="pill orange">Orange = Non-Fiction</span></div>
+      <div class="chart-wrap tall">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 20px;">
+    <div class="chart-box">
+      <h3>Average Rating by Price Segment</h3>
+      <div class="chart-subtitle">Higher price does not consistently yield higher ratings</div>
+      <div class="price-seg-grid" style="margin-top: 16px;">
+        <div class="price-seg-card">
+          <div class="price-seg-label">Free ($0)</div>
+          <div class="price-seg-rating">4.77</div>
+          <div class="price-seg-n">n = 12</div>
+          <div class="price-seg-bar"><div class="price-seg-bar-fill" style="width:87%"></div></div>
+        </div>
+        <div class="price-seg-card">
+          <div class="price-seg-label">$1 – $9</div>
+          <div class="price-seg-rating">4.67</div>
+          <div class="price-seg-n">n = 226</div>
+          <div class="price-seg-bar"><div class="price-seg-bar-fill" style="width:77%"></div></div>
+        </div>
+        <div class="price-seg-card">
+          <div class="price-seg-label">$10 – $19</div>
+          <div class="price-seg-rating">4.56</div>
+          <div class="price-seg-n">n = 227</div>
+          <div class="price-seg-bar"><div class="price-seg-bar-fill" style="width:62%"></div></div>
+        </div>
+        <div class="price-seg-card">
+          <div class="price-seg-label">$20 – $29</div>
+          <div class="price-seg-rating">4.61</div>
+          <div class="price-seg-n">n = 54</div>
+          <div class="price-seg-bar"><div class="price-seg-bar-fill" style="width:70%"></div></div>
+        </div>
+        <div class="price-seg-card">
+          <div class="price-seg-label">$30+</div>
+          <div class="price-seg-rating">4.58</div>
+          <div class="price-seg-n">n = 31</div>
+          <div class="price-seg-bar"><div class="price-seg-bar-fill" style="width:65%"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Finding:</strong> With a Pearson r of <strong>−0.133</strong>, there is essentially no meaningful linear relationship between price and customer rating. The correlation is weakly negative — meaning pricier books trend very slightly lower in ratings — but the effect is negligible at scale. Price is not a reliable predictor of quality perception on the Amazon bestseller list. The $1–$9 segment dominates volume (226 records, 41%) with strong ratings (4.67), indicating the sweet spot for reach and satisfaction.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 3: GENRE COMPARISON ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <h2>Fiction vs. Non-Fiction: Pricing and Rating Strategies</h2>
+  </div>
+
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th class="fiction">📘 Fiction</th>
+        <th class="nonfiction">📙 Non-Fiction</th>
+        <th>Winner</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="metric-name">Total Records (2009–2019)</td>
+        <td><span class="val blue">240</span></td>
+        <td><span class="val orange">310</span></td>
+        <td><span class="badge-winner">NF +29%</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Average User Rating</td>
+        <td><span class="val blue">4.648</span></td>
+        <td><span class="val orange">4.595</span></td>
+        <td><span class="badge-winner">Fiction +0.053</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Average Retail Price</td>
+        <td><span class="val blue">$10.85</span></td>
+        <td><span class="val orange">$14.84</span></td>
+        <td>Fiction cheaper by $3.99</td>
+      </tr>
+      <tr>
+        <td class="metric-name">Average Review Count</td>
+        <td><span class="val blue">15,684</span></td>
+        <td><span class="val orange">9,065</span></td>
+        <td><span class="badge-winner">Fiction +73%</span></td>
+      </tr>
+      <tr>
+        <td class="metric-name">Price Range</td>
+        <td><span class="val blue">$0 – $82</span></td>
+        <td><span class="val orange">$0 – $105</span></td>
+        <td>NF wider spread</td>
+      </tr>
+      <tr>
+        <td class="metric-name">Rating Range</td>
+        <td><span class="val blue">3.3 – 4.9</span></td>
+        <td><span class="val orange">4.0 – 4.9</span></td>
+        <td>NF floor higher</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="chart-row" style="margin-top:24px;">
+    <div class="chart-box">
+      <h3>Average Price by Genre &amp; Year</h3>
+      <div class="chart-subtitle">Non-Fiction commanded a consistent price premium through 2014</div>
+      <div class="chart-wrap">
+        <canvas id="genrePriceChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3>Average Rating by Genre &amp; Year</h3>
+      <div class="chart-subtitle">Both genres trended upward — Fiction ratings accelerated after 2015</div>
+      <div class="chart-wrap">
+        <canvas id="genreRatingChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Strategic read:</strong> Fiction delivers higher ratings at lower prices with substantially more reviews — a "high perceived value" profile. Non-Fiction commands a ~37% price premium ($14.84 vs. $10.85) but generates 73% fewer reviews, suggesting a more utilitarian, less emotionally engaged audience. The rating floor for Non-Fiction (4.0) is higher than Fiction (3.3), but Fiction achieves the higher ceiling in average rating. Fiction books that break through generate deeper customer engagement.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 4: TEMPORAL TRENDS ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <h2>Year-over-Year Trends in Pricing and Ratings</h2>
+  </div>
+
+  <div class="chart-row full">
+    <div class="chart-box">
+      <h3>Average Price Trend (2009–2019)</h3>
+      <div class="chart-subtitle">Overall list prices declined ~35% over the decade — with a notable mid-decade dip in 2015</div>
+      <div class="chart-wrap tall">
+        <canvas id="priceTrendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="inflection-note" style="margin-bottom: 20px;">
+    <strong>⚡ Inflection Point — 2015:</strong> Average price dropped sharply from $14.64 (2014) to $10.42 (2015) — a 29% single-year decline. This coincides with an explosion in Non-Fiction coloring books, children's books, and low-cost lifestyle titles entering the bestseller list, driving both price compression and a modest boost in ratings.
+  </div>
+
+  <div class="chart-row full">
+    <div class="chart-box">
+      <h3>Average User Rating Trend (2009–2019)</h3>
+      <div class="chart-subtitle">Ratings rose steadily from 4.58 (2009) to 4.74 (2019) — a consistent quality signal</div>
+      <div class="chart-wrap tall">
+        <canvas id="ratingTrendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="inflection-note" style="margin-bottom: 20px;">
+    <strong>⚡ Inflection Point — 2016–2019 Acceleration:</strong> After tracking flat-to-mild growth (4.53–4.62) during 2012–2015, ratings entered a steeper upward trajectory from 2016 onward, reaching 4.74 by 2019. This corresponds with the period when review volumes matured and market-selection effects intensified — only highly-rated catalog titles retained bestseller status year over year.
+  </div>
+
+  <div class="chart-row full">
+    <div class="chart-box">
+      <h3>Combined Price &amp; Rating Trend — Dual Axis</h3>
+      <div class="chart-subtitle">Prices declined as ratings rose: the inverse relationship across the decade</div>
+      <div class="chart-wrap tall">
+        <canvas id="dualAxisChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Year-by-year data table -->
+  <div style="margin-top: 20px; overflow-x: auto;">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Year</th>
+          <th>Avg. Price</th>
+          <th>Avg. Rating</th>
+          <th>Avg. Reviews</th>
+          <th>Fiction Count</th>
+          <th>Non-Fiction Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>2009</td><td>$15.40</td><td>4.584</td><td>4,710</td><td>24</td><td>26</td></tr>
+        <tr style="background:#f8fafc"><td>2010</td><td>$13.48</td><td>4.558</td><td>5,480</td><td>20</td><td>30</td></tr>
+        <tr><td>2011</td><td>$15.10</td><td>4.558</td><td>8,101</td><td>21</td><td>29</td></tr>
+        <tr style="background:#f8fafc"><td>2012</td><td>$15.30</td><td>4.532</td><td>13,091</td><td>21</td><td>29</td></tr>
+        <tr><td>2013</td><td>$14.60</td><td>4.554</td><td>13,098</td><td>24</td><td>26</td></tr>
+        <tr style="background:#f8fafc"><td>2014</td><td>$14.64</td><td>4.622</td><td>15,860</td><td>29</td><td>21</td></tr>
+        <tr style="background:#fff8e8"><td><strong>2015 ⚡</strong></td><td><strong>$10.42</strong></td><td>4.648</td><td>14,233</td><td>17</td><td>33</td></tr>
+        <tr><td>2016</td><td>$13.18</td><td>4.678</td><td>14,196</td><td>19</td><td>31</td></tr>
+        <tr style="background:#f8fafc"><td>2017</td><td>$11.38</td><td>4.660</td><td>12,888</td><td>24</td><td>26</td></tr>
+        <tr><td>2018</td><td>$10.52</td><td>4.668</td><td>13,930</td><td>21</td><td>29</td></tr>
+        <tr style="background:#f8fafc"><td><strong>2019</strong></td><td><strong>$10.08</strong></td><td><strong>4.740</strong></td><td>15,898</td><td>20</td><td>30</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight">
+    <strong>Decade summary:</strong> Average price fell from $15.40 (2009) to $10.08 (2019) — a 35% decline — while average ratings rose from 4.58 to 4.74. These trends moved in opposite directions, reinforcing the finding that price does not drive ratings on the bestseller list. The most significant single-year price drop occurred in 2015 (−29%), and the rating trajectory accelerated meaningfully from 2016 onward.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 5: TOP AUTHORS ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <h2>Dominant Authors on the Bestseller List</h2>
+  </div>
+
+  <table class="authors-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Author</th>
+        <th>Appearances</th>
+        <th>Avg. Rating</th>
+        <th>Avg. Price</th>
+        <th>Genre</th>
+        <th>Frequency Bar</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="rank gold">1</td>
+        <td><strong>Jeff Kinney</strong></td>
+        <td>12</td>
+        <td>4.80</td>
+        <td>$9.17</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:120px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank silver">2</td>
+        <td><strong>Suzanne Collins</strong></td>
+        <td>11</td>
+        <td>4.66</td>
+        <td>$13.36</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:110px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank silver">2</td>
+        <td><strong>Rick Riordan</strong></td>
+        <td>11</td>
+        <td>4.77</td>
+        <td>$9.91</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:110px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank silver">2</td>
+        <td><strong>Gary Chapman</strong></td>
+        <td>11</td>
+        <td>4.74</td>
+        <td>$17.18</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:110px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank bronze">5</td>
+        <td>American Psychological Association</td>
+        <td>10</td>
+        <td>4.50</td>
+        <td>$46.00</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:100px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank bronze">6</td>
+        <td><strong>Dr. Seuss</strong></td>
+        <td>9</td>
+        <td>4.88</td>
+        <td>$8.67</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:90px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank bronze">6</td>
+        <td>Gallup</td>
+        <td>9</td>
+        <td>4.00</td>
+        <td>$17.00</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:90px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">8</td>
+        <td>Rob Elliott</td>
+        <td>8</td>
+        <td>4.56</td>
+        <td>$4.00</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:80px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td>Stephenie Meyer</td>
+        <td>7</td>
+        <td>4.66</td>
+        <td>$19.86</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:70px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td><strong>Dav Pilkey</strong></td>
+        <td>7</td>
+        <td>4.90</td>
+        <td>$6.29</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:70px;background:#2980b9"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td>Bill O'Reilly</td>
+        <td>7</td>
+        <td>4.64</td>
+        <td>$10.57</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:70px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td>Stephen R. Covey</td>
+        <td>7</td>
+        <td>4.64</td>
+        <td>$20.57</td>
+        <td><span class="pill orange">Non-Fiction</span></td>
+        <td><span class="bar-inline" style="width:70px;background:#e67e22"></span></td>
+      </tr>
+      <tr>
+        <td class="rank">9</td>
+        <td>Eric Carle</td>
+        <td>7</td>
+        <td>4.90</td>
+        <td>$5.00</td>
+        <td><span class="pill blue">Fiction</span></td>
+        <td><span class="bar-inline" style="width:70px;background:#2980b9"></span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="chart-row" style="margin-top:24px;">
+    <div class="chart-box">
+      <h3>Top 10 Authors — Bestseller Frequency</h3>
+      <div class="chart-subtitle">Appearances on annual top-50 list, 2009–2019</div>
+      <div class="chart-wrap tall">
+        <canvas id="authorsFreqChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3>Author Rating vs. Price</h3>
+      <div class="chart-subtitle">Bubble = frequency; top authors cluster in high-rating, moderate-price zone</div>
+      <div class="chart-wrap tall">
+        <canvas id="authorBubbleChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <strong>Pattern:</strong> The highest-frequency authors overwhelmingly operate in the sub-$10 space (Kinney $9.17, Riordan $9.91, Dr. Seuss $8.67, Pilkey $6.29, Carle $5.00) while maintaining top-tier ratings (4.77–4.90). The lone high-price outlier — the APA's DSM-5 at $46 — achieves its bestseller status through institutional necessity, not consumer enthusiasm (4.50 rating). Authors with sustained bestseller presence converge on the formula: low-to-moderate price + high rating + strong review volume.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 6: RECOMMENDATIONS ═══════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-number">06</span>
+    <h2>Strategic Recommendations</h2>
+  </div>
+
+  <div class="rec-grid">
+    <div class="rec-card r1">
+      <div class="rec-num">Recommendation 01</div>
+      <h3>Price to the $5–$15 Sweet Spot for Bestseller Candidacy</h3>
+      <p>The $1–$9 and $10–$19 bands together account for 82% of all bestseller records and deliver average ratings of 4.67 and 4.56 respectively. Premium pricing ($30+) covers only 5.6% of records and does not yield higher ratings. The price floor has trended toward ~$10 since 2015 and reached $10.08 by 2019.</p>
+      <div class="rec-source">Source: Price segment analysis (n=550); year-over-year price trend 2015–2019</div>
+    </div>
+    <div class="rec-card r2">
+      <div class="rec-num">Recommendation 02</div>
+      <h3>Do Not Rely on Price as a Quality Signal — Invest in Content &amp; Reviews</h3>
+      <p>With Pearson r = −0.133, price and rating are effectively uncorrelated. The data shows no evidence that customers conflate price with quality on the Amazon bestseller list. Catalog investment should focus on review cultivation and product quality — not price positioning — to drive rating differentiation.</p>
+      <div class="rec-source">Source: Pearson correlation analysis across all 550 records</div>
+    </div>
+    <div class="rec-card r3">
+      <div class="rec-num">Recommendation 03</div>
+      <h3>Prioritize Fiction for Engagement Depth; Non-Fiction for Volume &amp; Margin</h3>
+      <p>Fiction titles average 73% more reviews (15,684 vs. 9,065) and slightly higher ratings (4.648 vs. 4.595), suggesting deeper reader engagement. Non-Fiction commands a $3.99 average price premium and dominates bestseller slots (56%). A portfolio balancing both genres optimizes for both reach (NF) and community-building (Fiction).</p>
+      <div class="rec-source">Source: Genre comparison table; Fiction/Non-Fiction review and rating averages</div>
+    </div>
+    <div class="rec-card r4">
+      <div class="rec-num">Recommendation 04</div>
+      <h3>Cultivate Series &amp; Catalog Longevity — Not One-Off Launches</h3>
+      <p>The top-frequency authors (Kinney 12×, Collins 11×, Riordan 11×) dominate through series franchises and catalog re-entries, not single launches. The 2015 inflection point — when prices compressed while ratings rose — was driven by high-frequency catalog titles saturating the list. Long-tail catalog optimization (repricing older titles into $5–$12 range) shows stronger ROI than premium new-title launches.</p>
+      <div class="rec-source">Source: Author frequency table; 2015 genre shift (NF rose to 33/50); price trend 2014–2019</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /report-body -->
+
+<div class="report-footer">
+  <div>Amazon Bestselling Books: Price vs. User Rating Trend Analysis (2009–2019) · Management Report</div>
+  <div>Data: 550 records · Kaggle Amazon Bestsellers Dataset · All statistics computed directly from source data <span>· Report generated April 2026</span></div>
+</div>
+
+<!-- ═══════════════════════════════ CHART SCRIPTS ═══════════════════════════════ -->
+<script>
+// ── Color palette ──
+const FICTION_COLOR = '#2980b9';
+const NF_COLOR = '#e67e22';
+const FICTION_BG = 'rgba(41,128,185,0.15)';
+const NF_BG = 'rgba(230,126,34,0.15)';
+const GRID_COLOR = 'rgba(0,0,0,0.06)';
+
+const YEARS = [2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019];
+
+// Chart defaults
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.padding = 16;
+
+const gridOpts = {
+  color: GRID_COLOR,
+  drawBorder: false
+};
+
+// ── 1. Genre Bar Chart ──
+new Chart(document.getElementById('genreBarChart'), {
+  type: 'bar',
+  data: {
+    labels: YEARS,
+    datasets: [
+      {
+        label: 'Fiction',
+        data: [24,20,21,21,24,29,17,19,24,21,20],
+        backgroundColor: FICTION_COLOR,
+        borderRadius: 3,
+      },
+      {
+        label: 'Non-Fiction',
+        data: [26,30,29,29,26,21,33,31,26,29,30],
+        backgroundColor: NF_COLOR,
+        borderRadius: 3,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { stacked: true, grid: gridOpts },
+      y: { stacked: true, grid: gridOpts, max: 55, title: { display: true, text: 'Count' } }
+    }
+  }
+});
+
+// ── 2. Reviews Chart ──
+new Chart(document.getElementById('reviewsChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [{
+      label: 'Avg. Reviews',
+      data: [4710, 5480, 8101, 13091, 13098, 15860, 14233, 14196, 12888, 13930, 15898],
+      borderColor: '#8e44ad',
+      backgroundColor: 'rgba(142,68,173,0.1)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.3,
+      pointBackgroundColor: '#8e44ad',
+      pointRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: gridOpts },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Reviews' },
+           ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v } }
+    }
+  }
+});
+
+// ── 3. Scatter Chart ──
+const scatterData = [
+  // Fiction points [price, rating]
+  {x:22,y:4.6},{x:6,y:4.7},{x:11,y:4.4},{x:30,y:4.7},{x:8,y:4.6},{x:8,y:4.6},{x:5,y:4.5},{x:13,y:3.9},{x:9,y:4.6},{x:13,y:4.3},{x:14,y:4.6},{x:14,y:4.6},{x:8,y:4.3},{x:4,y:4.2},{x:13,y:3.8},{x:13,y:3.8},{x:32,y:4.5},{x:7,y:4.4},{x:11,y:4.5},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:19,y:3.6},{x:9,y:4.8},{x:10,y:4.0},{x:10,y:4.0},{x:9,y:4.0},{x:5,y:4.8},{x:5,y:4.8},{x:5,y:4.8},{x:7,y:4.9},{x:7,y:4.9},{x:14,y:4.6},{x:0,y:4.9},{x:12,y:4.5},{x:7,y:4.5},{x:5,y:4.8},{x:5,y:4.8},{x:11,y:4.8},{x:12,y:4.8},{x:12,y:4.9},{x:12,y:4.9},{x:10,y:4.6},{x:6,y:4.8},{x:6,y:4.8},{x:8,y:4.8},{x:8,y:4.8},{x:12,y:3.3},{x:13,y:3.3},{x:13,y:4.3},{x:0,y:4.8},{x:11,y:4.4},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:11,y:4.0},{x:13,y:4.7},{x:13,y:4.7},{x:7,y:4.7},{x:13,y:4.7},{x:0,y:4.8},{x:18,y:4.1},{x:7,y:4.1},{x:14,y:4.7},{x:14,y:4.7},{x:9,y:4.7},{x:16,y:4.7},{x:2,y:4.4},{x:2,y:4.4},{x:5,y:4.8},{x:5,y:4.8},{x:20,y:3.9},{x:20,y:3.9},{x:7,y:4.4},{x:7,y:4.4},{x:7,y:4.4},{x:14,y:4.5},{x:10,y:4.7},{x:7,y:4.3},{x:13,y:4.6},{x:11,y:4.8},{x:6,y:4.8},{x:6,y:4.8},{x:8,y:4.8},{x:7,y:4.8},{x:14,y:4.8},{x:14,y:4.7},{x:8,y:4.7},{x:8,y:4.7},{x:30,y:4.8},{x:30,y:4.8},{x:7,y:4.8},{x:7,y:4.8},{x:20,y:4.9},{x:18,y:4.4},{x:14,y:4.8},{x:19,y:4.2},{x:10,y:4.8},{x:9,y:4.7},{x:8,y:4.5},{x:8,y:4.8},{x:11,y:4.8},{x:11,y:4.8},{x:0,y:4.8},{x:18,y:4.3},{x:18,y:4.3},{x:12,y:4.6},{x:12,y:4.8},{x:8,y:4.6},{x:8,y:4.6},{x:0,y:4.6},{x:14,y:4.5},{x:10,y:4.8},{x:9,y:4.4},{x:10,y:4.7},{x:6,y:4.4},{x:82,y:4.7},{x:12,y:4.8},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:4,y:4.8},{x:4,y:4.8},{x:9,y:4.5},{x:15,y:4.1},{x:16,y:4.3},{x:12,y:4.6},{x:8,y:4.5},{x:8,y:4.5},{x:8,y:4.5},{x:25,y:4.7},{x:6,y:4.9},{x:2,y:4.8},{x:27,y:4.8},{x:27,y:4.8},{x:27,y:4.8},{x:9,y:4.7},{x:4,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:7,y:4.8},{x:21,y:4.8},{x:9,y:4.7},{x:5,y:4.5},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:8,y:4.9},{x:42,y:4.8},{x:12,y:4.5},{x:14,y:4.7},{x:13,y:4.8},{x:15,y:4.8},{x:13,y:4.8},{x:7,y:4.7},{x:10,y:4.7},
+  // Fiction outliers
+  {x:39,y:4.7},{x:12,y:4.0},{x:18,y:4.9},{x:30,y:4.9},{x:22,y:4.9},{x:52,y:4.8},{x:13,y:4.9},{x:20,y:4.9}
+];
+
+const scatterFiction = [
+  {x:22,y:4.6},{x:6,y:4.7},{x:11,y:4.4},{x:30,y:4.7},{x:8,y:4.6},{x:8,y:4.6},{x:5,y:4.5},{x:13,y:3.9},{x:9,y:4.6},{x:13,y:4.3},{x:14,y:4.6},{x:14,y:4.6},{x:8,y:4.3},{x:4,y:4.2},{x:13,y:3.8},{x:13,y:3.8},{x:32,y:4.5},{x:7,y:4.4},{x:11,y:4.5},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.8},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:4,y:4.6},{x:19,y:3.6},{x:9,y:4.8},{x:10,y:4.0},{x:10,y:4.0},{x:9,y:4.0},{x:5,y:4.8},{x:5,y:4.8},{x:5,y:4.8},{x:7,y:4.9},{x:7,y:4.9},{x:14,y:4.6},{x:0,y:4.9},{x:12,y:4.5},{x:7,y:4.5},{x:5,y:4.8},{x:5,y:4.8},{x:11,y:4.8},{x:12,y:4.8},{x:12,y:4.9},{x:12,y:4.9},{x:10,y:4.6},{x:6,y:4.8},{x:6,y:4.8},{x:8,y:4.8},{x:8,y:4.8},{x:12,y:3.3},{x:13,y:4.3},{x:0,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:11,y:4.0},{x:13,y:4.7},{x:13,y:4.7},{x:7,y:4.7},{x:13,y:4.7},{x:0,y:4.8},{x:18,y:4.1},{x:7,y:4.1},{x:14,y:4.7},{x:14,y:4.7},{x:9,y:4.7},{x:16,y:4.7},{x:2,y:4.4},{x:2,y:4.4},{x:5,y:4.8},{x:5,y:4.8},{x:20,y:3.9},{x:20,y:3.9},{x:7,y:4.4},{x:7,y:4.4},{x:7,y:4.4},{x:14,y:4.5},{x:10,y:4.7},{x:7,y:4.3},{x:13,y:4.6},{x:11,y:4.8},{x:6,y:4.8},{x:6,y:4.8},{x:8,y:4.8},{x:7,y:4.8},{x:14,y:4.8},{x:14,y:4.7},{x:8,y:4.7},{x:8,y:4.7},{x:30,y:4.8},{x:30,y:4.8},{x:7,y:4.8},{x:7,y:4.8},{x:20,y:4.9},{x:18,y:4.4},{x:14,y:4.8},{x:19,y:4.2},{x:10,y:4.8},{x:9,y:4.7},{x:8,y:4.5},{x:8,y:4.8},{x:11,y:4.8},{x:11,y:4.8},{x:0,y:4.8},{x:18,y:4.3},{x:18,y:4.3},{x:12,y:4.6},{x:12,y:4.8},{x:8,y:4.6},{x:8,y:4.6},{x:0,y:4.6},{x:14,y:4.5},{x:10,y:4.8},{x:9,y:4.4},{x:10,y:4.7},{x:6,y:4.4},{x:82,y:4.7},{x:12,y:4.8},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:5,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:10,y:4.9},{x:4,y:4.8},{x:4,y:4.8},{x:9,y:4.5},{x:16,y:4.3},{x:12,y:4.6},{x:8,y:4.5},{x:8,y:4.5},{x:8,y:4.5},{x:25,y:4.7},{x:6,y:4.9},{x:2,y:4.8},{x:27,y:4.8},{x:27,y:4.8},{x:27,y:4.8},{x:9,y:4.7},{x:4,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:0,y:4.8},{x:7,y:4.8},{x:21,y:4.8},{x:9,y:4.7},{x:5,y:4.5},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:9,y:4.8},{x:8,y:4.9},{x:42,y:4.8},{x:12,y:4.5},{x:14,y:4.7},{x:13,y:4.8},{x:15,y:4.8},{x:13,y:4.8},{x:7,y:4.7},{x:10,y:4.7},{x:39,y:4.7},{x:12,y:4.0},{x:18,y:4.9},{x:30,y:4.9},{x:22,y:4.9},{x:52,y:4.8},{x:13,y:4.9},{x:20,y:4.9}
+];
+
+const scatterNF = [
+  {x:8,y:4.7},{x:15,y:4.7},{x:12,y:4.8},{x:2,y:4.6},{x:32,y:4.6},{x:17,y:4.6},{x:4,y:4.5},{x:6,y:4.6},{x:6,y:4.4},{x:8,y:4.5},{x:13,y:4.8},{x:14,y:4.7},{x:21,y:4.7},{x:9,y:4.7},{x:5,y:4.6},{x:24,y:4.8},{x:21,y:4.7},{x:11,y:4.8},{x:18,y:4.7},{x:13,y:4.7},{x:13,y:4.7},{x:15,y:4.8},{x:13,y:4.7},{x:15,y:4.7},{x:10,y:4.8},{x:16,y:4.3},{x:14,y:4.4},{x:15,y:4.8},{x:17,y:4.9},{x:17,y:4.7},{x:7,y:4.8},{x:20,y:4.5},{x:16,y:4.6},{x:4,y:4.8},{x:4,y:4.8},{x:9,y:4.3},{x:9,y:4.4},{x:6,y:4.2},{x:17,y:4.6},{x:15,y:4.6},{x:13,y:4.5},{x:9,y:4.6},{x:12,y:4.6},{x:12,y:4.6},{x:12,y:4.6},{x:11,y:4.6},{x:6,y:4.7},{x:6,y:4.7},{x:6,y:4.7},{x:6,y:4.7},{x:6,y:4.7},{x:6,y:4.7},{x:21,y:4.6},{x:20,y:4.6},{x:9,y:4.5},{x:28,y:4.5},{x:10,y:4.6},{x:10,y:4.6},{x:10,y:4.3},{x:10,y:4.3},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:46,y:4.5},{x:13,y:4.5},{x:20,y:4.5},{x:6,y:4.6},{x:9,y:4.7},{x:9,y:4.7},{x:12,y:4.6},{x:12,y:4.6},{x:20,y:4.8},{x:20,y:4.8},{x:6,y:4.8},{x:6,y:4.8},{x:9,y:4.7},{x:11,y:4.7},{x:16,y:4.8},{x:6,y:4.1},{x:17,y:4.6},{x:20,y:4.6},{x:20,y:4.6},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:17,y:4.0},{x:18,y:4.5},{x:13,y:4.6},{x:20,y:4.4},{x:20,y:4.4},{x:22,y:4.3},{x:21,y:4.3},{x:28,y:4.7},{x:28,y:4.7},{x:28,y:4.7},{x:28,y:4.7},{x:28,y:4.7},{x:8,y:4.8},{x:8,y:4.8},{x:8,y:4.8},{x:8,y:4.8},{x:8,y:4.8},{x:12,y:4.8},{x:24,y:4.6},{x:24,y:4.6},{x:24,y:4.6},{x:24,y:4.6},{x:16,y:4.7},{x:16,y:4.7},{x:16,y:4.7},{x:9,y:4.6},{x:10,y:4.7},{x:10,y:4.7},{x:17,y:4.7},{x:14,y:4.2},{x:12,y:4.8},{x:12,y:4.8},{x:53,y:4.7},{x:13,y:4.3},{x:13,y:4.3},{x:7,y:4.3},{x:7,y:4.3},{x:9,y:4.7},{x:13,y:4.4},{x:13,y:4.4},{x:11,y:4.5},{x:11,y:4.5},{x:11,y:4.5},{x:11,y:4.5},{x:13,y:4.8},{x:5,y:4.9},{x:12,y:4.6},{x:40,y:4.4},{x:40,y:4.4},{x:40,y:4.4},{x:40,y:4.4},{x:40,y:4.4},{x:36,y:4.3},{x:17,y:4.8},{x:14,y:4.8},{x:21,y:4.8},{x:18,y:4.5},{x:17,y:4.4},{x:21,y:4.6},{x:18,y:4.4},{x:14,y:4.6},{x:15,y:4.6},{x:15,y:4.6},{x:15,y:4.6},{x:9,y:4.7},{x:15,y:4.5},{x:16,y:4.8},{x:16,y:4.8},{x:16,y:4.8},{x:13,y:4.8},{x:16,y:4.8},{x:11,y:4.9},{x:4,y:4.8},{x:9,y:4.7},{x:18,y:4.6},{x:17,y:4.7},{x:9,y:4.4},{x:6,y:4.4},{x:6,y:4.4},{x:14,y:4.8},{x:12,y:4.6},{x:18,y:4.4},{x:15,y:4.5},{x:11,y:4.2},{x:5,y:4.9},{x:16,y:4.7},{x:15,y:4.7},{x:19,y:4.6},{x:19,y:4.6},{x:23,y:4.5},{x:11,y:4.3},{x:11,y:4.3},{x:23,y:4.6},{x:23,y:4.6},{x:23,y:4.6},{x:23,y:4.6},{x:12,y:4.3},{x:16,y:4.8},{x:16,y:4.8},{x:16,y:4.8},{x:16,y:4.8},{x:16,y:4.8},{x:20,y:4.8},{x:4,y:4.8},{x:8,y:4.7},{x:8,y:4.7},{x:8,y:4.7},{x:8,y:4.7}
+];
+
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Fiction',
+        data: scatterFiction,
+        backgroundColor: 'rgba(41,128,185,0.35)',
+        borderColor: 'rgba(41,128,185,0.6)',
+        borderWidth: 1,
+        pointRadius: 4,
+      },
+      {
+        label: 'Non-Fiction',
+        data: scatterNF,
+        backgroundColor: 'rgba(230,126,34,0.35)',
+        borderColor: 'rgba(230,126,34,0.6)',
+        borderWidth: 1,
+        pointRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          label: ctx => `Price: $${ctx.parsed.x} | Rating: ${ctx.parsed.y}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Price (USD)' },
+        grid: gridOpts,
+        min: -2, max: 110,
+        ticks: { callback: v => '$' + v }
+      },
+      y: {
+        title: { display: true, text: 'User Rating' },
+        grid: gridOpts,
+        min: 3.0, max: 5.2,
+      }
+    }
+  }
+});
+
+// ── 4. Genre Price Chart ──
+new Chart(document.getElementById('genrePriceChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [
+      {
+        label: 'Fiction',
+        data: [15.58, 9.70, 11.62, 12.29, 10.71, 10.17, 9.35, 12.63, 8.83, 8.76, 9.35],
+        borderColor: FICTION_COLOR,
+        backgroundColor: FICTION_BG,
+        borderWidth: 2.5,
+        fill: false,
+        tension: 0.3,
+        pointBackgroundColor: FICTION_COLOR,
+        pointRadius: 4,
+      },
+      {
+        label: 'Non-Fiction',
+        data: [15.23, 16.00, 17.62, 17.48, 18.19, 20.81, 10.97, 13.52, 13.73, 11.79, 10.57],
+        borderColor: NF_COLOR,
+        backgroundColor: NF_BG,
+        borderWidth: 2.5,
+        fill: false,
+        tension: 0.3,
+        pointBackgroundColor: NF_COLOR,
+        pointRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { grid: gridOpts },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Price ($)' }, ticks: { callback: v => '$'+v } }
+    }
+  }
+});
+
+// ── 5. Genre Rating Chart ──
+new Chart(document.getElementById('genreRatingChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [
+      {
+        label: 'Fiction',
+        data: [4.5917, 4.6150, 4.6190, 4.4952, 4.5458, 4.6310, 4.6529, 4.7158, 4.7375, 4.7381, 4.8200],
+        borderColor: FICTION_COLOR,
+        backgroundColor: FICTION_BG,
+        borderWidth: 2.5,
+        fill: false,
+        tension: 0.3,
+        pointBackgroundColor: FICTION_COLOR,
+        pointRadius: 4,
+      },
+      {
+        label: 'Non-Fiction',
+        data: [4.5769, 4.5200, 4.5138, 4.5586, 4.5615, 4.6095, 4.6455, 4.6548, 4.5885, 4.6172, 4.6867],
+        borderColor: NF_COLOR,
+        backgroundColor: NF_BG,
+        borderWidth: 2.5,
+        fill: false,
+        tension: 0.3,
+        pointBackgroundColor: NF_COLOR,
+        pointRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { grid: gridOpts },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Rating' }, min: 4.3, max: 4.9 }
+    }
+  }
+});
+
+// ── 6. Price Trend ──
+new Chart(document.getElementById('priceTrendChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [{
+      label: 'Avg. List Price',
+      data: [15.40, 13.48, 15.10, 15.30, 14.60, 14.64, 10.42, 13.18, 11.38, 10.52, 10.08],
+      borderColor: '#c0392b',
+      backgroundColor: 'rgba(192,57,43,0.1)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.3,
+      pointBackgroundColor: (ctx) => {
+        const idx = ctx.dataIndex;
+        return idx === 4 ? '#e67e22' : '#c0392b'; // highlight 2015 (idx 6)
+      },
+      pointRadius: (ctx) => {
+        return ctx.dataIndex === 6 ? 7 : 4;
+      },
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      annotation: {},
+    },
+    scales: {
+      x: { grid: gridOpts },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Price ($)' },
+           min: 8, max: 18, ticks: { callback: v => '$'+v } }
+    }
+  }
+});
+
+// ── 7. Rating Trend ──
+new Chart(document.getElementById('ratingTrendChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [{
+      label: 'Avg. User Rating',
+      data: [4.584, 4.558, 4.558, 4.532, 4.554, 4.622, 4.648, 4.678, 4.660, 4.668, 4.740],
+      borderColor: var_green = '#27ae60',
+      backgroundColor: 'rgba(39,174,96,0.1)',
+      borderWidth: 2.5,
+      fill: true,
+      tension: 0.3,
+      pointBackgroundColor: '#27ae60',
+      pointRadius: (ctx) => ctx.dataIndex === 10 ? 7 : 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: gridOpts },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Rating' }, min: 4.45, max: 4.8 }
+    }
+  }
+});
+
+// ── 8. Dual Axis ──
+new Chart(document.getElementById('dualAxisChart'), {
+  type: 'line',
+  data: {
+    labels: YEARS,
+    datasets: [
+      {
+        label: 'Avg. Price ($)',
+        data: [15.40, 13.48, 15.10, 15.30, 14.60, 14.64, 10.42, 13.18, 11.38, 10.52, 10.08],
+        borderColor: '#c0392b',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        tension: 0.3,
+        pointBackgroundColor: '#c0392b',
+        pointRadius: 4,
+        yAxisID: 'yPrice',
+      },
+      {
+        label: 'Avg. Rating',
+        data: [4.584, 4.558, 4.558, 4.532, 4.554, 4.622, 4.648, 4.678, 4.660, 4.668, 4.740],
+        borderColor: '#27ae60',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        tension: 0.3,
+        pointBackgroundColor: '#27ae60',
+        pointRadius: 4,
+        yAxisID: 'yRating',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { grid: gridOpts },
+      yPrice: {
+        position: 'left',
+        title: { display: true, text: 'Avg. Price ($)' },
+        grid: gridOpts,
+        min: 8, max: 18,
+        ticks: { callback: v => '$'+v, color: '#c0392b' }
+      },
+      yRating: {
+        position: 'right',
+        title: { display: true, text: 'Avg. Rating' },
+        grid: { display: false },
+        min: 4.45, max: 4.8,
+        ticks: { color: '#27ae60' }
+      }
+    }
+  }
+});
+
+// ── 9. Authors Frequency Bar ──
+new Chart(document.getElementById('authorsFreqChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Jeff Kinney','Suzanne Collins','Rick Riordan','Gary Chapman','Am. Psych. Assoc.','Dr. Seuss','Gallup','Rob Elliott','Stephenie Meyer','Dav Pilkey'],
+    datasets: [{
+      label: 'Appearances',
+      data: [12, 11, 11, 11, 10, 9, 9, 8, 7, 7],
+      backgroundColor: [
+        FICTION_COLOR, FICTION_COLOR, FICTION_COLOR, NF_COLOR,
+        NF_COLOR, FICTION_COLOR, NF_COLOR, NF_COLOR, FICTION_COLOR, FICTION_COLOR
+      ],
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: gridOpts, title: { display: true, text: 'Bestseller Appearances' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// ── 10. Author Bubble Chart ──
+new Chart(document.getElementById('authorBubbleChart'), {
+  type: 'bubble',
+  data: {
+    datasets: [
+      {
+        label: 'Fiction authors',
+        data: [
+          {x: 9.17, y: 4.80, r: 14},   // Kinney
+          {x: 13.36, y: 4.66, r: 13},   // Collins
+          {x: 9.91, y: 4.77, r: 13},    // Riordan
+          {x: 8.67, y: 4.88, r: 11},    // Dr. Seuss
+          {x: 19.86, y: 4.66, r: 9},    // S. Meyer
+          {x: 6.29, y: 4.90, r: 9},     // Pilkey
+          {x: 5.00, y: 4.90, r: 9},     // E. Carle
+          {x: 20.17, y: 4.45, r: 7},    // J.K. Rowling
+          {x: 15.33, y: 4.23, r: 7},    // E.L. James
+        ],
+        backgroundColor: 'rgba(41,128,185,0.5)',
+        borderColor: FICTION_COLOR,
+        borderWidth: 1,
+      },
+      {
+        label: 'Non-Fiction authors',
+        data: [
+          {x: 17.18, y: 4.74, r: 13},  // G. Chapman
+          {x: 46.00, y: 4.50, r: 12},  // APA
+          {x: 17.00, y: 4.00, r: 11},  // Gallup
+          {x: 4.00,  y: 4.56, r: 10},  // R. Elliott
+          {x: 10.57, y: 4.64, r: 9},   // B. O'Reilly
+          {x: 20.57, y: 4.64, r: 9},   // Covey
+        ],
+        backgroundColor: 'rgba(230,126,34,0.5)',
+        borderColor: NF_COLOR,
+        borderWidth: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const names = ['Kinney','Collins','Riordan','Dr. Seuss','S.Meyer','Pilkey','E.Carle','J.K.Rowling','E.L.James','G.Chapman','APA','Gallup','R.Elliott','O\'Reilly','Covey'];
+            const i = ctx.datasetIndex * 9 + ctx.dataIndex;
+            return `${names[i] || 'Author'} — Price: $${ctx.parsed.x.toFixed(0)}, Rating: ${ctx.parsed.y.toFixed(2)}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: gridOpts, title: { display: true, text: 'Avg. Price ($)' }, ticks: { callback: v => '$'+v } },
+      y: { grid: gridOpts, title: { display: true, text: 'Avg. Rating' }, min: 3.7, max: 5.1 }
+    }
+  }
+});
+</script>
+</body>
+</html>

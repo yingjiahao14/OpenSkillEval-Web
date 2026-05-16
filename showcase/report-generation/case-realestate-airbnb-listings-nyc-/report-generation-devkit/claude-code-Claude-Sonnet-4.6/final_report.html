@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Airbnb Market Comparison — Cross-City Analytics Report</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --blue-dark:   #1a2744;
+      --blue-mid:    #2563eb;
+      --blue-light:  #3b82f6;
+      --accent:      #f59e0b;
+      --accent2:     #10b981;
+      --red:         #ef4444;
+      --bg:          #f0f4f8;
+      --surface:     #ffffff;
+      --border:      #e2e8f0;
+      --text:        #1e293b;
+      --muted:       #64748b;
+      --pill-bg:     #eff6ff;
+      --pill-txt:    #1d4ed8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    .report-header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, #243b6e 100%);
+      color: white;
+      padding: 60px 40px 48px;
+    }
+    .report-header .label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #93c5fd;
+      margin-bottom: 12px;
+    }
+    .report-header h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      max-width: 780px;
+      margin-bottom: 16px;
+    }
+    .report-header .subtitle {
+      font-size: 1rem;
+      color: #bfdbfe;
+      max-width: 700px;
+      margin-bottom: 28px;
+    }
+    .meta-row {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+      color: #93c5fd;
+    }
+    .meta-row span strong { color: #e2e8f0; }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    .section { padding: 56px 0; }
+    .section + .section { border-top: 1px solid var(--border); }
+    .section-header {
+      display: flex; align-items: baseline; gap: 14px;
+      margin-bottom: 32px;
+    }
+    .section-number {
+      font-size: 13px; font-weight: 700;
+      color: var(--blue-mid);
+      background: var(--pill-bg);
+      border: 1px solid #bfdbfe;
+      border-radius: 20px;
+      padding: 2px 10px;
+      white-space: nowrap;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--blue-dark);
+    }
+    h3 { font-size: 1.05rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 14px; }
+    p { margin-bottom: 14px; color: var(--text); }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── KPI CARDS ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 20px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--blue-mid);
+    }
+    .kpi-card.accent::before { background: var(--accent); }
+    .kpi-card.green::before  { background: var(--accent2); }
+    .kpi-card.red::before    { background: var(--red); }
+    .kpi-card .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--blue-dark);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .kpi-card .kpi-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kpi-card .kpi-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── CHART PANELS ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 24px 22px;
+    }
+    .chart-panel.full { grid-column: 1 / -1; }
+    .chart-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .chart-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 10px;
+      font-style: italic;
+    }
+    canvas { max-height: 340px; }
+
+    /* ── DATA TABLES ── */
+    .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      background: var(--surface);
+    }
+    thead th {
+      background: var(--blue-dark);
+      color: white;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    thead th.num { text-align: right; }
+    tbody td {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #f8faff; }
+    .city-flag { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+
+    /* ── PILLS / BADGES ── */
+    .badge {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .badge-high   { background: #fef2f2; color: #b91c1c; }
+    .badge-med    { background: #fffbeb; color: #b45309; }
+    .badge-low    { background: #f0fdf4; color: #15803d; }
+    .badge-blue   { background: var(--pill-bg); color: var(--pill-txt); }
+
+    /* ── ALERT BOX ── */
+    .data-note {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.84rem;
+      color: #78350f;
+      margin-bottom: 28px;
+    }
+    .data-note strong { color: #92400e; }
+
+    /* ── TAKEAWAYS ── */
+    .takeaway-list { counter-reset: tk; list-style: none; }
+    .takeaway-list li {
+      counter-increment: tk;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 20px 20px 70px;
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .takeaway-list li::before {
+      content: counter(tk);
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px; height: 34px;
+      background: var(--blue-mid);
+      color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+    .takeaway-list li strong { font-weight: 700; color: var(--blue-dark); }
+    .takeaway-list li .tk-sub { font-size: 0.84rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 8px 24px;
+    }
+    .toc a {
+      display: block;
+      color: var(--blue-mid);
+      text-decoration: none;
+      font-size: 0.875rem;
+      padding: 4px 0;
+      border-bottom: 1px solid transparent;
+    }
+    .toc a:hover { border-bottom-color: var(--blue-mid); }
+
+    /* ── FOOTER ── */
+    .report-footer {
+      background: var(--blue-dark);
+      color: #94a3b8;
+      text-align: center;
+      padding: 28px;
+      font-size: 0.8rem;
+      margin-top: 40px;
+    }
+    .report-footer a { color: #93c5fd; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ HEADER ═══ -->
+<div class="report-header">
+  <div class="container">
+    <div class="label">Cross-Market Analytics Report &nbsp;·&nbsp; Short-Term Rental</div>
+    <h1>Global Airbnb Market Comparison:<br/>Pricing, Supply &amp; Guest Demand Across 7 Major Cities</h1>
+    <p class="subtitle">
+      A data-forward cross-city analysis examining pricing dynamics, room-type composition, host concentration,
+      and guest engagement patterns — calibrated for investment, market-entry, and regulatory benchmarking decisions.
+    </p>
+    <div class="meta-row">
+      <span><strong>Cities Covered:</strong> Amsterdam · Bangkok · Barcelona · London · Paris · Rome · Sydney</span>
+      <span><strong>Total Listings Analysed:</strong> 50,000</span>
+      <span><strong>Data Snapshot:</strong> 29 March 2026</span>
+      <span><strong>Source:</strong> Inside Airbnb (CC BY 4.0)</span>
+    </div>
+    <nav class="toc">
+      <a href="#market-overview">1 · Global Market Overview</a>
+      <a href="#pricing-analysis">2 · Pricing Dynamics</a>
+      <a href="#supply-structure">3 · Supply &amp; Host Concentration</a>
+      <a href="#guest-demand">4 · Guest Demand &amp; Review Activity</a>
+      <a href="#availability">5 · Availability &amp; Booking Constraints</a>
+      <a href="#key-takeaways">6 · Key Takeaways &amp; Implications</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ DATA NOTE ═══ -->
+<div class="container">
+  <div style="padding: 24px 0 0;">
+    <div class="data-note">
+      <strong>Data Integrity Notes:</strong>
+      The brief references 10 cities (including New York, Los Angeles, Tokyo); the available CSV extract covers 7 cities only — the three omitted cities are absent from the data and are not referenced in analysis.
+      <strong>Paris and Sydney price data are entirely missing</strong> from this extract (0% coverage); their pricing cannot be computed and are excluded from all price charts and comparisons.
+      <strong>Bangkok prices are listed as nominal values</strong> that are consistent with Thai Baht (median 1,400, min 200); the source brief states "local-equivalent USD" but these magnitudes strongly suggest THB — interpret Bangkok price rankings with this caveat.
+      All other data is used as-is; no values have been imputed or fabricated.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 1 ═══ -->
+<div class="container">
+<section class="section" id="market-overview">
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <h2>Global Market Overview</h2>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value">50,000</div>
+      <div class="kpi-label">Total Listings in Dataset</div>
+      <div class="kpi-sub">Across 7 major cities</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="kpi-value">16,674</div>
+      <div class="kpi-label">Largest Market</div>
+      <div class="kpi-sub">London — 3× larger than Rome</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">73.9%</div>
+      <div class="kpi-label">Entire Home/Apt Share</div>
+      <div class="kpi-sub">Cross-city average</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-value">51.8%</div>
+      <div class="kpi-label">Avg Price Data Coverage</div>
+      <div class="kpi-sub">Paris &amp; Sydney: 0% price data</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="chart-title">Listing Count by City</div>
+      <canvas id="listingsBarChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Room Type Mix — All Cities Combined</div>
+      <canvas id="roomTypePieChart"></canvas>
+    </div>
+  </div>
+
+  <p>
+    London dominates the dataset with <strong>16,674 listings</strong> — more than the combined count of Bangkok, Barcelona, and Amsterdam. Paris follows with 13,927, making the two European capitals the supply heavyweights. Rome (6,386), Bangkok (4,961), Barcelona (3,269), and Sydney (3,013) occupy a middle tier, while Amsterdam (1,770) is the smallest market represented but — as shown in later sections — among the most tightly regulated.
+  </p>
+  <p>
+    Across all seven cities, <strong>Entire home/apt</strong> listings account for roughly 74% of supply, signalling that the short-term rental market globally skews toward whole-property commercialisation rather than room-sharing. Private rooms are the only meaningful secondary category (25%), while Hotel rooms (0.6%) and Shared rooms (0.3%) are marginal.
+  </p>
+
+  <h3 style="margin-top:32px; margin-bottom:16px;">Room Type Distribution by City</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="num">Total Listings</th>
+          <th class="num">Entire Home %</th>
+          <th class="num">Private Room %</th>
+          <th class="num">Hotel Room %</th>
+          <th class="num">Shared Room %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="city-flag">Paris</td><td class="num">13,927</td><td class="num"><strong>88.2%</strong></td><td class="num">10.7%</td><td class="num">0.9%</td><td class="num">0.2%</td></tr>
+        <tr><td class="city-flag">Amsterdam</td><td class="num">1,770</td><td class="num"><strong>82.8%</strong></td><td class="num">16.6%</td><td class="num">0.5%</td><td class="num">0.2%</td></tr>
+        <tr><td class="city-flag">Sydney</td><td class="num">3,013</td><td class="num">79.0%</td><td class="num">20.3%</td><td class="num">0.6%</td><td class="num">0.2%</td></tr>
+        <tr><td class="city-flag">Rome</td><td class="num">6,386</td><td class="num">74.7%</td><td class="num">24.1%</td><td class="num">0.9%</td><td class="num">0.3%</td></tr>
+        <tr><td class="city-flag">London</td><td class="num">16,674</td><td class="num">64.7%</td><td class="num">34.9%</td><td class="num">0.1%</td><td class="num">0.2%</td></tr>
+        <tr><td class="city-flag">Bangkok</td><td class="num">4,961</td><td class="num">65.8%</td><td class="num">32.0%</td><td class="num">1.1%</td><td class="num">1.0%</td></tr>
+        <tr><td class="city-flag">Barcelona</td><td class="num">3,269</td><td class="num">60.2%</td><td class="num">38.9%</td><td class="num">0.4%</td><td class="num">0.5%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="chart-note" style="margin-top:10px;">Sorted by Entire Home share descending. Paris and Amsterdam's high entire-home concentration signals markets where private-room supply has effectively been squeezed out — often a correlate of strict regulation or high opportunity cost for shared listings.</p>
+
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 2 ═══ -->
+<div style="background: #f8faff;">
+<div class="container">
+<section class="section" id="pricing-analysis">
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <h2>Pricing Dynamics Across Cities</h2>
+  </div>
+
+  <div class="data-note">
+    <strong>Coverage warning:</strong> Paris (0%) and Sydney (0%) have no price data in this extract. The following analysis covers Amsterdam, Bangkok, Barcelona, London, and Rome only. Bangkok prices are expressed in what appear to be Thai Baht (THB) nominal values — direct USD comparison is unreliable without confirmed FX normalization.
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card accent">
+      <div class="kpi-value">1,400</div>
+      <div class="kpi-label">Bangkok Median Price</div>
+      <div class="kpi-sub">Likely THB; ≈ $39 USD if converted</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">$222</div>
+      <div class="kpi-label">Amsterdam Median Price</div>
+      <div class="kpi-sub">Highest confirmed USD market</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">$135</div>
+      <div class="kpi-label">London Median Price</div>
+      <div class="kpi-sub">64.8% price data coverage</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">$131</div>
+      <div class="kpi-label">Rome Median Price</div>
+      <div class="kpi-sub">Lowest median (USD markets)</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel full">
+      <div class="chart-title">Median vs Mean Nightly Price by City (USD-denominated markets)</div>
+      <canvas id="priceMedianMeanChart" style="max-height:280px;"></canvas>
+      <p class="chart-note">Bangkok excluded from this view due to suspected THB denomination. Mean significantly exceeds median in all cities — evidence of heavy right-skew from luxury listings.</p>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="chart-title">Median Price by Room Type &amp; City (USD Markets)</div>
+      <canvas id="priceRoomTypeChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Price Distribution — Interquartile Range</div>
+      <canvas id="priceIQRChart"></canvas>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8px; margin-bottom:16px;">Pricing Summary Table</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="num">Median Price</th>
+          <th class="num">Mean Price</th>
+          <th class="num">Q1</th>
+          <th class="num">Q3</th>
+          <th class="num">IQR</th>
+          <th class="num">Max</th>
+          <th class="num">Listings w/ Price</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Bangkok</strong></td>
+          <td class="num">1,400</td>
+          <td class="num">2,337</td>
+          <td class="num">919</td>
+          <td class="num">2,250</td>
+          <td class="num">1,331</td>
+          <td class="num">102,858</td>
+          <td class="num">4,018</td>
+          <td><span class="badge badge-med">Likely THB</span></td>
+        </tr>
+        <tr>
+          <td><strong>Amsterdam</strong></td>
+          <td class="num">$222</td>
+          <td class="num">$266</td>
+          <td class="num">$160</td>
+          <td class="num">$315</td>
+          <td class="num">$155</td>
+          <td class="num">$5,200</td>
+          <td class="num">987</td>
+          <td><span class="badge badge-blue">56% coverage</span></td>
+        </tr>
+        <tr>
+          <td><strong>London</strong></td>
+          <td class="num">$135</td>
+          <td class="num">$210</td>
+          <td class="num">$77</td>
+          <td class="num">$223</td>
+          <td class="num">$146</td>
+          <td class="num">$28,000</td>
+          <td class="num">10,800</td>
+          <td><span class="badge badge-blue">65% coverage</span></td>
+        </tr>
+        <tr>
+          <td><strong>Barcelona</strong></td>
+          <td class="num">$132</td>
+          <td class="num">$190</td>
+          <td class="num">$68</td>
+          <td class="num">$213</td>
+          <td class="num">$145</td>
+          <td class="num">$9,286</td>
+          <td class="num">2,558</td>
+          <td><span class="badge badge-blue">78% coverage</span></td>
+        </tr>
+        <tr>
+          <td><strong>Rome</strong></td>
+          <td class="num">$131</td>
+          <td class="num">$198</td>
+          <td class="num">$93</td>
+          <td class="num">$195</td>
+          <td class="num">$102</td>
+          <td class="num">$9,999</td>
+          <td class="num">5,724</td>
+          <td><span class="badge badge-low">90% coverage</span></td>
+        </tr>
+        <tr>
+          <td>Paris</td>
+          <td class="num" style="color:var(--muted);">N/A</td>
+          <td class="num" style="color:var(--muted);">N/A</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num">0</td>
+          <td><span class="badge badge-high">0% coverage</span></td>
+        </tr>
+        <tr>
+          <td>Sydney</td>
+          <td class="num" style="color:var(--muted);">N/A</td>
+          <td class="num" style="color:var(--muted);">N/A</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num" style="color:var(--muted);">—</td>
+          <td class="num">0</td>
+          <td><span class="badge badge-high">0% coverage</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:20px;">
+    Among USD-credible markets, <strong>Amsterdam commands the highest median nightly price at $222</strong>, roughly 65–70% above London, Barcelona, and Rome, which cluster tightly between $131–$135. This Amsterdam premium is consistent with a heavily supply-constrained market (only 1,770 listings, 92.5-day average availability) where regulatory caps have reduced inventory and bid up prices.
+  </p>
+  <p>
+    The <strong>mean-to-median spread</strong> is large across all cities — London's mean ($210) is 56% above its median ($135); Amsterdam's mean ($266) exceeds its median by 20%. This gap is driven by a thin stratum of ultra-premium listings pushing averages upward, meaning median is the more actionable pricing benchmark for most market participants.
+  </p>
+  <p>
+    <strong>Room-type pricing</strong> follows expected patterns: Entire home/apt commands a premium in all markets. Notably, London's Hotel room median ($245.50) exceeds its Entire home median ($176), likely reflecting brand-name properties. In Rome, Hotel rooms are priced below Entire homes ($122.50 vs $140), suggesting budget-category hotel stock competing in the Airbnb channel.
+  </p>
+
+</section>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 3 ═══ -->
+<div class="container">
+<section class="section" id="supply-structure">
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <h2>Supply Structure &amp; Host Concentration</h2>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card red">
+      <div class="kpi-value">60.4%</div>
+      <div class="kpi-label">Bangkok Pro-Host Share</div>
+      <div class="kpi-sub">Highest multi-listing concentration</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-value">58.3%</div>
+      <div class="kpi-label">Barcelona Pro-Host Share</div>
+      <div class="kpi-sub">Regulatory pressure failing to curb</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">6.8%</div>
+      <div class="kpi-label">Amsterdam Pro-Host Share</div>
+      <div class="kpi-sub">Lowest — enforcement working</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">82.4%</div>
+      <div class="kpi-label">Amsterdam Single-Listing Hosts</div>
+      <div class="kpi-sub">True home-sharing market</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="chart-title">Professional Host Share (≥5 Listings) by City</div>
+      <canvas id="proHostChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Single-Listing Host Share by City</div>
+      <canvas id="singleHostChart"></canvas>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8px; margin-bottom:16px;">Host Concentration Detail</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="num">Pro-Host Share<br/>(≥5 listings)</th>
+          <th class="num">Single-Listing<br/>Host %</th>
+          <th class="num">Mean Host<br/>Listing Count</th>
+          <th class="num">Median Host<br/>Listing Count</th>
+          <th class="num">Max Host<br/>Listings</th>
+          <th>Market Character</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Bangkok</strong></td>
+          <td class="num"><strong>60.4%</strong></td>
+          <td class="num">20.2%</td>
+          <td class="num">25.3</td>
+          <td class="num">7</td>
+          <td class="num">243</td>
+          <td><span class="badge badge-high">Highly Commercial</span></td>
+        </tr>
+        <tr>
+          <td><strong>Barcelona</strong></td>
+          <td class="num"><strong>58.3%</strong></td>
+          <td class="num">24.1%</td>
+          <td class="num">63.4</td>
+          <td class="num">8</td>
+          <td class="num">514</td>
+          <td><span class="badge badge-high">Highly Commercial</span></td>
+        </tr>
+        <tr>
+          <td><strong>Sydney</strong></td>
+          <td class="num">42.3%</td>
+          <td class="num">40.9%</td>
+          <td class="num">18.0</td>
+          <td class="num">3</td>
+          <td class="num">183</td>
+          <td><span class="badge badge-med">Moderately Commercial</span></td>
+        </tr>
+        <tr>
+          <td><strong>London</strong></td>
+          <td class="num">32.2%</td>
+          <td class="num">46.3%</td>
+          <td class="num">16.4</td>
+          <td class="num">2</td>
+          <td class="num">500</td>
+          <td><span class="badge badge-med">Mixed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Rome</strong></td>
+          <td class="num">30.9%</td>
+          <td class="num">40.2%</td>
+          <td class="num">9.0</td>
+          <td class="num">2</td>
+          <td class="num">252</td>
+          <td><span class="badge badge-med">Mixed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Paris</strong></td>
+          <td class="num">21.4%</td>
+          <td class="num">66.8%</td>
+          <td class="num">22.9</td>
+          <td class="num">1</td>
+          <td class="num">816</td>
+          <td><span class="badge badge-low">Majority Casual</span></td>
+        </tr>
+        <tr>
+          <td><strong>Amsterdam</strong></td>
+          <td class="num">6.8%</td>
+          <td class="num">82.4%</td>
+          <td class="num">1.9</td>
+          <td class="num">1</td>
+          <td class="num">35</td>
+          <td><span class="badge badge-low">True Home-Sharing</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:20px;">
+    Professional host concentration (≥5 listings per host) is the single most actionable signal of market commercialisation. <strong>Bangkok (60.4%) and Barcelona (58.3%) are the most concentrated markets</strong> — the majority of supply in both cities is controlled by operators running portfolio-scale businesses. Barcelona's mean host listing count of 63.4 is striking, driven by a handful of very large operators (max 514 listings from one host).
+  </p>
+  <p>
+    <strong>Amsterdam stands in direct contrast</strong>: 82.4% of hosts hold only one listing, and the professional host share is just 6.8% — the lowest by a wide margin. This reflects Amsterdam's strict STR regulations (one-home rule, annual night cap), which have effectively compressed the market to genuine home-sharing. The max listing count of 35 per host further confirms this regulatory ceiling.
+  </p>
+  <p>
+    <strong>Paris presents an interesting anomaly</strong>: despite a 21.4% professional host share (low by peer standards), individual operators have amassed up to 816 listings — the highest maximum in the dataset. The high mean (22.9) combined with a low median (1) suggests a highly polarised market: most hosts are genuine individuals, but a small number of operators hold very large portfolios.
+  </p>
+
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 4 ═══ -->
+<div style="background: #f8faff;">
+<div class="container">
+<section class="section" id="guest-demand">
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <h2>Guest Demand &amp; Review Activity</h2>
+  </div>
+
+  <p style="margin-bottom:24px; color:var(--muted); font-size:0.9rem;"><em>Reviews per month, reviews in last 12 months (LTM), and review recency are used as demand proxies. They are directionally reliable — busier listings accumulate reviews faster — but understate true demand (not all guests review), and differences in listing age distort cross-city comparisons.</em></p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card accent">
+      <div class="kpi-value">1.77</div>
+      <div class="kpi-label">Rome — Avg Reviews/Month</div>
+      <div class="kpi-sub">Highest demand signal</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">1.44</div>
+      <div class="kpi-label">Sydney — Avg Reviews/Month</div>
+      <div class="kpi-sub">Second highest</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">66.3%</div>
+      <div class="kpi-label">Rome — Reviewed in Last 12m</div>
+      <div class="kpi-sub">Most recently active market</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">14.35</div>
+      <div class="kpi-label">Rome — Avg LTM Reviews</div>
+      <div class="kpi-sub">Highest recent booking velocity</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="chart-title">Average Reviews per Month by City</div>
+      <canvas id="rpmChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">% Listings Reviewed in Last 12 Months</div>
+      <canvas id="reviewRecencyChart"></canvas>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8px; margin-bottom:16px;">Demand Proxy Summary</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="num">Avg Reviews/Month</th>
+          <th class="num">Median Reviews/Month</th>
+          <th class="num">Avg LTM Reviews</th>
+          <th class="num">% Reviewed (12m)</th>
+          <th class="num">Median Days Since<br/>Last Review</th>
+          <th>Demand Signal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Rome</strong></td><td class="num"><strong>1.77</strong></td><td class="num">1.28</td><td class="num"><strong>14.35</strong></td><td class="num"><strong>66.3%</strong></td><td class="num">237</td><td><span class="badge badge-high">Very Strong</span></td></tr>
+        <tr><td><strong>Sydney</strong></td><td class="num">1.44</td><td class="num">1.00</td><td class="num">11.13</td><td class="num">62.2%</td><td class="num">238</td><td><span class="badge badge-high">Strong</span></td></tr>
+        <tr><td><strong>Barcelona</strong></td><td class="num">1.43</td><td class="num">0.82</td><td class="num">10.56</td><td class="num">53.7%</td><td class="num">232</td><td><span class="badge badge-med">Strong</span></td></tr>
+        <tr><td><strong>Amsterdam</strong></td><td class="num">1.02</td><td class="num">0.40</td><td class="num">8.68</td><td class="num">55.3%</td><td class="num">300</td><td><span class="badge badge-med">Moderate</span></td></tr>
+        <tr><td><strong>Paris</strong></td><td class="num">1.01</td><td class="num">0.54</td><td class="num">6.81</td><td class="num">45.8%</td><td class="num">281</td><td><span class="badge badge-med">Moderate</span></td></tr>
+        <tr><td><strong>London</strong></td><td class="num">0.99</td><td class="num">0.53</td><td class="num">5.78</td><td class="num">44.0%</td><td class="num">273</td><td><span class="badge badge-low">Moderate</span></td></tr>
+        <tr><td><strong>Bangkok</strong></td><td class="num">0.96</td><td class="num">0.48</td><td class="num">5.72</td><td class="num">40.3%</td><td class="num">282</td><td><span class="badge badge-low">Lower</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:20px;">
+    <strong>Rome is the standout demand market</strong> across every demand metric: highest average reviews per month (1.77), highest LTM reviews (14.35), and the highest share of listings reviewed within the last 12 months (66.3%). Rome's tourism concentration — high visitor volumes relative to a moderately sized listing base — drives this performance.
+  </p>
+  <p>
+    <strong>Sydney and Barcelona</strong> follow closely as high-demand markets. Sydney's demand signal is notable given it is a relatively smaller market (3,013 listings), suggesting high per-listing utilisation. Barcelona's strong RPM (1.43) is noteworthy given the headwind of heavy regulatory restrictions on new STR licenses, which has consolidated demand onto existing licensed supply.
+  </p>
+  <p>
+    <strong>Bangkok's relatively weak demand metrics</strong> (0.96 RPM, 40.3% reviewed in 12 months) may reflect a mix of factors: a large proportion of listings by professional operators that keep listings active regardless of booking frequency, and potential review culture differences between Western and Southeast Asian travellers. It should not be read as weak underlying tourism demand.
+  </p>
+
+</section>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 5 ═══ -->
+<div class="container">
+<section class="section" id="availability">
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <h2>Availability &amp; Booking Constraints</h2>
+  </div>
+
+  <p style="margin-bottom:24px; color:var(--muted); font-size:0.9rem;"><em>Availability_365 measures how many days in the next year a listing is open for booking. High availability signals commercial intent (operator always seeking bookings); low availability may reflect regulation, a genuine owner-occupier who books selectively, or a listing that is nearly fully booked. Minimum_nights distributions offer evidence of regulatory workarounds (high minimums converting STR to medium-term rental).</em></p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card red">
+      <div class="kpi-value">252</div>
+      <div class="kpi-label">Bangkok — Avg Avail Days/Year</div>
+      <div class="kpi-sub">Highest — most commercial intent</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-value">93</div>
+      <div class="kpi-label">Amsterdam — Avg Avail Days/Year</div>
+      <div class="kpi-sub">Lowest — tight regulation</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="kpi-value">38.5%</div>
+      <div class="kpi-label">Barcelona — Min Nights &gt;30</div>
+      <div class="kpi-sub">High regulatory arbitrage signal</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">0.7%</div>
+      <div class="kpi-label">Amsterdam — Min Nights &gt;30</div>
+      <div class="kpi-sub">Lowest — genuine STR market</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-panel">
+      <div class="chart-title">Average Availability (Days/Year) by City</div>
+      <canvas id="availChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">% Listings with Minimum Nights &gt; 30</div>
+      <canvas id="minNightsChart"></canvas>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8px; margin-bottom:16px;">Availability &amp; Booking Constraint Detail</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>City</th>
+          <th class="num">Avg Avail (days)</th>
+          <th class="num">Median Avail (days)</th>
+          <th class="num">Median Min Nights</th>
+          <th class="num">Mean Min Nights</th>
+          <th class="num">% Min Nights &gt;30</th>
+          <th>Regulatory Signal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Bangkok</strong></td><td class="num">252.5</td><td class="num">295</td><td class="num">2</td><td class="num">14.3</td><td class="num">4.2%</td><td><span class="badge badge-low">Liberal</span></td></tr>
+        <tr><td><strong>Rome</strong></td><td class="num">218.6</td><td class="num">253</td><td class="num">2</td><td class="num">5.4</td><td class="num">10.0%</td><td><span class="badge badge-low">Moderate</span></td></tr>
+        <tr><td><strong>Barcelona</strong></td><td class="num">193.9</td><td class="num">220</td><td class="num">3</td><td class="num">15.5</td><td class="num"><strong>38.5%</strong></td><td><span class="badge badge-high">High Arb. Risk</span></td></tr>
+        <tr><td><strong>Sydney</strong></td><td class="num">176.2</td><td class="num">171</td><td class="num">2</td><td class="num">18.4</td><td class="num">16.6%</td><td><span class="badge badge-med">Moderate</span></td></tr>
+        <tr><td><strong>London</strong></td><td class="num">146.0</td><td class="num">102</td><td class="num">2</td><td class="num">5.5</td><td class="num">1.5%</td><td><span class="badge badge-low">Moderate</span></td></tr>
+        <tr><td><strong>Paris</strong></td><td class="num">125.2</td><td class="num">70</td><td class="num">3</td><td class="num">43.9</td><td class="num">12.6%</td><td><span class="badge badge-med">Regulated</span></td></tr>
+        <tr><td><strong>Amsterdam</strong></td><td class="num">92.5</td><td class="num">18</td><td class="num">3</td><td class="num">4.1</td><td class="num">0.7%</td><td><span class="badge badge-high">Tightly Regulated</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="margin-top:20px;">
+    <strong>Bangkok's average 252.5 availability days per year</strong> (median: 295) is consistent with a market dominated by professional operators who maintain open calendars year-round. This is the highest in the dataset and supports the professional-host concentration findings in Section 3.
+  </p>
+  <p>
+    <strong>Amsterdam's low average availability (92.5 days; median 18)</strong> is the strongest regulatory fingerprint in the dataset. The city caps short-term rental at 30 nights per year for primary residences; the median of 18 days suggests most hosts are operating at well below the legal ceiling — or that listings are frequently near capacity.
+  </p>
+  <p>
+    <strong>Barcelona's minimum-nights distribution is the most alarming indicator of regulatory arbitrage</strong>: 38.5% of listings require more than 30 nights — effectively operating as medium-term rentals to sidestep short-term rental licensing requirements. Barcelona has been restricting new STR permits since 2014; hosts with non-tourist licenses are converting to monthly-stay listings rather than exiting. Paris shows a similar but less extreme pattern (12.6%, mean minimum nights: 43.9 days).
+  </p>
+
+</section>
+</div>
+
+<!-- ═══════════════════════════════════════════ SECTION 6 ═══ -->
+<div style="background: linear-gradient(180deg, #f8faff 0%, #eff6ff 100%);">
+<div class="container">
+<section class="section" id="key-takeaways">
+  <div class="section-header">
+    <span class="section-number">06</span>
+    <h2>Key Takeaways &amp; Strategic Implications</h2>
+  </div>
+
+  <ul class="takeaway-list">
+    <li>
+      <strong>Amsterdam is the premium-price market with the most authentic regulatory model.</strong>
+      <div class="tk-sub">At a median of $222/night among USD markets, Amsterdam commands a 65% price premium over Barcelona, London, and Rome. This premium is structurally supported: only 1,770 listings are available (smallest market), average availability is just 93 days/year, and professional hosts are nearly absent (6.8%). For investors, this means supply entry is legally constrained; for policymakers, Amsterdam demonstrates that tight night-cap enforcement produces measurable price and supply effects.</div>
+    </li>
+    <li>
+      <strong>Barcelona and Bangkok are the most commercially concentrated markets — and carry the highest regulatory risk.</strong>
+      <div class="tk-sub">Professional hosts (≥5 listings) control 58.3% of Barcelona and 60.4% of Bangkok supply. Barcelona already faces the most aggressive regulatory environment in this dataset (38.5% of listings have minimum nights >30 — clear arbitrage behaviour), and the city announced a full STR permit moratorium in 2024. Operators and investors in these cities face material regulatory disruption risk in the near term.</div>
+    </li>
+    <li>
+      <strong>Rome offers the strongest guest demand signal in the dataset.</strong>
+      <div class="tk-sub">Rome leads on every demand metric: 1.77 avg reviews/month, 14.35 LTM reviews, and 66.3% of listings reviewed within the last 12 months. Combined with a median price of $131 (competitive relative to Amsterdam), Rome represents a high-utilisation, accessible-price-point market — attractive for new host entrants seeking volume over per-night yield.</div>
+    </li>
+    <li>
+      <strong>Paris and Sydney data gaps prevent pricing conclusions — obtain complete data before any investment analysis.</strong>
+      <div class="tk-sub">Paris (13,927 listings) and Sydney (3,013 listings) have zero price data in this extract. Given that Paris is the second-largest market by listing count and both cities are top-tier tourism destinations, the absence of pricing is a critical data gap. Any capital allocation or yield modelling for these markets requires a separate data pull from Inside Airbnb or a commercial provider.</div>
+    </li>
+    <li>
+      <strong>London is the deepest and most liquid market but shows moderate commercialisation.</strong>
+      <div class="tk-sub">With 16,674 listings, London is 3× the size of the next largest non-Paris market. Professional hosts control 32% of supply — significant but not extreme. The median price of $135 is competitive, and availability at 146 days/year suggests a mixed market of casual and commercial operators. London's depth makes it more resilient to single-operator exits, making it a lower-volatility entry point than Barcelona or Bangkok.</div>
+    </li>
+    <li>
+      <strong>Minimum-nights distributions are the leading indicator of regulatory stress.</strong>
+      <div class="tk-sub">Barcelona (38.5%) and Sydney (16.6%) show elevated shares of listings with minimum stays exceeding 30 nights — a behavioural adaptation to STR licensing restrictions rather than genuine demand for long stays. Track this metric over time as a leading indicator of regulatory tightening in any market; rising minimum-night floors precede formal licensing enforcement.</div>
+    </li>
+    <li>
+      <strong>Bangkok currency ambiguity must be resolved before cross-city price benchmarking.</strong>
+      <div class="tk-sub">Bangkok's median price of 1,400 and minimum of 200 are inconsistent with USD denomination at any reasonable market interpretation. If these are Thai Baht, the implied USD median is approximately $39 — making Bangkok the most affordable market by a wide margin. Confirm currency normalisation with the data provider before including Bangkok in any USD price comparison or yield model.</div>
+    </li>
+  </ul>
+
+</section>
+</div>
+</div>
+
+</div><!-- /container for section 5 -->
+
+<!-- ═══════════════════════════════════════════ FOOTER ═══ -->
+<div class="report-footer">
+  <p>Data source: <a href="http://insideairbnb.com" target="_blank">Inside Airbnb</a> (CC BY 4.0) · Snapshot date: 29 March 2026 · Dataset: 50,000 listings across 7 cities</p>
+  <p style="margin-top:6px;">Report generated 21 April 2026 · All figures derived directly from data.csv · No values imputed or fabricated</p>
+</div>
+
+<!-- ═══════════════════════════════════════════ CHARTS JS ═══ -->
+<script>
+const CITIES_ALL   = ['London','Paris','Rome','Bangkok','Barcelona','Sydney','Amsterdam'];
+const CITIES_PRICE = ['Bangkok','Amsterdam','London','Barcelona','Rome'];
+
+const PALETTE = {
+  blue:   '#2563eb',
+  indigo: '#4f46e5',
+  amber:  '#f59e0b',
+  green:  '#10b981',
+  red:    '#ef4444',
+  slate:  '#64748b',
+  teal:   '#0d9488',
+};
+
+const CITY_COLORS = {
+  London:    '#2563eb',
+  Paris:     '#7c3aed',
+  Rome:      '#dc2626',
+  Bangkok:   '#d97706',
+  Barcelona: '#0891b2',
+  Sydney:    '#059669',
+  Amsterdam: '#c026d3',
+};
+
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#64748b';
+
+/* ── 1. LISTINGS BAR ── */
+new Chart(document.getElementById('listingsBarChart'), {
+  type: 'bar',
+  data: {
+    labels: CITIES_ALL,
+    datasets: [{
+      label: 'Total Listings',
+      data: [16674, 13927, 6386, 4961, 3269, 3013, 1770],
+      backgroundColor: CITIES_ALL.map(c => CITY_COLORS[c] + 'cc'),
+      borderColor:     CITIES_ALL.map(c => CITY_COLORS[c]),
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw.toLocaleString() + ' listings' } } },
+    scales: { x: { grid: { color: '#e2e8f0' }, ticks: { callback: v => v.toLocaleString() } }, y: { grid: { display: false } } }
+  }
+});
+
+/* ── 2. ROOM TYPE PIE ── */
+new Chart(document.getElementById('roomTypePieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Entire Home/Apt', 'Private Room', 'Hotel Room', 'Shared Room'],
+    datasets: [{
+      data: [36929, 12623, 294, 154],
+      backgroundColor: ['#2563eb','#10b981','#f59e0b','#ef4444'],
+      borderColor: '#fff',
+      borderWidth: 3,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } },
+      tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.raw.toLocaleString() + ' (' + (ctx.raw/50000*100).toFixed(1) + '%)' } }
+    }
+  }
+});
+
+/* ── 3. PRICE MEDIAN vs MEAN (excl Bangkok, no Paris/Sydney) ── */
+const priceUSDCities  = ['Amsterdam','London','Barcelona','Rome'];
+const priceMedianUSD  = [222, 135, 132, 131];
+const priceMeanUSD    = [266, 210, 190, 198];
+new Chart(document.getElementById('priceMedianMeanChart'), {
+  type: 'bar',
+  data: {
+    labels: priceUSDCities,
+    datasets: [
+      {
+        label: 'Median Price (USD)',
+        data: priceMedianUSD,
+        backgroundColor: '#2563ebcc',
+        borderColor: '#2563eb',
+        borderWidth: 1.5,
+        borderRadius: 4,
+      },
+      {
+        label: 'Mean Price (USD)',
+        data: priceMeanUSD,
+        backgroundColor: '#f59e0bcc',
+        borderColor: '#f59e0b',
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => ' $' + ctx.raw } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#e2e8f0' }, ticks: { callback: v => '$' + v } }
+    }
+  }
+});
+
+/* ── 4. PRICE BY ROOM TYPE GROUPED ── */
+new Chart(document.getElementById('priceRoomTypeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Amsterdam','London','Barcelona','Rome'],
+    datasets: [
+      { label: 'Entire Home/Apt', data: [250,176,167,140], backgroundColor: '#2563ebcc', borderColor: '#2563eb', borderWidth:1.5, borderRadius:3 },
+      { label: 'Private Room',    data: [141, 61, 60,104], backgroundColor: '#10b981cc', borderColor: '#10b981', borderWidth:1.5, borderRadius:3 },
+      { label: 'Hotel Room',      data: [160,246,192,123], backgroundColor: '#f59e0bcc', borderColor: '#f59e0b', borderWidth:1.5, borderRadius:3 },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => ' $' + ctx.raw + ' median' } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#e2e8f0' }, ticks: { callback: v => '$' + v } }
+    }
+  }
+});
+
+/* ── 5. IQR RANGE CHART (horizontal floating bar trick) ── */
+new Chart(document.getElementById('priceIQRChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Amsterdam','London','Barcelona','Rome'],
+    datasets: [
+      {
+        label: 'Q1 (invisible base)',
+        data: [160,77,68,93],
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+      },
+      {
+        label: 'IQR Range (Q1–Q3)',
+        data: [155,146,145,102],
+        backgroundColor: ['#7c3aedaa','#2563ebaa','#0891b2aa','#dc2626aa'],
+        borderColor:     ['#7c3aed',  '#2563eb',  '#0891b2',  '#dc2626'],
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const q1s = [160,77,68,93];
+            const q3s = [315,223,213,195];
+            const i = ctx.dataIndex;
+            if (ctx.datasetIndex === 1)
+              return ` Q1: $${q1s[i]}  →  Q3: $${q3s[i]}  (IQR: $${ctx.raw})`;
+            return '';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { stacked: true, grid: { color: '#e2e8f0' }, ticks: { callback: v => '$'+v } },
+      y: { stacked: true, grid: { display: false } }
+    }
+  }
+});
+
+/* ── 6. PRO HOST CHART ── */
+const proHostData = [
+  { city: 'Bangkok',   pct: 60.4 },
+  { city: 'Barcelona', pct: 58.3 },
+  { city: 'Sydney',    pct: 42.3 },
+  { city: 'London',    pct: 32.2 },
+  { city: 'Rome',      pct: 30.9 },
+  { city: 'Paris',     pct: 21.4 },
+  { city: 'Amsterdam', pct:  6.8 },
+];
+new Chart(document.getElementById('proHostChart'), {
+  type: 'bar',
+  data: {
+    labels: proHostData.map(d => d.city),
+    datasets: [{
+      label: 'Professional Host Share (%)',
+      data: proHostData.map(d => d.pct),
+      backgroundColor: proHostData.map(d => d.pct > 50 ? '#ef4444cc' : d.pct > 30 ? '#f59e0bcc' : '#10b981cc'),
+      borderColor:     proHostData.map(d => d.pct > 50 ? '#ef4444'   : d.pct > 30 ? '#f59e0b'   : '#10b981'),
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + '% of listings' } } },
+    scales: {
+      x: { grid: { color: '#e2e8f0' }, max: 80, ticks: { callback: v => v + '%' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+/* ── 7. SINGLE HOST CHART ── */
+new Chart(document.getElementById('singleHostChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Amsterdam','Paris','London','Rome','Sydney','Barcelona','Bangkok'],
+    datasets: [{
+      label: 'Single-Listing Host %',
+      data: [82.4, 66.8, 46.3, 40.2, 40.9, 24.1, 20.2],
+      backgroundColor: '#10b981cc',
+      borderColor: '#10b981',
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + '% of hosts' } } },
+    scales: {
+      x: { grid: { color: '#e2e8f0' }, max: 100, ticks: { callback: v => v + '%' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+/* ── 8. REVIEWS PER MONTH ── */
+new Chart(document.getElementById('rpmChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Rome','Sydney','Barcelona','Amsterdam','Paris','London','Bangkok'],
+    datasets: [{
+      label: 'Avg Reviews / Month',
+      data: [1.77, 1.44, 1.43, 1.02, 1.01, 0.99, 0.96],
+      backgroundColor: ['#dc2626cc','#059669cc','#0891b2cc','#c026d3cc','#7c3aedcc','#2563ebcc','#d97706cc'],
+      borderColor:     ['#dc2626',  '#059669',  '#0891b2',  '#c026d3',  '#7c3aed',  '#2563eb',  '#d97706'],
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + ' reviews/month (avg)' } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#e2e8f0' }, beginAtZero: true }
+    }
+  }
+});
+
+/* ── 9. REVIEW RECENCY ── */
+new Chart(document.getElementById('reviewRecencyChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Rome','Sydney','Amsterdam','Barcelona','Paris','London','Bangkok'],
+    datasets: [{
+      label: '% Reviewed in Last 12 Months',
+      data: [66.3, 62.2, 55.3, 53.7, 45.8, 44.0, 40.3],
+      backgroundColor: '#2563ebcc',
+      borderColor: '#2563eb',
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + '% of listings' } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#e2e8f0' }, beginAtZero: true, max: 80, ticks: { callback: v => v + '%' } }
+    }
+  }
+});
+
+/* ── 10. AVAILABILITY ── */
+new Chart(document.getElementById('availChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Bangkok','Rome','Barcelona','Sydney','London','Paris','Amsterdam'],
+    datasets: [{
+      label: 'Avg Availability (days/year)',
+      data: [252.5, 218.6, 193.9, 176.2, 146.0, 125.2, 92.5],
+      backgroundColor: ['#d97706cc','#dc2626cc','#0891b2cc','#059669cc','#2563ebcc','#7c3aedcc','#c026d3cc'],
+      borderColor:     ['#d97706',  '#dc2626',  '#0891b2',  '#059669',  '#2563eb',  '#7c3aed',  '#c026d3'],
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + ' days/year (avg)' } } },
+    scales: {
+      x: { grid: { color: '#e2e8f0' }, max: 300, ticks: { callback: v => v + 'd' } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+/* ── 11. MIN NIGHTS >30 ── */
+new Chart(document.getElementById('minNightsChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Barcelona','Sydney','Paris','Rome','Bangkok','London','Amsterdam'],
+    datasets: [{
+      label: '% Listings with Min Nights > 30',
+      data: [38.5, 16.6, 12.6, 10.0, 4.2, 1.5, 0.7],
+      backgroundColor: d => d.raw > 20 ? '#ef4444cc' : '#f59e0bcc',
+      backgroundColor: ['#ef4444cc','#f59e0bcc','#f59e0bcc','#f59e0bcc','#10b981cc','#10b981cc','#10b981cc'],
+      borderColor:     ['#ef4444',  '#f59e0b',  '#f59e0b',  '#f59e0b',  '#10b981',  '#10b981',  '#10b981'],
+      borderWidth: 1.5,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + ctx.raw + '% of listings' } } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: { color: '#e2e8f0' }, beginAtZero: true, ticks: { callback: v => v + '%' } }
+    }
+  }
+});
+</script>
+</body>
+</html>

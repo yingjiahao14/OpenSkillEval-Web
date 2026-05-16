@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</title>
+<style>
+:root{
+  --bg:#0b1220;
+  --card:#0f1b33;
+  --ink:#e5e7eb;
+  --muted:#9ca3af;
+  --accent:#60a5fa;
+  --accent2:#22c55e;
+  --warn:#f59e0b;
+  --grid:rgba(148,163,184,.18);
+  --border:rgba(148,163,184,.18);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:linear-gradient(180deg,#070b14 0%, #0b1220 55%, #070b14 100%); color:var(--ink);} 
+.container{max-width:1180px;margin:0 auto;padding:40px 20px 60px;}
+h1{font-size:34px;letter-spacing:-0.02em;margin:0 0 8px;}
+.subtitle{color:var(--muted);margin:0 0 28px;max-width:900px;line-height:1.35}
+.badges{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 22px}
+.badge{border:1px solid var(--border);color:var(--muted);padding:6px 10px;border-radius:999px;font-size:12px}
+.section{margin-top:34px}
+.section h2{margin:0 0 10px;font-size:22px}
+.section p{margin:10px 0;color:var(--ink);line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{background:rgba(15,27,51,.72); border:1px solid var(--border); border-radius:14px; padding:14px 14px 12px; box-shadow:0 12px 30px rgba(0,0,0,.28)}
+.card h3{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.kpi{font-size:30px;font-weight:800;margin:2px 0 4px}
+.kpi small{font-size:14px;color:var(--muted);font-weight:600}
+.note{color:var(--muted);font-size:13px;line-height:1.45}
+.chart{width:100%;height:auto;display:block}
+.axis{stroke:#cbd5e1;stroke-width:1;opacity:.35}
+.grid{stroke:var(--grid);stroke-width:1}
+.tick{fill:#cbd5e1;opacity:.75;font-size:11px}
+.axis-label{fill:#cbd5e1;opacity:.75;font-size:12px}
+.chart-title{fill:#e5e7eb;font-weight:700;font-size:13px}
+.bar-label{fill:#e5e7eb;font-size:11px;font-weight:700}
+.cat{fill:#cbd5e1;opacity:.8;font-size:11px}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{border-bottom:1px solid var(--border);padding:10px 8px;vertical-align:top}
+.table th{color:var(--muted);font-weight:700;text-align:left}
+.table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.table tr:hover td{background:rgba(255,255,255,.03)}
+hr.sep{border:none;border-top:1px solid var(--border);margin:18px 0}
+.callout{border-left:3px solid var(--accent);padding:10px 12px;background:rgba(96,165,250,.08);border-radius:10px;color:var(--ink)}
+.heat{width:100%;border-collapse:separate;border-spacing:6px;font-size:12px}
+.heat th{color:var(--muted);text-align:left;font-weight:700;font-size:12px}
+.heat td{padding:10px 8px;border-radius:10px;border:1px solid rgba(0,0,0,.12);text-align:center;font-variant-numeric:tabular-nums}
+.heat .rowhdr{color:var(--muted);white-space:nowrap}
+.footer{margin-top:36px;color:var(--muted);font-size:12px}
+
+@media (max-width: 980px){
+  .grid{grid-template-columns:repeat(6,1fr)}
+}
+@media (max-width: 640px){
+  .grid{grid-template-columns:repeat(1,1fr)}
+  h1{font-size:28px}
+}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Lichess Chess Game Analytics: Patterns of Victory, Openings, and Player Dynamics</h1>
+      <p class="subtitle">A comprehensive analysis of 20,058 Lichess games (Kaggle: <span style="color:var(--muted)">datasnaek/chess</span>) quantifying how color, rating gaps, openings, and time controls relate to outcomes. All statistics and figures are computed directly from <code>data.csv</code>.</p>
+      <div class="badges">
+        <span class="badge">Audience: analyst</span>
+        <span class="badge">Tone: analytical, data-forward</span>
+        <span class="badge">Dataset size: 20,058</span>
+      </div>
+    </header>
+
+    <section class="section" id="overview">
+      <h2>Dataset Overview &amp; Game Distribution</h2>
+      <div class="grid">
+        <div class="card" style="grid-column: span 3">
+          <h3>Total Games</h3>
+          <div class="kpi">20,058</div>
+          <div class="note">Rows in <code>data.csv</code></div>
+        </div>
+        <div class="card" style="grid-column: span 3">
+          <h3>Rated Share</h3>
+          <div class="kpi">80.5%</div>
+          <div class="note">Rated: 16,155 · Casual: 3,903</div>
+        </div>
+        <div class="card" style="grid-column: span 3">
+          <h3>Checkmate Rate</h3>
+          <div class="kpi">31.5%</div>
+          <div class="note">Share of games ending in <code>mate</code></div>
+        </div>
+        <div class="card" style="grid-column: span 3">
+          <h3>Avg Game Length</h3>
+          <div class="kpi">60.5 <small>turns</small></div>
+          <div class="note">Turns = half-moves (plies)</div>
+        </div>
+
+        <div class="card" style="grid-column: span 6"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="Games by Winner">
+<text x="50" y="32" class="chart-title">Games by Winner</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">0</text>
+<line x1="50" y1="226.0" x2="850" y2="226.0" class="grid"/>
+<text x="40" y="230.0" text-anchor="end" class="tick">2,000</text>
+<line x1="50" y1="182.0" x2="850" y2="182.0" class="grid"/>
+<text x="40" y="186.0" text-anchor="end" class="tick">4,000</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">6,000</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">8,000</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">10,001</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">Games</text>
+<rect x="79.33333333333334" y="50.0" width="208.00000000000003" height="220.0" rx="3" fill="#60a5fa"/>
+<text x="183.33333333333337" y="44.0" text-anchor="middle" class="bar-label">10,001</text>
+<text x="183.33333333333337" y="286" text-anchor="end" transform="rotate(-35 183.33333333333337 286)" class="cat">white</text>
+<rect x="346.0" y="69.66603339666032" width="208.00000000000003" height="200.33396660333966" rx="3" fill="#60a5fa"/>
+<text x="450.0" y="63.666033396660325" text-anchor="middle" class="bar-label">9,107</text>
+<text x="450.0" y="286" text-anchor="end" transform="rotate(-35 450.0 286)" class="cat">black</text>
+<rect x="612.6666666666667" y="249.1020897910209" width="208.00000000000003" height="20.897910208979113" rx="3" fill="#60a5fa"/>
+<text x="716.6666666666667" y="243.1020897910209" text-anchor="middle" class="bar-label">950</text>
+<text x="716.6666666666667" y="286" text-anchor="end" transform="rotate(-35 716.6666666666667 286)" class="cat">draw</text>
+</svg></div>
+        <div class="card" style="grid-column: span 6"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="Games by Victory Status">
+<text x="50" y="32" class="chart-title">Games by Victory Status</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">0</text>
+<line x1="50" y1="226.0" x2="850" y2="226.0" class="grid"/>
+<text x="40" y="230.0" text-anchor="end" class="tick">2,229</text>
+<line x1="50" y1="182.0" x2="850" y2="182.0" class="grid"/>
+<text x="40" y="186.0" text-anchor="end" class="tick">4,458</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">6,688</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">8,917</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">11,147</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">Games</text>
+<rect x="72.0" y="50.0" width="156.0" height="220.0" rx="3" fill="#22c55e"/>
+<text x="150.0" y="44.0" text-anchor="middle" class="bar-label">11,147</text>
+<text x="150.0" y="286" text-anchor="end" transform="rotate(-35 150.0 286)" class="cat">resign</text>
+<rect x="272.0" y="145.1682066923836" width="156.0" height="124.83179330761641" rx="3" fill="#22c55e"/>
+<text x="350.0" y="139.1682066923836" text-anchor="middle" class="bar-label">6,325</text>
+<text x="350.0" y="286" text-anchor="end" transform="rotate(-35 350.0 286)" class="cat">mate</text>
+<rect x="472.0" y="236.84309679734457" width="156.0" height="33.15690320265543" rx="3" fill="#22c55e"/>
+<text x="550.0" y="230.84309679734457" text-anchor="middle" class="bar-label">1,680</text>
+<text x="550.0" y="286" text-anchor="end" transform="rotate(-35 550.0 286)" class="cat">outoftime</text>
+<rect x="672.0" y="252.11895577285367" width="156.0" height="17.881044227146333" rx="3" fill="#22c55e"/>
+<text x="750.0" y="246.11895577285367" text-anchor="middle" class="bar-label">906</text>
+<text x="750.0" y="286" text-anchor="end" transform="rotate(-35 750.0 286)" class="cat">draw</text>
+</svg></div>
+      </div>
+
+      <div class="callout" style="margin-top:14px">
+        Winner counts: White 10,001, Black 9,107, Draw 950. Victory-status mix is dominated by resignations (55.6% of all games).
+      </div>
+    </section>
+
+    <section class="section" id="color-advantage">
+      <h2>White vs. Black: The First-Move Advantage</h2>
+      <p><b>Primary metric (decisive games):</b> White wins <b>52.3%</b> of decisive games (n=19,108), with a 95% Wilson confidence interval of <b>51.6%–53.0%</b>. This corresponds to a <b>+2.34</b> percentage-point advantage over a 50/50 baseline.</p>
+
+      <div class="grid">
+        <div class="card" style="grid-column: span 4">
+          <h3>Decisive Games</h3>
+          <div class="kpi">19,108</div>
+          <div class="note">Excludes 950 draws</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>White Wins</h3>
+          <div class="kpi">10,001</div>
+          <div class="note">vs Black wins 9,107</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>White Edge</h3>
+          <div class="kpi">+2.34 <small>pp</small></div>
+          <div class="note">Over 50% baseline (decisive)</div>
+        </div>
+
+        <div class="card" style="grid-column: span 6"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="White Win Rate by Time Control">
+<text x="50" y="32" class="chart-title">White Win Rate by Time Control</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">0.0%</text>
+<line x1="50" y1="226.0" x2="850" y2="226.0" class="grid"/>
+<text x="40" y="230.0" text-anchor="end" class="tick">12.0%</text>
+<line x1="50" y1="182.0" x2="850" y2="182.0" class="grid"/>
+<text x="40" y="186.0" text-anchor="end" class="tick">24.0%</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">36.0%</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">48.0%</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">60.0%</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">White win rate (decisive)</text>
+<rect x="72.0" y="74.80043149946064" width="156.0" height="195.19956850053936" rx="3" fill="#60a5fa"/>
+<text x="150.0" y="68.80043149946064" text-anchor="middle" class="bar-label">53.2%</text>
+<text x="150.0" y="286" text-anchor="end" transform="rotate(-35 150.0 286)" class="cat">Blitz</text>
+<rect x="272.0" y="79.243461892747" width="156.0" height="190.756538107253" rx="3" fill="#60a5fa"/>
+<text x="350.0" y="73.243461892747" text-anchor="middle" class="bar-label">52.0%</text>
+<text x="350.0" y="286" text-anchor="end" transform="rotate(-35 350.0 286)" class="cat">Rapid</text>
+<rect x="472.0" y="67.73484343770818" width="156.0" height="202.26515656229182" rx="3" fill="#60a5fa"/>
+<text x="550.0" y="61.73484343770818" text-anchor="middle" class="bar-label">55.2%</text>
+<text x="550.0" y="286" text-anchor="end" transform="rotate(-35 550.0 286)" class="cat">Classical</text>
+<rect x="672.0" y="73.30417881438291" width="156.0" height="196.6958211856171" rx="3" fill="#60a5fa"/>
+<text x="750.0" y="67.30417881438291" text-anchor="middle" class="bar-label">53.6%</text>
+<text x="750.0" y="286" text-anchor="end" transform="rotate(-35 750.0 286)" class="cat">Long</text>
+</svg><div class="note">Counts (decisive): Blitz n=618, Rapid n=16,646, Classical n=1,501, Long n=343.</div></div>
+        <div class="card" style="grid-column: span 6"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="White Win Rate by Rating Bracket">
+<text x="50" y="32" class="chart-title">White Win Rate by Rating Bracket</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">0.0%</text>
+<line x1="50" y1="226.0" x2="850" y2="226.0" class="grid"/>
+<text x="40" y="230.0" text-anchor="end" class="tick">12.0%</text>
+<line x1="50" y1="182.0" x2="850" y2="182.0" class="grid"/>
+<text x="40" y="186.0" text-anchor="end" class="tick">24.0%</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">36.0%</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">48.0%</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">60.0%</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">White win rate (decisive)</text>
+<rect x="61.0" y="72.56410256410254" width="78.0" height="197.43589743589746" rx="3" fill="#60a5fa"/>
+<text x="100.0" y="66.56410256410254" text-anchor="middle" class="bar-label">53.8%</text>
+<text x="100.0" y="286" text-anchor="end" transform="rotate(-35 100.0 286)" class="cat"><1000</text>
+<rect x="161.0" y="77.30189914865748" width="78.0" height="192.69810085134253" rx="3" fill="#60a5fa"/>
+<text x="200.0" y="71.30189914865748" text-anchor="middle" class="bar-label">52.6%</text>
+<text x="200.0" y="286" text-anchor="end" transform="rotate(-35 200.0 286)" class="cat">1000-1199</text>
+<rect x="261.0" y="72.7550540667607" width="78.0" height="197.2449459332393" rx="3" fill="#60a5fa"/>
+<text x="300.0" y="66.7550540667607" text-anchor="middle" class="bar-label">53.8%</text>
+<text x="300.0" y="286" text-anchor="end" transform="rotate(-35 300.0 286)" class="cat">1200-1399</text>
+<rect x="361.0" y="78.76138120597835" width="78.0" height="191.23861879402165" rx="3" fill="#60a5fa"/>
+<text x="400.0" y="72.76138120597835" text-anchor="middle" class="bar-label">52.2%</text>
+<text x="400.0" y="286" text-anchor="end" transform="rotate(-35 400.0 286)" class="cat">1400-1599</text>
+<rect x="461.0" y="78.55238523178312" width="78.0" height="191.44761476821688" rx="3" fill="#60a5fa"/>
+<text x="500.0" y="72.55238523178312" text-anchor="middle" class="bar-label">52.2%</text>
+<text x="500.0" y="286" text-anchor="end" transform="rotate(-35 500.0 286)" class="cat">1600-1799</text>
+<rect x="561.0" y="80.0606493043168" width="78.0" height="189.9393506956832" rx="3" fill="#60a5fa"/>
+<text x="600.0" y="74.0606493043168" text-anchor="middle" class="bar-label">51.8%</text>
+<text x="600.0" y="286" text-anchor="end" transform="rotate(-35 600.0 286)" class="cat">1800-1999</text>
+<rect x="661.0" y="84.90230387868182" width="78.0" height="185.09769612131817" rx="3" fill="#60a5fa"/>
+<text x="700.0" y="78.90230387868182" text-anchor="middle" class="bar-label">50.5%</text>
+<text x="700.0" y="286" text-anchor="end" transform="rotate(-35 700.0 286)" class="cat">2000-2199</text>
+<rect x="761.0" y="82.00564971751413" width="78.0" height="187.99435028248587" rx="3" fill="#60a5fa"/>
+<text x="800.0" y="76.00564971751413" text-anchor="middle" class="bar-label">51.3%</text>
+<text x="800.0" y="286" text-anchor="end" transform="rotate(-35 800.0 286)" class="cat">2200+</text>
+</svg><div class="note">Rating bracket uses mean of White/Black ratings.</div></div>
+
+        <div class="card" style="grid-column: span 12">
+          <h3>Interaction: Rating Bracket × Time Control (White Win Rate, decisive)</h3>
+          <table class="heat">
+<tr><th>Rating bracket</th><th>Blitz</th><th>Rapid</th><th>Classical</th><th>Long</th></tr>
+<tr>
+<td class="rowhdr"><1000</td>
+<td style="background:#f3f4f6" title="No games">—</td>
+<td style="background:rgb(198,185,161)" title="n=85">51.8%</td>
+<td style="background:rgb(160,128,75)" title="n=6">83.3%</td>
+<td style="background:#f3f4f6" title="No games">—</td>
+</tr>
+<tr>
+<td class="rowhdr">1000-1199</td>
+<td style="background:rgb(240,248,255)" title="n=16">37.5%</td>
+<td style="background:rgb(190,173,142)" title="n=864">53.1%</td>
+<td style="background:rgb(171,144,100)" title="n=73">56.2%</td>
+<td style="background:rgb(240,248,255)" title="n=65">44.6%</td>
+</tr>
+<tr>
+<td class="rowhdr">1200-1399</td>
+<td style="background:rgb(240,248,255)" title="n=97">43.3%</td>
+<td style="background:rgb(183,163,128)" title="n=3,107">54.2%</td>
+<td style="background:rgb(181,160,123)" title="n=266">54.5%</td>
+<td style="background:rgb(213,208,194)" title="n=75">49.3%</td>
+</tr>
+<tr>
+<td class="rowhdr">1400-1599</td>
+<td style="background:rgb(175,151,110)" title="n=166">55.4%</td>
+<td style="background:rgb(198,185,161)" title="n=5,059">51.7%</td>
+<td style="background:rgb(184,165,130)" title="n=515">54.0%</td>
+<td style="background:rgb(160,128,75)" title="n=81">59.3%</td>
+</tr>
+<tr>
+<td class="rowhdr">1600-1799</td>
+<td style="background:rgb(160,128,75)" title="n=117">61.5%</td>
+<td style="background:rgb(198,186,162)" title="n=3,972">51.7%</td>
+<td style="background:rgb(179,157,118)" title="n=321">54.8%</td>
+<td style="background:rgb(171,145,101)" title="n=41">56.1%</td>
+</tr>
+<tr>
+<td class="rowhdr">1800-1999</td>
+<td style="background:rgb(196,182,156)" title="n=144">52.1%</td>
+<td style="background:rgb(201,190,168)" title="n=2,454">51.2%</td>
+<td style="background:rgb(172,147,103)" title="n=152">55.9%</td>
+<td style="background:rgb(160,128,75)" title="n=53">66.0%</td>
+</tr>
+<tr>
+<td class="rowhdr">2000-2199</td>
+<td style="background:rgb(160,128,75)" title="n=56">60.7%</td>
+<td style="background:rgb(216,212,201)" title="n=919">48.9%</td>
+<td style="background:rgb(160,128,75)" title="n=145">57.9%</td>
+<td style="background:rgb(240,248,255)" title="n=23">43.5%</td>
+</tr>
+<tr>
+<td class="rowhdr">2200+</td>
+<td style="background:rgb(240,248,255)" title="n=22">36.4%</td>
+<td style="background:rgb(195,181,155)" title="n=186">52.2%</td>
+<td style="background:rgb(160,128,75)" title="n=23">60.9%</td>
+<td style="background:rgb(240,248,255)" title="n=5">40.0%</td>
+</tr>
+</table>
+          <div class="note">Cells show White decisive win rate; hover for sample size <code>n</code>. Empty cells indicate no games in that slice.</div>
+        </div>
+      </div>
+
+      <hr class="sep"/>
+      <p><b>By victory status (decisive only):</b></p>
+      <ul class="note">
+        <li>Mate: White 52.9% · Black 47.1%</li>
+        <li>Resign: White 52.4% · Black 47.6%</li>
+        <li>Out of time: White 49.7% · Black 50.3%</li>
+      </ul>
+      <div class="callout">Interpretation: White’s edge appears strongest in <b>Classical</b> (decisive White win rate 55.2%), and weakest in <b>Rapid</b> (52.0%) for this dataset’s time-control mix. Because this is observational data, this does not establish causality (e.g., player pool differences across time controls may contribute).</div>
+    </section>
+
+    <section class="section" id="rating-analysis">
+      <h2>Rating Dynamics and Their Impact on Outcomes</h2>
+      <div class="grid">
+        <div class="card" style="grid-column: span 4">
+          <h3>Higher-rated Wins</h3>
+          <div class="kpi">65.1%</div>
+          <div class="note">Share of decisive games where the higher-rated player wins</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>Rating-gap Correlation</h3>
+          <div class="kpi">0.230</div>
+          <div class="note">Point-biserial corr: abs(Elo diff) vs higher-rated win</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>Big-gap Example</h3>
+          <div class="kpi">89.2%</div>
+          <div class="note">Higher-rated win prob at 600+ Elo gap (binned)</div>
+        </div>
+        <div class="card" style="grid-column: span 12"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="Rating Differential Impact (Binned)">
+<text x="50" y="32" class="chart-title">Rating Differential Impact (Binned)</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">45%</text>
+<line x1="50" y1="225.99999999999997" x2="850" y2="225.99999999999997" class="grid"/>
+<text x="40" y="229.99999999999997" text-anchor="end" class="tick">55%</text>
+<line x1="50" y1="181.99999999999997" x2="850" y2="181.99999999999997" class="grid"/>
+<text x="40" y="185.99999999999997" text-anchor="end" class="tick">65%</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">75%</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">85%</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">95%</text>
+<text x="50.0" y="292" text-anchor="middle" class="tick">0–49</text>
+<text x="116.66666666666666" y="292" text-anchor="middle" class="tick">50–99</text>
+<text x="183.33333333333331" y="292" text-anchor="middle" class="tick">100–149</text>
+<text x="250.0" y="292" text-anchor="middle" class="tick">150–199</text>
+<text x="316.66666666666663" y="292" text-anchor="middle" class="tick">200–249</text>
+<text x="383.33333333333337" y="292" text-anchor="middle" class="tick">250–299</text>
+<text x="450.0" y="292" text-anchor="middle" class="tick">300–349</text>
+<text x="516.6666666666667" y="292" text-anchor="middle" class="tick">350–399</text>
+<text x="583.3333333333333" y="292" text-anchor="middle" class="tick">400–449</text>
+<text x="650.0" y="292" text-anchor="middle" class="tick">450–499</text>
+<text x="716.6666666666667" y="292" text-anchor="middle" class="tick">500–549</text>
+<text x="783.3333333333333" y="292" text-anchor="middle" class="tick">550–599</text>
+<text x="850.0" y="292" text-anchor="middle" class="tick">600+</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">Higher-rated win probability</text>
+<text x="450.0" y="310" text-anchor="middle" class="axis-label">Absolute rating gap (Elo)</text>
+<path d="M 50.00 241.09 L 116.67 211.26 L 183.33 185.66 L 250.00 173.47 L 316.67 135.96 L 383.33 138.30 L 450.00 120.77 L 516.67 104.31 L 583.33 94.86 L 650.00 100.93 L 716.67 91.03 L 783.33 89.84 L 850.00 75.73" fill="none" stroke="#22c55e" stroke-width="3"/>
+<circle cx="50.00" cy="241.09" r="4" fill="#22c55e"/>
+<circle cx="116.67" cy="211.26" r="4" fill="#22c55e"/>
+<circle cx="183.33" cy="185.66" r="4" fill="#22c55e"/>
+<circle cx="250.00" cy="173.47" r="4" fill="#22c55e"/>
+<circle cx="316.67" cy="135.96" r="4" fill="#22c55e"/>
+<circle cx="383.33" cy="138.30" r="4" fill="#22c55e"/>
+<circle cx="450.00" cy="120.77" r="4" fill="#22c55e"/>
+<circle cx="516.67" cy="104.31" r="4" fill="#22c55e"/>
+<circle cx="583.33" cy="94.86" r="4" fill="#22c55e"/>
+<circle cx="650.00" cy="100.93" r="4" fill="#22c55e"/>
+<circle cx="716.67" cy="91.03" r="4" fill="#22c55e"/>
+<circle cx="783.33" cy="89.84" r="4" fill="#22c55e"/>
+<circle cx="850.00" cy="75.73" r="4" fill="#22c55e"/>
+</svg><div class="note">Each point is a 50-Elo bin of absolute rating differences; y is the fraction of decisive games won by the higher-rated player.</div></div>
+      </div>
+
+      <hr class="sep"/>
+      <p><b>Game length by ending type (all games):</b></p>
+      <ul class="note">
+        <li>Resign: mean 53.9 turns (n=11,147)</li>
+        <li>Mate: mean 65.4 turns (n=6,325)</li>
+        <li>Out of time: mean 72.7 turns (n=1,680)</li>
+        <li>Draw: mean 83.8 turns (n=906)</li>
+      </ul>
+    </section>
+
+    <section class="section" id="opening-strategy">
+      <h2>Opening Analysis: Popular Openings and Their Success Rates</h2>
+      <p>The table below focuses on the <b>top 15 openings by frequency</b> (ECO + name). Win rates are computed on <b>decisive games only</b> within each opening (draws excluded), matching the core KPI definition used in the color-advantage section.</p>
+      <div class="card"><table class="table">
+<thead><tr><th>ECO</th><th>Opening</th><th class="num">Games</th><th class="num">Draws</th><th class="num">White win%*</th><th class="num">Black win%*</th><th class="num">White edge (pp)</th></tr></thead><tbody>
+<tr><td>A00</td><td>Van't Kruijs Opening</td><td class="num">368</td><td class="num">16</td><td class="num">35.8%</td><td class="num">64.2%</td><td class="num">-14.2</td></tr>
+<tr><td>B20</td><td>Sicilian Defense: Bowdler Attack</td><td class="num">296</td><td class="num">13</td><td class="num">42.0%</td><td class="num">58.0%</td><td class="num">-8.0</td></tr>
+<tr><td>C00</td><td>French Defense: Knight Variation</td><td class="num">271</td><td class="num">15</td><td class="num">52.7%</td><td class="num">47.3%</td><td class="num">+2.7</td></tr>
+<tr><td>B01</td><td>Scandinavian Defense: Mieses-Kotroc Variation</td><td class="num">259</td><td class="num">6</td><td class="num">64.8%</td><td class="num">35.2%</td><td class="num">+14.8</td></tr>
+<tr><td>D00</td><td>Queen's Pawn Game: Mason Attack</td><td class="num">232</td><td class="num">13</td><td class="num">53.0%</td><td class="num">47.0%</td><td class="num">+3.0</td></tr>
+<tr><td>B01</td><td>Scandinavian Defense</td><td class="num">223</td><td class="num">10</td><td class="num">42.3%</td><td class="num">57.7%</td><td class="num">-7.7</td></tr>
+<tr><td>A40</td><td>Horwitz Defense</td><td class="num">209</td><td class="num">5</td><td class="num">53.9%</td><td class="num">46.1%</td><td class="num">+3.9</td></tr>
+<tr><td>C41</td><td>Philidor Defense #3</td><td class="num">198</td><td class="num">4</td><td class="num">65.5%</td><td class="num">34.5%</td><td class="num">+15.5</td></tr>
+<tr><td>C41</td><td>Philidor Defense #2</td><td class="num">193</td><td class="num">8</td><td class="num">48.1%</td><td class="num">51.9%</td><td class="num">-1.9</td></tr>
+<tr><td>A45</td><td>Indian Game</td><td class="num">181</td><td class="num">12</td><td class="num">40.8%</td><td class="num">59.2%</td><td class="num">-9.2</td></tr>
+<tr><td>C55</td><td>Italian Game: Anti-Fried Liver Defense</td><td class="num">180</td><td class="num">10</td><td class="num">57.1%</td><td class="num">42.9%</td><td class="num">+7.1</td></tr>
+<tr><td>B50</td><td>Sicilian Defense</td><td class="num">171</td><td class="num">10</td><td class="num">46.6%</td><td class="num">53.4%</td><td class="num">-3.4</td></tr>
+<tr><td>B00</td><td>Owen Defense</td><td class="num">168</td><td class="num">9</td><td class="num">47.8%</td><td class="num">52.2%</td><td class="num">-2.2</td></tr>
+<tr><td>C20</td><td>King's Pawn Game: Wayward Queen Attack</td><td class="num">164</td><td class="num">6</td><td class="num">46.8%</td><td class="num">53.2%</td><td class="num">-3.2</td></tr>
+<tr><td>B30</td><td>Sicilian Defense: Old Sicilian</td><td class="num">159</td><td class="num">6</td><td class="num">39.2%</td><td class="num">60.8%</td><td class="num">-10.8</td></tr>
+</tbody></table><div class="note">* Win rates exclude draws for the opening-specific subset.</div></div>
+
+      <div class="callout" style="margin-top:14px">
+        Notably, <b>9</b> of the top <b>15</b> openings show Black winning more often than White among decisive games in this dataset.
+      </div>
+
+      <hr class="sep"/>
+      <p><b>Opening depth (opening_ply) vs White win rate (decisive):</b></p>
+      <ul class="note">
+        <li>0–3 plies: White 50.0%</li>
+        <li>4–5 plies: White 54.6%</li>
+        <li>6–7 plies: White 53.4%</li>
+        <li>8–9 plies: White 52.0%</li>
+        <li>10–11 plies: White 55.2%</li>
+        <li>12–15 plies: White 49.7%</li>
+        <li>16+ plies: White 52.6%</li>
+      </ul>
+      <div class="note">Caution: later-depth bins have much smaller sample sizes; interpret differences as descriptive rather than definitive.</div>
+    </section>
+
+    <section class="section" id="time-control">
+      <h2>Time Control Patterns and Game Characteristics</h2>
+      <p>Time controls are grouped using an estimated total time at 40 moves: <code>base + increment×40/60</code> minutes, then bucketed into Blitz (≤8), Rapid (≤25), Classical (≤60), and Long (&gt;60). This matches typical online chess segmentation and allows stable aggregation by <code>increment_code</code>.</p>
+      <div class="grid">
+        <div class="card" style="grid-column: span 4">
+          <h3>Rapid Share</h3>
+          <div class="kpi">86.8%</div>
+          <div class="note">Rapid games: 17,410</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>Classical Share</h3>
+          <div class="kpi">8.0%</div>
+          <div class="note">Classical games: 1,614</div>
+        </div>
+        <div class="card" style="grid-column: span 4">
+          <h3>Blitz Share</h3>
+          <div class="kpi">3.3%</div>
+          <div class="note">Blitz games: 653</div>
+        </div>
+        <div class="card" style="grid-column: span 12"><svg viewBox="0 0 900 320" class="chart" role="img" aria-label="Timeout Share by Time Control">
+<text x="50" y="32" class="chart-title">Timeout Share by Time Control</text>
+<line x1="50" y1="50" x2="50" y2="270" class="axis"/>
+<line x1="50" y1="270" x2="850" y2="270" class="axis"/>
+<line x1="50" y1="270.0" x2="850" y2="270.0" class="grid"/>
+<text x="40" y="274.0" text-anchor="end" class="tick">0.0%</text>
+<line x1="50" y1="226.0" x2="850" y2="226.0" class="grid"/>
+<text x="40" y="230.0" text-anchor="end" class="tick">3.4%</text>
+<line x1="50" y1="182.0" x2="850" y2="182.0" class="grid"/>
+<text x="40" y="186.0" text-anchor="end" class="tick">6.7%</text>
+<line x1="50" y1="138.0" x2="850" y2="138.0" class="grid"/>
+<text x="40" y="142.0" text-anchor="end" class="tick">10.1%</text>
+<line x1="50" y1="94.0" x2="850" y2="94.0" class="grid"/>
+<text x="40" y="98.0" text-anchor="end" class="tick">13.5%</text>
+<line x1="50" y1="50.0" x2="850" y2="50.0" class="grid"/>
+<text x="40" y="54.0" text-anchor="end" class="tick">16.8%</text>
+<text x="12" y="160.0" transform="rotate(-90 12 160.0)" class="axis-label">Out-of-time share</text>
+<rect x="72.0" y="50.0" width="156.0" height="220.0" rx="3" fill="#f59e0b"/>
+<text x="150.0" y="44.0" text-anchor="middle" class="bar-label">16.8%</text>
+<text x="150.0" y="286" text-anchor="end" transform="rotate(-35 150.0 286)" class="cat">Blitz</text>
+<rect x="272.0" y="158.07857553130384" width="156.0" height="111.92142446869616" rx="3" fill="#f59e0b"/>
+<text x="350.0" y="152.07857553130384" text-anchor="middle" class="bar-label">8.6%</text>
+<text x="350.0" y="286" text-anchor="end" transform="rotate(-35 350.0 286)" class="cat">Rapid</text>
+<rect x="472.0" y="223.87732342007436" width="156.0" height="46.12267657992564" rx="3" fill="#f59e0b"/>
+<text x="550.0" y="217.87732342007436" text-anchor="middle" class="bar-label">3.5%</text>
+<text x="550.0" y="286" text-anchor="end" transform="rotate(-35 550.0 286)" class="cat">Classical</text>
+<rect x="672.0" y="198.01574803149606" width="156.0" height="71.98425196850394" rx="3" fill="#f59e0b"/>
+<text x="750.0" y="192.01574803149606" text-anchor="middle" class="bar-label">5.5%</text>
+<text x="750.0" y="286" text-anchor="end" transform="rotate(-35 750.0 286)" class="cat">Long</text>
+</svg><div class="note">Timeout share is computed as the fraction of games with <code>victory_status=outoftime</code> within each time-control bucket.</div></div>
+      </div>
+    </section>
+
+    <section class="section" id="key-findings">
+      <h2>Key Findings and Strategic Takeaways</h2>
+      <div class="card">
+        <ol style="margin:0;padding-left:18px">
+          <li style="margin:10px 0;line-height:1.5">Across 19,108 decisive games, White wins 52.3% (95% CI: 51.6%–53.0%), a +2.34 percentage-point edge over 50%.</li><li style="margin:10px 0;line-height:1.5">The advantage is not uniform by time control: White’s decisive win rate is 55.2% in Classical (n=1,501) vs 52.0% in Rapid (n=16,646).</li><li style="margin:10px 0;line-height:1.5">Rating differences dominate outcomes: the higher-rated player wins 65.1% of decisive games overall, and win probability rises from 51.6% at 0–49 Elo to 89.2% at 600+ Elo (binned).</li><li style="margin:10px 0;line-height:1.5">Openings show meaningful skew within the most common lines: 9 of the top 15 openings have Black winning more than White among decisive games (e.g., A00 Van't Kruijs Opening).</li><li style="margin:10px 0;line-height:1.5">Game endings are resignation-heavy: resignations account for 55.6% of all games, while checkmates are 31.5% (all games).</li>
+        </ol>
+        <div class="note" style="margin-top:10px">All findings are descriptive summaries of the dataset; no external priors or fabricated values were used.</div>
+      </div>
+    </section>
+
+    <div class="footer">
+      Generated on 2026-05-05 (UTC). Data source: <code>/app/benchmark/data.csv</code> (20,058 games).
+    </div>
+  </div>
+</body>
+</html>
