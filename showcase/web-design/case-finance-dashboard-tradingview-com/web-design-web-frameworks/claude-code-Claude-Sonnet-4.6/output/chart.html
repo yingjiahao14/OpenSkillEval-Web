@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAPL Chart — ChartPulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.2.0/remixicon.min.css">
+<link rel="stylesheet" href="styles.css">
+<style>
+body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+/* CHART TOOLBAR */
+.chart-toolbar {
+  height: 44px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 4px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.tool-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  border: none;
+  background: none;
+  transition: all 0.15s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.tool-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tool-btn.active { color: var(--accent-blue); background: rgba(41,98,255,0.12); }
+.tool-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+.symbol-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-right: 1px solid var(--border);
+  margin-right: 8px;
+}
+.symbol-name { font-size: 14px; font-weight: 700; }
+.symbol-price { font-size: 14px; font-weight: 600; }
+.symbol-change { font-size: 13px; }
+
+/* TIME BUTTONS */
+.timeframe-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.tf-btn {
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tf-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tf-btn.active { color: var(--text-primary); background: var(--bg-hover); }
+
+/* MAIN LAYOUT */
+.chart-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* WATCHLIST SIDEBAR */
+.watchlist {
+  width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.watchlist-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.watchlist-search {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+}
+.watchlist-search:focus { border-color: var(--accent-blue); }
+.watchlist-body { flex: 1; overflow-y: auto; }
+.wl-category {
+  border-bottom: 1px solid var(--border);
+}
+.wl-cat-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.wl-cat-header:hover { background: var(--bg-hover); }
+.wl-cat-name {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wl-cat-arrow { color: var(--text-muted); font-size: 12px; transition: transform 0.2s; }
+.wl-cat-arrow.open { transform: rotate(90deg); }
+.wl-items { overflow: hidden; }
+.wl-item {
+  padding: 7px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.wl-item:hover, .wl-item.active { background: var(--bg-hover); }
+.wl-item.active .wl-sym { color: var(--accent-blue); }
+.wl-sym { font-size: 12px; font-weight: 700; }
+.wl-price { font-size: 12px; font-weight: 600; text-align: right; }
+.wl-chg { font-size: 11px; font-weight: 600; text-align: right; white-space: nowrap; }
+
+/* CHART AREA */
+.chart-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.chart-canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+.chart-svg { width: 100%; height: 100%; }
+.price-label {
+  position: absolute;
+  right: 8px;
+  padding: 2px 6px;
+  background: var(--loss);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* DETAIL PANEL */
+.detail-panel {
+  width: 300px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.detail-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-ticker { font-size: 18px; font-weight: 800; color: var(--text-primary); }
+.detail-company { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
+.detail-exchange { font-size: 11px; color: var(--text-muted); }
+.detail-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+}
+.detail-price { font-size: 26px; font-weight: 800; }
+.detail-change { font-size: 14px; font-weight: 600; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.detail-stat {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-stat:nth-child(odd) { border-right: 1px solid var(--border); }
+.detail-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.detail-stat-val { font-size: 13px; font-weight: 600; }
+
+.news-headline {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.news-headline strong { color: var(--text-primary); }
+
+.premarket-bar {
+  padding: 10px 16px;
+  background: rgba(38,166,154,0.06);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.premarket-label { font-size: 11px; color: var(--text-muted); }
+.premarket-val { font-size: 13px; font-weight: 700; color: var(--gain); }
+
+/* FINANCIALS SECTION */
+.fin-section {
+  border-top: 1px solid var(--border);
+}
+.fin-section-title {
+  padding: 10px 16px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+}
+.fin-row {
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.fin-row:last-child { border-bottom: none; }
+.fin-label { color: var(--text-secondary); }
+.fin-val { font-weight: 600; color: var(--text-primary); }
+
+/* ANNUAL/QUARTERLY TABS */
+.detail-tabs {
+  display: flex;
+  padding: 8px 16px 0;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.detail-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  background: none;
+  border-top: none; border-left: none; border-right: none;
+  transition: all 0.15s;
+}
+.detail-tab.active { color: var(--text-primary); border-bottom-color: var(--accent-blue); }
+.detail-tab:hover { color: var(--text-primary); }
+
+.perf-row {
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.perf-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gain);
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+}
+
+@media (max-width: 1024px) {
+  .watchlist { width: 200px; }
+  .detail-panel { width: 260px; }
+}
+@media (max-width: 768px) {
+  .watchlist, .detail-panel { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" style="flex-shrink:0;">
+  <div class="nav-logo">Chart<span>Pulse</span></div>
+  <div class="nav-links">
+    <a href="chart.html" class="nav-link active">Products</a>
+    <a href="markets.html" class="nav-link">Markets</a>
+    <a href="ideas.html" class="nav-link">Community</a>
+    <a href="brokers.html" class="nav-link">Brokers</a>
+    <a href="index.html" class="nav-link">Home</a>
+  </div>
+  <div class="nav-actions">
+    <button class="btn btn-ghost btn-sm">Sign in</button>
+    <button class="btn btn-primary btn-sm">Get started</button>
+  </div>
+</nav>
+
+<!-- TOOLBAR -->
+<div class="chart-toolbar">
+  <div class="symbol-display">
+    <span class="symbol-name">AAPL</span>
+    <span class="symbol-price">263.40</span>
+    <span class="symbol-change loss">−3.03 (−1.14%)</span>
+  </div>
+  <button class="tool-btn active" title="Crosshair"><i class="ri-crosshair-2-line"></i></button>
+  <button class="tool-btn" title="Cursor"><i class="ri-cursor-line"></i></button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" title="Trend Line"><i class="ri-subtract-line"></i></button>
+  <button class="tool-btn" title="Horizontal Line"><i class="ri-separator"></i></button>
+  <button class="tool-btn" title="Rectangle"><i class="ri-rectangle-line"></i></button>
+  <button class="tool-btn" title="Fibonacci"><i class="ri-git-branch-line"></i></button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" title="Text"><i class="ri-text"></i></button>
+  <button class="tool-btn" title="Measure"><i class="ri-ruler-2-line"></i></button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" title="Indicators"><i class="ri-bar-chart-2-line"></i></button>
+  <button class="tool-btn" title="Alert"><i class="ri-alarm-line"></i></button>
+  <div class="tool-sep"></div>
+  <button class="tool-btn" title="Screenshot"><i class="ri-screenshot-line"></i></button>
+  <button class="tool-btn" title="Settings"><i class="ri-settings-3-line"></i></button>
+  <div class="timeframe-bar">
+    <button class="tf-btn" onclick="setTF(this)">1D</button>
+    <button class="tf-btn" onclick="setTF(this)">5D</button>
+    <button class="tf-btn active" onclick="setTF(this)">1M</button>
+    <button class="tf-btn" onclick="setTF(this)">3M</button>
+    <button class="tf-btn" onclick="setTF(this)">6M</button>
+    <button class="tf-btn" onclick="setTF(this)">YTD</button>
+    <button class="tf-btn" onclick="setTF(this)">1Y</button>
+    <button class="tf-btn" onclick="setTF(this)">5Y</button>
+    <button class="tf-btn" onclick="setTF(this)">All</button>
+  </div>
+</div>
+
+<!-- CHART LAYOUT -->
+<div class="chart-layout">
+
+  <!-- WATCHLIST -->
+  <aside class="watchlist">
+    <div class="watchlist-header">
+      <input type="text" class="watchlist-search" placeholder="&#xF19B; Search symbols...">
+      <button class="tool-btn" title="Add symbol"><i class="ri-add-line"></i></button>
+    </div>
+    <div class="watchlist-body" id="watchlist-body">
+      <!-- Rendered by JS -->
+    </div>
+  </aside>
+
+  <!-- MAIN CHART -->
+  <main class="chart-main">
+    <div class="chart-canvas-area" id="chart-canvas">
+      <svg id="chart-svg" class="chart-svg" xmlns="http://www.w3.org/2000/svg">
+        <!-- Grid lines -->
+        <defs>
+          <pattern id="grid" width="60" height="50" patternUnits="userSpaceOnUse">
+            <path d="M 60 0 L 0 0 0 50" fill="none" stroke="#1e1e35" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+        <!-- Will be drawn by JS -->
+        <g id="candles"></g>
+        <g id="volume-bars"></g>
+        <!-- Price line -->
+        <line id="price-line" x1="0" y1="200" x2="100%" y2="200" stroke="#ef5350" stroke-width="1" stroke-dasharray="4,3"/>
+        <!-- Axis labels -->
+        <g id="y-axis-labels"></g>
+        <g id="x-axis-labels"></g>
+      </svg>
+      <div class="price-label" id="price-label" style="top:190px;">263.40</div>
+    </div>
+  </main>
+
+  <!-- DETAIL PANEL -->
+  <aside class="detail-panel">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="detail-ticker">AAPL</div>
+          <div class="detail-company">Apple Inc.</div>
+          <div class="detail-exchange">NASDAQ · USD</div>
+        </div>
+        <button class="tool-btn"><i class="ri-star-line" style="color:var(--text-secondary);"></i></button>
+      </div>
+      <div class="detail-price-row">
+        <span class="detail-price">263.40</span>
+        <span class="detail-change loss">−3.03 (−1.14%)</span>
+      </div>
+    </div>
+
+    <!-- Pre-market -->
+    <div class="premarket-bar">
+      <div>
+        <div class="premarket-label">Pre-market</div>
+        <div class="premarket-val">267.14 <span style="font-size:11px;color:var(--gain);">(+1.42%)</span></div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:10px;color:var(--text-muted);">Next Earnings</div>
+        <div style="font-size:12px;font-weight:600;color:#f5c842;">In 14 days</div>
+      </div>
+    </div>
+
+    <!-- Key stats -->
+    <div class="detail-grid">
+      <div class="detail-stat">
+        <div class="detail-stat-label">Volume</div>
+        <div class="detail-stat-val">43.32 M</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">Avg Vol (30D)</div>
+        <div class="detail-stat-val">40.70 M</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">Market Cap</div>
+        <div class="detail-stat-val">3.87 T</div>
+      </div>
+      <div class="detail-stat">
+        <div class="detail-stat-label">P/E Ratio</div>
+        <div class="detail-stat-val">28.4</div>
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <div class="news-headline">
+      <strong>Latest:</strong> Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.
+    </div>
+
+    <!-- Performance -->
+    <div class="fin-section">
+      <div class="fin-section-title">Performance</div>
+      <div class="perf-row">
+        <span class="fin-label">1 Week</span>
+        <span class="gain">+1.70%</span>
+        <div class="perf-bar" style="width:30px;"></div>
+      </div>
+      <div class="perf-row">
+        <span class="fin-label">1 Month</span>
+        <span class="gain">+4.13%</span>
+        <div class="perf-bar" style="width:50px;"></div>
+      </div>
+      <div class="perf-row">
+        <span class="fin-label">1 Year</span>
+        <span class="gain">+32.79%</span>
+        <div class="perf-bar" style="width:80px;"></div>
+      </div>
+      <div class="perf-row">
+        <span class="fin-label">Price Target (1Y)</span>
+        <span style="font-weight:600;">300.40 <span class="gain" style="font-size:11px;">(+14.05%)</span></span>
+      </div>
+    </div>
+
+    <!-- Analyst -->
+    <div class="fin-section">
+      <div class="fin-section-title">Analyst &amp; Technicals</div>
+      <div class="fin-row">
+        <span class="fin-label">Analyst Rating</span>
+        <span class="fin-val" style="color:#f5c842;">Neutral</span>
+      </div>
+      <div class="fin-row">
+        <span class="fin-label">Technicals</span>
+        <span class="fin-val" style="color:#f5c842;">Neutral</span>
+      </div>
+    </div>
+
+    <!-- Dividends -->
+    <div class="fin-section">
+      <div class="detail-tabs">
+        <button class="detail-tab active" onclick="switchDetailTab(this,'div-annual')">Annual</button>
+        <button class="detail-tab" onclick="switchDetailTab(this,'div-quarterly')">Quarterly</button>
+      </div>
+      <div id="div-annual">
+        <div class="fin-section-title">Dividends</div>
+        <div class="fin-row">
+          <span class="fin-label">Dividend Yield TTM</span>
+          <span class="fin-val">0.39%</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Payout Ratio (TTM)</span>
+          <span class="fin-val">13.03%</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Last Dividend</span>
+          <span class="fin-val">0.26</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Last Ex-Div Date</span>
+          <span class="fin-val">Feb 9, 2026</span>
+        </div>
+      </div>
+      <div id="div-quarterly" style="display:none;">
+        <div class="fin-section-title">Quarterly Dividends</div>
+        <div class="fin-row">
+          <span class="fin-label">Q4 2025 Dividend</span>
+          <span class="fin-val">0.26</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Q3 2025 Dividend</span>
+          <span class="fin-val">0.25</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Q2 2025 Dividend</span>
+          <span class="fin-val">0.25</span>
+        </div>
+        <div class="fin-row">
+          <span class="fin-label">Q1 2025 Dividend</span>
+          <span class="fin-val">0.24</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+// Watchlist data
+const watchlistData = [
+  { cat: 'Indices', icon: 'ri-global-line', items: [
+    {sym:'SPX', price:'7,041.29', chg:'+0.26%', up:true},
+    {sym:'NDQ', price:'26,333.00', chg:'+0.49%', up:true},
+    {sym:'DJI', price:'48,578.72', chg:'+0.24%', up:true},
+    {sym:'VIX', price:'17.86', chg:'−0.45%', up:false},
+  ]},
+  { cat: 'Stocks', icon: 'ri-stock-line', items: [
+    {sym:'AAPL', price:'263.40', chg:'−1.14%', up:false, active:true},
+    {sym:'TSLA', price:'388.90', chg:'−0.78%', up:false},
+    {sym:'NFLX', price:'107.79', chg:'+0.07%', up:true},
+  ]},
+  { cat: 'Futures', icon: 'ri-oil-line', items: [
+    {sym:'USOIL', price:'87.53', chg:'−6.06%', up:false},
+    {sym:'GOLD', price:'4,801.92', chg:'+0.30%', up:true},
+  ]},
+  { cat: 'Forex', icon: 'ri-exchange-dollar-line', items: [
+    {sym:'EURUSD', price:'1.17949', chg:'+0.12%', up:true},
+    {sym:'GBPUSD', price:'1.35335', chg:'+0.06%', up:true},
+  ]},
+  { cat: 'Crypto', icon: 'ri-bit-coin-line', items: [
+    {sym:'BTCUSD', price:'75,585', chg:'+0.54%', up:true},
+    {sym:'ETHUSD', price:'2,355.1', chg:'+0.25%', up:true},
+  ]},
+];
+
+const openCats = new Set(['Indices','Stocks','Futures','Forex','Crypto']);
+
+function renderWatchlist() {
+  const body = document.getElementById('watchlist-body');
+  body.innerHTML = watchlistData.map(cat => {
+    const isOpen = openCats.has(cat.cat);
+    return `
+    <div class="wl-category">
+      <div class="wl-cat-header" onclick="toggleCat('${cat.cat}')">
+        <span class="wl-cat-name"><i class="${cat.icon}"></i>${cat.cat}</span>
+        <i class="ri-arrow-right-s-line wl-cat-arrow ${isOpen ? 'open' : ''}" id="arrow-${cat.cat}"></i>
+      </div>
+      <div class="wl-items" id="cat-${cat.cat}" style="${isOpen ? '' : 'display:none;'}">
+        ${cat.items.map(item => `
+        <div class="wl-item ${item.active ? 'active' : ''}" onclick="selectSymbol('${item.sym}')">
+          <span class="wl-sym">${item.sym}</span>
+          <span class="wl-price">${item.price}</span>
+          <span class="wl-chg ${item.up ? 'gain' : 'loss'}">${item.chg}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCat(cat) {
+  if (openCats.has(cat)) {
+    openCats.delete(cat);
+  } else {
+    openCats.add(cat);
+  }
+  renderWatchlist();
+}
+
+function selectSymbol(sym) { /* would load new chart */ }
+
+// Generate candlestick chart
+function drawChart() {
+  const canvas = document.getElementById('chart-canvas');
+  const svgEl = document.getElementById('chart-svg');
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const priceMin = 220, priceMax = 290;
+  const numCandles = Math.floor((W - 60) / 10);
+  const candleWidth = 7;
+  const spacing = Math.floor((W - 60) / numCandles);
+  const volHeight = 40;
+  const chartH = H - volHeight - 20;
+  const priceRange = priceMax - priceMin;
+
+  function py(price) { return chartH - ((price - priceMin) / priceRange * chartH); }
+
+  let candles = [];
+  let price = 253;
+  for (let i = 0; i < numCandles; i++) {
+    const open = price + (Math.random() - 0.48) * 3;
+    const close = open + (Math.random() - 0.48) * 4;
+    const high = Math.max(open, close) + Math.random() * 2;
+    const low = Math.min(open, close) - Math.random() * 2;
+    price = close;
+    candles.push({ open, close, high, low, vol: 0.3 + Math.random() * 0.7 });
+  }
+  // Force last price near 263.40
+  candles[candles.length - 1].close = 263.40;
+
+  const candlesG = document.getElementById('candles');
+  const volG = document.getElementById('volume-bars');
+  candlesG.innerHTML = '';
+  volG.innerHTML = '';
+
+  candles.forEach((c, i) => {
+    const x = 8 + i * spacing + spacing / 2;
+    const isUp = c.close >= c.open;
+    const color = isUp ? '#26a69a' : '#ef5350';
+    const bodyTop = py(Math.max(c.open, c.close));
+    const bodyH = Math.max(1, Math.abs(py(c.close) - py(c.open)));
+
+    // Wick
+    const wick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    wick.setAttribute('x1', x); wick.setAttribute('x2', x);
+    wick.setAttribute('y1', py(c.high)); wick.setAttribute('y2', py(c.low));
+    wick.setAttribute('stroke', color); wick.setAttribute('stroke-width', '1');
+    candlesG.appendChild(wick);
+
+    // Body
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', x - candleWidth / 2);
+    rect.setAttribute('y', bodyTop);
+    rect.setAttribute('width', candleWidth);
+    rect.setAttribute('height', bodyH);
+    rect.setAttribute('fill', color);
+    rect.setAttribute('opacity', isUp ? '0.9' : '0.85');
+    candlesG.appendChild(rect);
+
+    // Volume
+    const volBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    const volBarH = c.vol * volHeight * 0.85;
+    volBar.setAttribute('x', x - candleWidth / 2);
+    volBar.setAttribute('y', chartH + (volHeight - volBarH));
+    volBar.setAttribute('width', candleWidth);
+    volBar.setAttribute('height', volBarH);
+    volBar.setAttribute('fill', color);
+    volBar.setAttribute('opacity', '0.4');
+    volG.appendChild(volBar);
+  });
+
+  // Price line
+  const lastPrice = 263.40;
+  const lineY = py(lastPrice);
+  document.getElementById('price-line').setAttribute('y1', lineY);
+  document.getElementById('price-line').setAttribute('y2', lineY);
+  const label = document.getElementById('price-label');
+  label.style.top = (lineY - 10) + 'px';
+
+  // Y-axis labels
+  const yLabels = document.getElementById('y-axis-labels');
+  yLabels.innerHTML = '';
+  [230, 240, 250, 260, 270, 280].forEach(p => {
+    const y = py(p);
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', W - 55);
+    text.setAttribute('y', y + 4);
+    text.setAttribute('fill', '#555577');
+    text.setAttribute('font-size', '10');
+    text.setAttribute('font-family', 'Inter, sans-serif');
+    text.textContent = p.toFixed(2);
+    yLabels.appendChild(text);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', 0); line.setAttribute('x2', W - 58);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('stroke', '#1e1e35'); line.setAttribute('stroke-width', '1');
+    yLabels.appendChild(line);
+  });
+}
+
+function setTF(btn) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  drawChart();
+}
+
+function switchDetailTab(btn, targetId) {
+  btn.closest('.detail-tabs').querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  ['div-annual','div-quarterly'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === targetId ? '' : 'none';
+  });
+}
+
+renderWatchlist();
+window.addEventListener('load', drawChart);
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>

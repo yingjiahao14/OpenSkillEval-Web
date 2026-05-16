@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration | WellStream Platform</title>
+  <meta name="description" content="Connect WellStream to your entire tech stack with automated ETL pipelines, RESTful APIs, and pre-built dashboard connectors.">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    corePlugins: { preflight: false },
+    theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+  }
+  </script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    /* ETL Flow Diagram */
+    .etl-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 2rem 1rem;
+      overflow-x: auto;
+    }
+    .etl-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .etl-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      min-width: 120px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .etl-box:hover {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 20px rgba(0, 180, 216, 0.15);
+    }
+    .etl-box-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-blue);
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+    }
+    .etl-box-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .etl-box.source {
+      border-color: rgba(108, 194, 74, 0.3);
+    }
+    .etl-box.source .etl-box-label {
+      color: var(--accent-green);
+    }
+    .etl-box.destination {
+      border-color: rgba(0, 180, 216, 0.4);
+      background: rgba(0, 180, 216, 0.08);
+    }
+    .etl-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 0.5rem;
+      flex-shrink: 0;
+    }
+    .etl-arrow-line {
+      width: 32px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-blue), rgba(0, 180, 216, 0.4));
+      position: relative;
+    }
+    .etl-arrow-line::after {
+      content: '';
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid var(--accent-blue);
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+    }
+
+    /* API Code Block */
+    .code-block {
+      background: #0a1220;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.825rem;
+      line-height: 1.7;
+    }
+    .code-header {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .code-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .code-dot.red { background: #ff5f57; }
+    .code-dot.yellow { background: #ffbd2e; }
+    .code-dot.green { background: #28c840; }
+    .code-body {
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+    }
+    .code-body .method { color: #6CC24A; font-weight: 600; }
+    .code-body .url { color: #00B4D8; }
+    .code-body .header-name { color: #A0AEC0; }
+    .code-body .header-value { color: #f0c674; }
+    .code-body .key { color: #00B4D8; }
+    .code-body .string { color: #6CC24A; }
+    .code-body .number { color: #f0c674; }
+    .code-body .comment { color: #6B7B8F; font-style: italic; }
+    .code-body .brace { color: #A0AEC0; }
+
+    /* Dashboard Mockup */
+    .dashboard-mockup {
+      background: #0a1220;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .dashboard-topbar {
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dashboard-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .dashboard-topbar-logo {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent-blue);
+    }
+    .dashboard-topbar-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .dashboard-topbar-tab {
+      font-size: 0.7rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+    .dashboard-topbar-tab.active {
+      background: rgba(0, 180, 216, 0.15);
+      color: var(--accent-blue);
+    }
+    .dashboard-body {
+      padding: 1.25rem;
+    }
+    .dashboard-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .dashboard-metric {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(0, 180, 216, 0.12);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+    .dashboard-metric-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+    .dashboard-metric-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .dashboard-metric-change {
+      font-size: 0.65rem;
+      margin-top: 0.15rem;
+    }
+    .dashboard-metric-change.up { color: var(--accent-green); }
+    .dashboard-metric-change.down { color: #e53e3e; }
+    .dashboard-chart {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(0, 180, 216, 0.08);
+      border-radius: 8px;
+      padding: 1.25rem;
+      min-height: 160px;
+      position: relative;
+      overflow: hidden;
+    }
+    .dashboard-chart-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 100px;
+      padding-top: 0.5rem;
+    }
+    .chart-bar {
+      flex: 1;
+      border-radius: 3px 3px 0 0;
+      min-width: 8px;
+      transition: height 0.4s ease;
+    }
+    .chart-bar.blue { background: linear-gradient(to top, rgba(0, 180, 216, 0.3), var(--accent-blue)); }
+    .chart-bar.green { background: linear-gradient(to top, rgba(108, 194, 74, 0.3), var(--accent-green)); }
+    .chart-axis {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+    }
+    .chart-axis span {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+    }
+
+    /* Capability list */
+    .capability-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .capability-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .capability-list li i {
+      color: var(--accent-green);
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    /* Tab panel spacing */
+    .tab-panel-header {
+      margin-bottom: 1.5rem;
+    }
+    .tab-panel-header h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+    .tab-panel-header p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      max-width: 700px;
+    }
+
+    @media (max-width: 768px) {
+      .etl-flow {
+        flex-direction: column;
+        gap: 0;
+      }
+      .etl-arrow {
+        transform: rotate(90deg);
+        padding: 0.25rem 0;
+      }
+      .dashboard-metrics {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .capability-list {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 480px) {
+      .dashboard-metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav-main" role="navigation" aria-label="Main navigation">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo"><span class="logo-well">Well</span>Stream</a>
+      <ul class="nav-links" id="navLinks">
+        <li class="nav-dropdown">
+          <a href="#" class="nav-dropdown-trigger" aria-haspopup="true" aria-expanded="false">
+            Platform <i data-lucide="chevron-down"></i>
+          </a>
+          <div class="nav-dropdown-menu">
+            <a href="platform-overview.html">Platform Overview</a>
+            <a href="security.html">Security</a>
+            <a href="integration.html" class="active">Integration</a>
+          </div>
+        </li>
+        <li><a href="#">Solutions</a></li>
+        <li><a href="#">Company</a></li>
+        <li><a href="request-demo.html" class="nav-cta">Request A Demo</a></li>
+      </ul>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle navigation menu">
+        <i data-lucide="menu"></i>
+      </button>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="animate-in">
+        <span class="hero-label">INTEGRATIONS</span>
+        <h1>Connect WellStream to Your Entire Tech Stack</h1>
+        <p>Seamlessly integrate with your existing enterprise systems through automated ETL pipelines, RESTful APIs, and pre-built dashboard connectors.</p>
+        <div class="hero-buttons">
+          <a href="request-demo.html" class="btn btn-primary">Request A Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Integration Overview -->
+    <section class="section animate-in">
+      <div style="text-align:center; margin-bottom: 3rem;">
+        <span class="section-label">HOW IT WORKS</span>
+        <h2 class="section-title">Three Paths to Integration</h2>
+        <p class="section-desc" style="margin-left:auto; margin-right:auto;">WellStream is designed to fit into your existing infrastructure, not replace it. Choose the integration method that matches your workflow, or combine all three.</p>
+      </div>
+      <div class="grid-3">
+        <div class="card" style="text-align:center;">
+          <div class="card-icon" style="margin-left:auto; margin-right:auto;">
+            <i data-lucide="workflow" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>ETL Pipelines</h3>
+          <p>Automated data movement between systems on a schedule you control.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="card-icon" style="margin-left:auto; margin-right:auto;">
+            <i data-lucide="code" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>RESTful APIs</h3>
+          <p>Programmatic real-time access for custom applications and services.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <div class="card-icon" style="margin-left:auto; margin-right:auto;">
+            <i data-lucide="layout-dashboard" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>Dashboards</h3>
+          <p>Visual insights surfaced directly without exporting data.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Integration Tabs -->
+    <section class="section animate-in">
+      <span class="section-label">DEEP DIVE</span>
+      <h2 class="section-title">Integration Methods</h2>
+      <p class="section-desc">Explore each integration pathway in detail to find the right fit for your infrastructure.</p>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="etl">ETL Pipelines</button>
+        <button class="tab-btn" data-tab="apis">APIs</button>
+        <button class="tab-btn" data-tab="dashboards">Dashboards</button>
+      </div>
+
+      <!-- Tab 1: ETL -->
+      <div class="tab-content active" data-tab-content="etl">
+        <div class="tab-panel-header">
+          <h3>Automated Extract-Transform-Load Pipelines</h3>
+          <p>Move data between WellStream and enterprise systems on schedule with managed ETL orchestration.</p>
+        </div>
+
+        <!-- ETL Flow Diagram -->
+        <div class="diagram-container" style="margin-bottom: 2rem;">
+          <div class="etl-flow">
+            <div class="etl-step">
+              <div class="etl-box source">
+                <div class="etl-box-label">Source</div>
+                <div class="etl-box-title">Source Systems</div>
+              </div>
+            </div>
+            <div class="etl-arrow"><div class="etl-arrow-line"></div></div>
+            <div class="etl-step">
+              <div class="etl-box">
+                <div class="etl-box-label">Step 1</div>
+                <div class="etl-box-title">Extract</div>
+              </div>
+            </div>
+            <div class="etl-arrow"><div class="etl-arrow-line"></div></div>
+            <div class="etl-step">
+              <div class="etl-box">
+                <div class="etl-box-label">Step 2</div>
+                <div class="etl-box-title">Transform</div>
+              </div>
+            </div>
+            <div class="etl-arrow"><div class="etl-arrow-line"></div></div>
+            <div class="etl-step">
+              <div class="etl-box">
+                <div class="etl-box-label">Step 3</div>
+                <div class="etl-box-title">Load</div>
+              </div>
+            </div>
+            <div class="etl-arrow"><div class="etl-arrow-line"></div></div>
+            <div class="etl-step">
+              <div class="etl-box destination">
+                <div class="etl-box-label">Destination</div>
+                <div class="etl-box-title">WellStream</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary);">Key Capabilities</h4>
+        <ul class="capability-list">
+          <li><i data-lucide="check-circle"></i> Scheduled batch processing</li>
+          <li><i data-lucide="check-circle"></i> Custom transformation rules</li>
+          <li><i data-lucide="check-circle"></i> Error handling and retry logic</li>
+          <li><i data-lucide="check-circle"></i> Multi-source data mapping</li>
+        </ul>
+      </div>
+
+      <!-- Tab 2: APIs -->
+      <div class="tab-content" data-tab-content="apis">
+        <div class="tab-panel-header">
+          <h3>RESTful API Access</h3>
+          <p>Real-time programmatic access for custom applications and third-party integrations.</p>
+        </div>
+
+        <!-- Code Block -->
+        <div class="code-block" style="margin-bottom: 2rem;">
+          <div class="code-header">
+            <span class="code-dot red"></span>
+            <span class="code-dot yellow"></span>
+            <span class="code-dot green"></span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.75rem;">api-request.sh</span>
+          </div>
+          <div class="code-body">
+            <div><span class="comment"># Request</span></div>
+            <div><span class="method">GET</span> <span class="url">/api/v2/wells/{well_id}/production</span></div>
+            <div><span class="header-name">Authorization:</span> <span class="header-value">Bearer {token}</span></div>
+            <br>
+            <div><span class="comment"># Response</span></div>
+            <div><span class="brace">{</span></div>
+            <div>&nbsp;&nbsp;<span class="key">"well_id"</span>: <span class="string">"WS-4521"</span>,</div>
+            <div>&nbsp;&nbsp;<span class="key">"daily_production"</span>: <span class="brace">{</span></div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"oil_bbl"</span>: <span class="number">342</span>,</div>
+            <div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"gas_mcf"</span>: <span class="number">1205</span></div>
+            <div>&nbsp;&nbsp;<span class="brace">}</span></div>
+            <div><span class="brace">}</span></div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary);">Key Capabilities</h4>
+        <ul class="capability-list">
+          <li><i data-lucide="check-circle"></i> Real-time data access</li>
+          <li><i data-lucide="check-circle"></i> Webhook notifications</li>
+          <li><i data-lucide="check-circle"></i> Rate limiting &amp; throttling</li>
+          <li><i data-lucide="check-circle"></i> OAuth 2.0 authentication</li>
+        </ul>
+      </div>
+
+      <!-- Tab 3: Dashboards -->
+      <div class="tab-content" data-tab-content="dashboards">
+        <div class="tab-panel-header">
+          <h3>Pre-Built &amp; Configurable Dashboards</h3>
+          <p>Surface insights without requiring data exports through visualization layers.</p>
+        </div>
+
+        <!-- Dashboard Mockup -->
+        <div class="dashboard-mockup" style="margin-bottom: 2rem;">
+          <div class="dashboard-topbar">
+            <div class="dashboard-topbar-left">
+              <span class="dashboard-topbar-logo">WellStream Analytics</span>
+              <div class="dashboard-topbar-tabs">
+                <span class="dashboard-topbar-tab active">Overview</span>
+                <span class="dashboard-topbar-tab">Production</span>
+                <span class="dashboard-topbar-tab">Economics</span>
+              </div>
+            </div>
+            <span style="font-size:0.65rem; color: var(--text-muted);">Live</span>
+          </div>
+          <div class="dashboard-body">
+            <div class="dashboard-metrics">
+              <div class="dashboard-metric">
+                <div class="dashboard-metric-label">Total Production</div>
+                <div class="dashboard-metric-value">12,482 <span style="font-size:0.7rem; font-weight:400; color:var(--text-muted);">bbl/d</span></div>
+                <div class="dashboard-metric-change up">+3.2% vs last week</div>
+              </div>
+              <div class="dashboard-metric">
+                <div class="dashboard-metric-label">Active Wells</div>
+                <div class="dashboard-metric-value">237</div>
+                <div class="dashboard-metric-change up">+5 this month</div>
+              </div>
+              <div class="dashboard-metric">
+                <div class="dashboard-metric-label">Avg Uptime</div>
+                <div class="dashboard-metric-value">98.7<span style="font-size:0.7rem; font-weight:400; color:var(--text-muted);">%</span></div>
+                <div class="dashboard-metric-change up">+0.4%</div>
+              </div>
+              <div class="dashboard-metric">
+                <div class="dashboard-metric-label">Alerts</div>
+                <div class="dashboard-metric-value">3</div>
+                <div class="dashboard-metric-change down">2 critical</div>
+              </div>
+            </div>
+            <div class="dashboard-chart">
+              <div class="dashboard-chart-title">Weekly Production Volume (bbl)</div>
+              <div class="chart-bars">
+                <div class="chart-bar blue" style="height:65%"></div>
+                <div class="chart-bar green" style="height:45%"></div>
+                <div class="chart-bar blue" style="height:72%"></div>
+                <div class="chart-bar green" style="height:55%"></div>
+                <div class="chart-bar blue" style="height:80%"></div>
+                <div class="chart-bar green" style="height:60%"></div>
+                <div class="chart-bar blue" style="height:68%"></div>
+                <div class="chart-bar green" style="height:50%"></div>
+                <div class="chart-bar blue" style="height:85%"></div>
+                <div class="chart-bar green" style="height:70%"></div>
+                <div class="chart-bar blue" style="height:90%"></div>
+                <div class="chart-bar green" style="height:75%"></div>
+                <div class="chart-bar blue" style="height:78%"></div>
+                <div class="chart-bar green" style="height:62%"></div>
+                <div class="chart-bar blue" style="height:88%"></div>
+                <div class="chart-bar green" style="height:68%"></div>
+                <div class="chart-bar blue" style="height:92%"></div>
+                <div class="chart-bar green" style="height:80%"></div>
+                <div class="chart-bar blue" style="height:70%"></div>
+                <div class="chart-bar green" style="height:58%"></div>
+              </div>
+              <div class="chart-axis">
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+                <span>Sun</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-primary);">Key Capabilities</h4>
+        <ul class="capability-list">
+          <li><i data-lucide="check-circle"></i> Drag-and-drop widgets</li>
+          <li><i data-lucide="check-circle"></i> Real-time data refresh</li>
+          <li><i data-lucide="check-circle"></i> Role-based views</li>
+          <li><i data-lucide="check-circle"></i> Export to PDF/Excel</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ETL Key Benefits -->
+    <section class="section animate-in">
+      <div style="text-align:center; margin-bottom: 3rem;">
+        <span class="section-label">ETL BENEFITS</span>
+        <h2 class="section-title">Purpose-Built for Energy Data</h2>
+        <p class="section-desc" style="margin-left:auto; margin-right:auto;">Our ETL pipelines are designed for the unique demands of upstream oil and gas data workflows.</p>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-icon">
+            <i data-lucide="database" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>Read-Only Snowflake Access</h3>
+          <p>Query your WellStream data directly in Snowflake without impacting production performance.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">
+            <i data-lucide="bar-chart-3" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>Supports BI Warehousing</h3>
+          <p>Feed Power BI, Tableau, or Spotfire with clean, structured energy data pipelines.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">
+            <i data-lucide="git-branch" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>Handles Complex Use Cases</h3>
+          <p>Map multi-source data from SCADA, accounting, and regulatory systems into unified schemas.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">
+            <i data-lucide="network" style="width:24px;height:24px;"></i>
+          </div>
+          <h3>Improves System Interoperability</h3>
+          <p>Bridge legacy databases and modern cloud applications with managed ETL orchestration.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo" style="margin-bottom:0.5rem;"><span class="logo-well">Well</span>Stream</a>
+        <p>The modern data platform purpose-built for upstream oil and gas operations.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <ul>
+          <li><a href="platform-overview.html">Platform Overview</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="integration.html">Integration</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Solutions</h4>
+        <ul>
+          <li><a href="#">Production Optimization</a></li>
+          <li><a href="#">Regulatory Compliance</a></li>
+          <li><a href="#">Asset Management</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Cookie Policy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 WellStream. All rights reserved.</span>
+      <span>Houston, TX</span>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Tab switching
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-tab');
+
+        // Remove active from all buttons and contents
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+
+        // Add active to clicked button and matching content
+        btn.classList.add('active');
+        const targetContent = document.querySelector(`[data-tab-content="${target}"]`);
+        if (targetContent) {
+          targetContent.classList.add('active');
+        }
+
+        // Re-initialize icons in newly visible tab content
+        lucide.createIcons();
+      });
+    });
+
+    // Mobile navigation toggle
+    const mobileToggle = document.getElementById('mobileToggle');
+    const navLinks = document.getElementById('navLinks');
+
+    mobileToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('open');
+      const isOpen = navLinks.classList.contains('open');
+      mobileToggle.innerHTML = isOpen
+        ? '<i data-lucide="x"></i>'
+        : '<i data-lucide="menu"></i>';
+      lucide.createIcons();
+    });
+
+    // Scroll animation observer for .animate-in elements
+    const animateObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          animateObserver.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.1,
+      rootMargin: '0px 0px -40px 0px'
+    });
+
+    document.querySelectorAll('.animate-in').forEach(el => {
+      animateObserver.observe(el);
+    });
+  </script>
+
+</body>
+</html>

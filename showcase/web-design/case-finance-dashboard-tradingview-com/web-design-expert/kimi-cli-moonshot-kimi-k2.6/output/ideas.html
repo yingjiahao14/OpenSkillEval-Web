@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Ideas — ChartPulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .ideas-hero { padding: var(--space-12) 0; background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%); }
+  .ideas-hero h1 { font-size: var(--text-3xl); font-weight: 700; margin-bottom: var(--space-3); }
+  .ideas-hero p { color: var(--color-text-secondary); max-width: 600px; }
+
+  .filters-bar { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); padding: var(--space-3) 0; position: sticky; top: 56px; z-index: 40; }
+  .filters-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+  .filters-left { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+  .filters-right { display: flex; align-items: center; gap: var(--space-3); }
+
+  .search-box {
+    display: flex; align-items: center; gap: var(--space-2);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    min-width: 240px;
+  }
+  .search-box input { background: transparent; border: none; outline: none; color: var(--color-text-primary); font-size: var(--text-sm); width: 100%; }
+  .search-box input::placeholder { color: var(--color-text-muted); }
+
+  .toggle-videos {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-sm); color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .toggle-switch {
+    width: 36px; height: 20px; border-radius: 10px;
+    background: var(--color-bg-surface);
+    position: relative; transition: background var(--transition-fast);
+  }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--color-text-primary);
+    transition: transform var(--transition-fast);
+  }
+  .toggle-videos.active .toggle-switch { background: var(--color-accent); }
+  .toggle-videos.active .toggle-switch::after { transform: translateX(16px); }
+
+  .idea-feed { padding: var(--space-8) 0; }
+  .feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--space-4); }
+
+  .feed-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color var(--transition-fast);
+  }
+  .feed-card:hover { border-color: var(--color-border-hover); }
+  .feed-card .card-visual {
+    height: 180px; background: var(--color-bg-tertiary);
+    position: relative; overflow: hidden;
+  }
+  .feed-card .card-visual img { width: 100%; height: 100%; object-fit: cover; }
+  .feed-card .card-visual .play-btn {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    background: rgba(0,0,0,0.3);
+  }
+  .feed-card .card-visual .play-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--color-accent); display: grid; place-items: center; color: white; font-size: var(--text-lg); }
+  .feed-card .card-body { padding: var(--space-4); }
+  .feed-card .author-row { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .feed-card .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--color-accent); display: grid; place-items: center; font-weight: 700; font-size: var(--text-xs); color: var(--color-text-inverse); }
+  .feed-card .author-info { font-size: var(--text-sm); }
+  .feed-card .author-name { font-weight: 600; }
+  .feed-card .author-handle { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .feed-card .idea-title { font-weight: 600; margin-bottom: var(--space-2); line-height: 1.4; }
+  .feed-card .idea-desc { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.5; margin-bottom: var(--space-3); }
+  .feed-card .idea-tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-3); }
+  .feed-card .tag { padding: 2px var(--space-2); background: var(--color-bg-tertiary); border-radius: var(--radius-sm); font-size: var(--text-xs); color: var(--color-text-muted); }
+  .feed-card .idea-footer { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-3); border-top: 1px solid var(--color-border); font-size: var(--text-xs); color: var(--color-text-muted); }
+  .feed-card .idea-footer .side { font-weight: 600; }
+  .feed-card .idea-footer .side.long { color: var(--color-positive); }
+  .feed-card .idea-footer .side.short { color: var(--color-negative); }
+
+  .pagination { display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-8) 0; }
+  .page-btn {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm); font-weight: 500;
+    color: var(--color-text-muted);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    min-width: 36px; text-align: center;
+  }
+  .page-btn:hover { border-color: var(--color-border-hover); color: var(--color-text-primary); }
+  .page-btn.active { background: var(--color-accent); color: var(--color-text-inverse); border-color: var(--color-accent); }
+
+  .footer { background: var(--color-bg-secondary); border-top: 1px solid var(--color-border); padding: var(--space-12) 0 var(--space-8); }
+  .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-8); }
+  .footer-col h4 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-4); color: var(--color-text-primary); }
+  .footer-col a { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); transition: color var(--transition-fast); }
+  .footer-col a:hover { color: var(--color-text-primary); }
+  .footer-bottom { margin-top: var(--space-10); padding-top: var(--space-6); border-top: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+  .footer-brand { font-weight: 700; font-size: var(--text-lg); }
+  .footer-copy { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .top-nav { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; z-index: 50; }
+  .top-nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .top-nav .logo { font-weight: 700; font-size: var(--text-lg); display: flex; align-items: center; gap: var(--space-2); }
+  .top-nav .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); }
+  .top-nav-links { display: flex; gap: var(--space-1); }
+  .top-nav-links a { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); font-weight: 500; color: var(--color-text-muted); border-radius: var(--radius-sm); transition: all var(--transition-fast); }
+  .top-nav-links a:hover, .top-nav-links a.active { color: var(--color-text-primary); background: var(--color-bg-elevated); }
+  .top-nav-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+  .video-only .feed-card:not(.has-video) { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="top-nav">
+  <div class="container top-nav-inner">
+    <a href="index.html" class="logo"><span class="logo-dot"></span>ChartPulse</a>
+    <div class="top-nav-links hide-md">
+      <a href="index.html">Home</a>
+      <a href="chart.html">Products</a>
+      <a href="ideas.html" class="active">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="top-nav-actions">
+      <button class="btn btn-ghost hide-sm">Sign in</button>
+      <button class="btn btn-primary">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="ideas-hero">
+  <div class="container">
+    <h1>Trading Ideas</h1>
+    <p>Discover technical analysis, trade setups, and market insights from our community of 100 million traders and investors.</p>
+  </div>
+</section>
+
+<!-- Filters -->
+<div class="filters-bar">
+  <div class="container filters-inner">
+    <div class="filters-left">
+      <div class="tabs" id="ideasTabs">
+        <button class="tab active" data-tab="popular">Popular</button>
+        <button class="tab" data-tab="editors">Editor's Picks</button>
+        <button class="tab" data-tab="following">Following</button>
+      </div>
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" placeholder="Search ideas, symbols, authors...">
+      </div>
+    </div>
+    <div class="filters-right">
+      <label class="toggle-videos" id="videoToggle">
+        <span class="toggle-switch"></span>
+        <span>Videos only</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- Feed -->
+<section class="idea-feed">
+  <div class="container">
+    <div class="feed-grid" id="feedGrid">
+      <!-- Card 1 -->
+      <div class="feed-card has-video">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,140 40,130 80,135 120,110 160,115 200,90 240,95 280,70 320,75 360,50 400,55" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <polyline points="0,150 40,145 80,148 120,140 160,142 200,130 240,132 280,120 320,122 360,110 400,112" fill="none" stroke="#2962FF" stroke-width="2" stroke-dasharray="4 4"/>
+          </svg>
+          <div class="play-btn"><div class="play-icon">▶</div></div>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">AK</div>
+            <div class="author-info">
+              <div class="author-name">Alex K.</div>
+              <div class="author-handle">@alextrades · 2h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">AAPL breakout setup forming on daily timeframe</div>
+          <div class="idea-desc">Clean ascending triangle with resistance at 268. Volume building on each test. Target 275 on confirmed breakout.</div>
+          <div class="idea-tags"><span class="tag">AAPL</span><span class="tag">Breakout</span><span class="tag">Daily</span></div>
+          <div class="idea-footer">
+            <span>👍 1.2K · 💬 89</span>
+            <span class="side long">Long</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 2 -->
+      <div class="feed-card">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,60 40,70 80,65 120,90 160,85 200,110 240,105 280,130 320,125 360,150 400,145" fill="none" stroke="#ef4444" stroke-width="2"/>
+            <line x1="0" y1="100" x2="400" y2="100" stroke="#444" stroke-width="1" stroke-dasharray="4 4"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">MR</div>
+            <div class="author-info">
+              <div class="author-name">Maria R.</div>
+              <div class="author-handle">@mariafx · 4h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">EURUSD support test at 1.1780 — potential reversal zone</div>
+          <div class="idea-desc">Price approaching key daily support confluence with 200 SMA. Bullish divergence on RSI 4H. Watching for a bounce.</div>
+          <div class="idea-tags"><span class="tag">EURUSD</span><span class="tag">Forex</span><span class="tag">Support</span></div>
+          <div class="idea-footer">
+            <span>👍 856 · 💬 42</span>
+            <span class="side long">Long</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 3 -->
+      <div class="feed-card has-video">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,120 40,115 80,110 120,100 160,95 200,80 240,75 280,60 320,55 360,45 400,40" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <rect x="300" y="30" width="60" height="40" fill="none" stroke="#2962FF" stroke-width="2" rx="4"/>
+          </svg>
+          <div class="play-btn"><div class="play-icon">▶</div></div>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">JD</div>
+            <div class="author-info">
+              <div class="author-name">James D.</div>
+              <div class="author-handle">@jdcrypto · 6h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">BTC ascending triangle targets 78K on confirmed breakout</div>
+          <div class="idea-desc">Higher lows compressing into resistance. Measured move suggests 78K target. Invalidation below 73.5K.</div>
+          <div class="idea-tags"><span class="tag">BTC</span><span class="tag">Crypto</span><span class="tag">Triangle</span></div>
+          <div class="idea-footer">
+            <span>👍 2.1K · 💬 156</span>
+            <span class="side long">Long</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 4 -->
+      <div class="feed-card">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,80 40,85 80,75 120,90 160,80 200,95 240,85 280,100 320,90 360,105 400,95" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <line x1="200" y1="0" x2="200" y2="180" stroke="#444" stroke-width="1" stroke-dasharray="4 4"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">SL</div>
+            <div class="author-info">
+              <div class="author-name">Sarah L.</div>
+              <div class="author-handle">@sarahstocks · 8h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">NVDA pullback to 20 EMA — watching for bounce</div>
+          <div class="idea-desc">Strong uptrend intact. Pullback to 20 EMA on daily offers a low-risk entry. Stop below 190.</div>
+          <div class="idea-tags"><span class="tag">NVDA</span><span class="tag">EMA</span><span class="tag">Pullback</span></div>
+          <div class="idea-footer">
+            <span>👍 643 · 💬 31</span>
+            <span class="side long">Long</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 5 -->
+      <div class="feed-card">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,50 40,55 80,60 120,70 160,75 200,90 240,100 280,115 320,125 360,140 400,150" fill="none" stroke="#ef4444" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">TC</div>
+            <div class="author-info">
+              <div class="author-name">Tom C.</div>
+              <div class="author-handle">@tomcommodities · 10h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">Crude oil breakdown — targeting 82 support</div>
+          <div class="idea-desc">Bear flag breakdown on 4H with increasing volume. Next major support cluster at 82-83 zone.</div>
+          <div class="idea-tags"><span class="tag">USOIL</span><span class="tag">Commodities</span><span class="tag">Breakdown</span></div>
+          <div class="idea-footer">
+            <span>👍 432 · 💬 28</span>
+            <span class="side short">Short</span>
+          </div>
+        </div>
+      </div>
+      <!-- Card 6 -->
+      <div class="feed-card has-video">
+        <div class="card-visual">
+          <svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+            <rect width="400" height="180" fill="#1a1a2e"/>
+            <polyline points="0,140 40,135 80,138 120,125 160,128 200,115 240,118 280,105 320,108 360,95 400,98" fill="none" stroke="#22c55e" stroke-width="2"/>
+            <polyline points="0,150 40,148 80,149 120,145 160,146 200,140 240,141 280,135 320,136 360,130 400,131" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 4"/>
+          </svg>
+          <div class="play-btn"><div class="play-icon">▶</div></div>
+        </div>
+        <div class="card-body">
+          <div class="author-row">
+            <div class="avatar">LW</div>
+            <div class="author-info">
+              <div class="author-name">Lisa W.</div>
+              <div class="author-handle">@lisatech · 12h ago</div>
+            </div>
+          </div>
+          <div class="idea-title">TSLA double bottom at 380 — reversal incoming?</div>
+          <div class="idea-desc">Two distinct lows with bullish RSI divergence. Neckline at 395. Target 410 on confirmed break.</div>
+          <div class="idea-tags"><span class="tag">TSLA</span><span class="tag">Reversal</span><span class="tag">Pattern</span></div>
+          <div class="idea-footer">
+            <span>👍 987 · 💬 67</span>
+            <span class="side long">Long</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <button class="page-btn">←</button>
+      <button class="page-btn active">1</button>
+      <button class="page-btn">2</button>
+      <button class="page-btn">3</button>
+      <button class="page-btn">4</button>
+      <button class="page-btn">5</button>
+      <button class="page-btn">→</button>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="chart.html">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="ideas.html">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="markets.html">Stocks</a>
+        <a href="markets.html">ETFs</a>
+        <a href="markets.html">Crypto</a>
+        <a href="markets.html">Forex</a>
+        <a href="markets.html">Futures</a>
+        <a href="markets.html">Bonds</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="brokers.html">Top Brokers</a>
+        <a href="brokers.html">Broker Comparison</a>
+        <a href="brokers.html">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-brand">ChartPulse</div>
+      <div class="footer-copy">© 2026 ChartPulse. Every trade a #ChartPulse trade.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Tab switching
+  document.getElementById('ideasTabs').addEventListener('click', e => {
+    if (e.target.classList.contains('tab')) {
+      document.querySelectorAll('#ideasTabs .tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+    }
+  });
+
+  // Video toggle
+  const videoToggle = document.getElementById('videoToggle');
+  const feedGrid = document.getElementById('feedGrid');
+  videoToggle.addEventListener('click', () => {
+    videoToggle.classList.toggle('active');
+    feedGrid.classList.toggle('video-only');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAPL — Apple Inc — ChartPulse</title>
+<meta name="description" content="Advanced charting workspace for AAPL — Apple Inc. Real-time candlestick charts, watchlist, financials, and technical analysis.">
+<link rel="stylesheet" href="styles.css">
+<style>
+.chart-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+.chart-toolbar {
+  grid-column: 1 / -1;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 44px;
+  gap: 8px;
+  overflow-x: auto;
+}
+.toolbar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font);
+  transition: all 0.15s;
+}
+.toolbar-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.toolbar-btn.active { color: var(--accent-blue); border-color: var(--accent-blue); background: rgba(41,98,255,0.1); }
+.toolbar-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+.toolbar-ticker {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+  padding: 0 8px;
+}
+.toolbar-timeframes { display: flex; gap: 2px; }
+
+/* WATCHLIST SIDEBAR */
+.watchlist {
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.watchlist-header {
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 2;
+}
+.wl-category {
+  border-bottom: 1px solid rgba(42,42,74,0.5);
+}
+.wl-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+.wl-category-header:hover { color: var(--text-secondary); }
+.wl-category-header .arrow {
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.wl-category.collapsed .wl-category-header .arrow { transform: rotate(-90deg); }
+.wl-category.collapsed .wl-items { display: none; }
+.wl-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.wl-item:hover { background: var(--bg-hover); }
+.wl-item.active { background: rgba(41,98,255,0.1); }
+.wl-item .symbol { font-weight: 600; color: var(--text-primary); }
+.wl-item .last { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.wl-item .chg { font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* MAIN CHART AREA */
+.chart-main {
+  background: var(--bg-primary);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chart-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.chart-canvas canvas { width: 100%; height: 100%; }
+
+/* DETAIL PANEL */
+.detail-panel {
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.dp-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 2;
+}
+.dp-ticker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.dp-ticker { font-size: 18px; font-weight: 700; }
+.dp-exchange { font-size: 12px; color: var(--text-muted); }
+.dp-company { font-size: 13px; color: var(--text-secondary); }
+.dp-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+}
+.dp-price { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.dp-price-change { font-size: 14px; font-weight: 600; }
+.dp-currency { font-size: 12px; color: var(--text-muted); }
+
+.dp-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dp-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.dp-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.dp-stat-label { color: var(--text-secondary); }
+.dp-stat-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.dp-headline {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.dp-headline .tag { font-size: 10px; color: var(--accent-blue); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.dp-headline p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+/* Financial tabs */
+.dp-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.dp-tab {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font);
+  transition: all 0.15s;
+}
+.dp-tab:hover { color: var(--text-secondary); }
+.dp-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+.dp-fin-panel { display: none; }
+.dp-fin-panel.active { display: block; }
+
+.dp-premarket {
+  background: rgba(41,98,255,0.08);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.dp-premarket .label { color: var(--text-muted); margin-bottom: 2px; }
+.dp-premarket .val { font-weight: 600; }
+
+/* Performance badges */
+.perf-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.perf-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.perf-badge.up { background: rgba(38,166,154,0.12); color: var(--gain); }
+.perf-badge.down { background: rgba(247,82,95,0.12); color: var(--loss); }
+
+@media (max-width: 1024px) {
+  .chart-layout { grid-template-columns: 200px 1fr 280px; }
+}
+@media (max-width: 768px) {
+  .chart-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 50vh auto;
+    height: auto;
+  }
+  .watchlist { max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+  .detail-panel { border-left: none; border-top: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#2962FF"/><path d="M6 18l4-6 4 4 4-8 4 6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ChartPulse
+    </a>
+    <div class="nav-links">
+      <a href="chart.html" class="active">Products</a>
+      <a href="ideas.html">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="nav-actions">
+      <input type="text" class="nav-search" placeholder="Search ticker, pair, etc.">
+      <button class="btn-outline">Sign in</button>
+      <button class="btn-primary">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<div class="chart-layout">
+  <!-- TOOLBAR -->
+  <div class="chart-toolbar">
+    <span class="toolbar-ticker">AAPL</span>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-timeframes">
+      <button class="toolbar-btn active" data-tf="1D">1D</button>
+      <button class="toolbar-btn" data-tf="5D">5D</button>
+      <button class="toolbar-btn" data-tf="1M">1M</button>
+      <button class="toolbar-btn" data-tf="3M">3M</button>
+      <button class="toolbar-btn" data-tf="6M">6M</button>
+      <button class="toolbar-btn" data-tf="YTD">YTD</button>
+      <button class="toolbar-btn" data-tf="1Y">1Y</button>
+      <button class="toolbar-btn" data-tf="5Y">5Y</button>
+      <button class="toolbar-btn" data-tf="All">All</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <button class="toolbar-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="4" width="2" height="8" rx="0.5" fill="currentColor"/><rect x="5" y="2" width="2" height="10" rx="0.5" fill="currentColor"/><rect x="9" y="6" width="2" height="6" rx="0.5" fill="currentColor"/></svg> Indicators</button>
+    <button class="toolbar-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12L12 2M12 2H6M12 2v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Trendline</button>
+    <button class="toolbar-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 5h10" stroke="currentColor" stroke-width="1.3"/></svg> Compare</button>
+    <button class="toolbar-btn">Candles</button>
+    <button class="toolbar-btn">Log</button>
+    <div class="toolbar-sep"></div>
+    <button class="toolbar-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Snapshot</button>
+  </div>
+
+  <!-- WATCHLIST SIDEBAR -->
+  <div class="watchlist">
+    <div class="watchlist-header">
+      <span>Watchlist</span>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="wl-category" id="wl-indices">
+      <div class="wl-category-header" onclick="toggleWlCategory('wl-indices')"><span>Indices</span><span class="arrow">&#9660;</span></div>
+      <div class="wl-items">
+        <div class="wl-item"><span class="symbol">SPX</span><span class="last">7,041.29</span><span class="chg positive">+0.26%</span></div>
+        <div class="wl-item"><span class="symbol">NDQ</span><span class="last">26,333.00</span><span class="chg positive">+0.49%</span></div>
+        <div class="wl-item"><span class="symbol">DJI</span><span class="last">48,578.72</span><span class="chg positive">+0.24%</span></div>
+        <div class="wl-item"><span class="symbol">VIX</span><span class="last">17.86</span><span class="chg negative">−0.45%</span></div>
+      </div>
+    </div>
+
+    <div class="wl-category" id="wl-stocks">
+      <div class="wl-category-header" onclick="toggleWlCategory('wl-stocks')"><span>Stocks</span><span class="arrow">&#9660;</span></div>
+      <div class="wl-items">
+        <div class="wl-item active"><span class="symbol">AAPL</span><span class="last">263.40</span><span class="chg negative">−1.14%</span></div>
+        <div class="wl-item"><span class="symbol">TSLA</span><span class="last">388.90</span><span class="chg negative">−0.78%</span></div>
+        <div class="wl-item"><span class="symbol">NFLX</span><span class="last">107.79</span><span class="chg positive">+0.07%</span></div>
+      </div>
+    </div>
+
+    <div class="wl-category" id="wl-futures">
+      <div class="wl-category-header" onclick="toggleWlCategory('wl-futures')"><span>Futures</span><span class="arrow">&#9660;</span></div>
+      <div class="wl-items">
+        <div class="wl-item"><span class="symbol">USOIL</span><span class="last">87.53</span><span class="chg negative">−6.06%</span></div>
+        <div class="wl-item"><span class="symbol">GOLD</span><span class="last">4,801.92</span><span class="chg positive">+0.30%</span></div>
+      </div>
+    </div>
+
+    <div class="wl-category" id="wl-forex">
+      <div class="wl-category-header" onclick="toggleWlCategory('wl-forex')"><span>Forex</span><span class="arrow">&#9660;</span></div>
+      <div class="wl-items">
+        <div class="wl-item"><span class="symbol">EURUSD</span><span class="last">1.17949</span><span class="chg positive">+0.12%</span></div>
+        <div class="wl-item"><span class="symbol">GBPUSD</span><span class="last">1.35335</span><span class="chg positive">+0.06%</span></div>
+      </div>
+    </div>
+
+    <div class="wl-category" id="wl-crypto">
+      <div class="wl-category-header" onclick="toggleWlCategory('wl-crypto')"><span>Crypto</span><span class="arrow">&#9660;</span></div>
+      <div class="wl-items">
+        <div class="wl-item"><span class="symbol">BTCUSD</span><span class="last">75,585</span><span class="chg positive">+0.54%</span></div>
+        <div class="wl-item"><span class="symbol">ETHUSD</span><span class="last">2,355.1</span><span class="chg positive">+0.25%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART MAIN -->
+  <div class="chart-main">
+    <div class="chart-canvas">
+      <canvas id="candlestickChart"></canvas>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel">
+    <div class="dp-header">
+      <div class="dp-ticker-row">
+        <span class="dp-ticker">AAPL</span>
+        <span class="dp-exchange">NASDAQ</span>
+      </div>
+      <div class="dp-company">Apple Inc</div>
+      <div class="dp-price-row">
+        <span class="dp-price">263.40</span>
+        <span class="dp-price-change negative">−3.03 (−1.14%)</span>
+      </div>
+      <div class="dp-currency">USD &middot; Closed</div>
+      <div class="dp-premarket">
+        <div class="label">Pre-market</div>
+        <div class="val"><span style="font-size:14px;font-weight:700;">267.14</span> <span class="positive">+1.42%</span></div>
+      </div>
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">Key Statistics</div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Volume</span><span class="dp-stat-value">43.32 M</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Avg Volume (30D)</span><span class="dp-stat-value">40.70 M</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Market capitalization</span><span class="dp-stat-value">3.87 T</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Next earnings report</span><span class="dp-stat-value">In 14 days</span></div>
+    </div>
+
+    <div class="dp-headline">
+      <div class="tag">Latest News</div>
+      <p>Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</p>
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">Performance</div>
+      <div class="perf-row">
+        <span class="perf-badge up">1W +1.70%</span>
+        <span class="perf-badge up">1M +4.13%</span>
+        <span class="perf-badge up">1Y +32.79%</span>
+      </div>
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">Financials</div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Dividend yield TTM</span><span class="dp-stat-value">0.39%</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Payout ratio (TTM)</span><span class="dp-stat-value">13.03%</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Last dividend payment</span><span class="dp-stat-value">0.26</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Last ex-dividend date</span><span class="dp-stat-value">Feb 9, 2026</span></div>
+    </div>
+
+    <div class="dp-section">
+      <div class="dp-section-title">Analyst Opinion</div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Analyst rating</span><span class="dp-stat-value" style="color:var(--text-secondary)">Neutral</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">1 year price target</span><span class="dp-stat-value positive">300.40 (+14.05%)</span></div>
+      <div class="dp-stat-row"><span class="dp-stat-label">Technicals</span><span class="dp-stat-value" style="color:var(--text-secondary)">Neutral</span></div>
+    </div>
+
+    <!-- Income statement tabs -->
+    <div>
+      <div class="dp-section-title" style="padding:14px 16px 0;">Income Statement</div>
+      <div class="dp-tabs">
+        <button class="dp-tab active" onclick="switchFinTab('annual',this)">Annual</button>
+        <button class="dp-tab" onclick="switchFinTab('quarterly',this)">Quarterly</button>
+      </div>
+      <div class="dp-fin-panel active" id="fin-annual">
+        <div class="dp-section" style="border-bottom:none;">
+          <div class="dp-stat-row"><span class="dp-stat-label">Revenue</span><span class="dp-stat-value">394.33 B</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Net Income</span><span class="dp-stat-value">100.91 B</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">EPS (diluted)</span><span class="dp-stat-value">6.59</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Gross Margin</span><span class="dp-stat-value">46.2%</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Operating Margin</span><span class="dp-stat-value">31.5%</span></div>
+        </div>
+      </div>
+      <div class="dp-fin-panel" id="fin-quarterly">
+        <div class="dp-section" style="border-bottom:none;">
+          <div class="dp-stat-row"><span class="dp-stat-label">Revenue (Q1)</span><span class="dp-stat-value">124.30 B</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Net Income (Q1)</span><span class="dp-stat-value">36.33 B</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">EPS (diluted, Q1)</span><span class="dp-stat-value">2.40</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Gross Margin (Q1)</span><span class="dp-stat-value">47.0%</span></div>
+          <div class="dp-stat-row"><span class="dp-stat-label">Operating Margin (Q1)</span><span class="dp-stat-value">33.1%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleWlCategory(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+function switchFinTab(tab, btn) {
+  document.querySelectorAll('.dp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.dp-fin-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('fin-' + tab).classList.add('active');
+}
+
+// Timeframe toggle
+document.querySelectorAll('.toolbar-timeframes .toolbar-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toolbar-timeframes .toolbar-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    drawChart();
+  });
+});
+
+// Candlestick chart rendering
+function drawChart() {
+  const canvas = document.getElementById('candlestickChart');
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth * 2;
+  canvas.height = parent.clientHeight * 2;
+  canvas.style.width = parent.clientWidth + 'px';
+  canvas.style.height = parent.clientHeight + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+  const w = parent.clientWidth;
+  const h = parent.clientHeight;
+
+  ctx.fillStyle = '#0F0F0F';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(42,42,74,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < 8; i++) {
+    const y = (h / 8) * i;
+    ctx.beginPath(); ctx.moveTo(60, y); ctx.lineTo(w - 10, y); ctx.stroke();
+  }
+  for (let i = 1; i < 12; i++) {
+    const x = 60 + ((w - 70) / 12) * i;
+    ctx.beginPath(); ctx.moveTo(x, 10); ctx.lineTo(x, h - 30); ctx.stroke();
+  }
+
+  // Y-axis labels
+  ctx.fillStyle = '#5a5a7a';
+  ctx.font = '11px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  const priceRange = [254, 256, 258, 260, 262, 264, 266, 268];
+  priceRange.forEach((p, i) => {
+    const y = h - 30 - ((h - 50) / 7) * i;
+    ctx.fillText(p.toFixed(2), 55, y + 4);
+  });
+
+  // Generate candlestick data
+  const tf = document.querySelector('.toolbar-timeframes .toolbar-btn.active')?.dataset.tf || '1D';
+  const seed = tf.charCodeAt(0) * 37;
+  const numCandles = tf === '1D' ? 60 : tf === '5D' ? 80 : tf === '1M' ? 50 : 70;
+  const candles = [];
+  let price = 260;
+  for (let i = 0; i < numCandles; i++) {
+    const rand = Math.sin(seed + i * 0.7) * 2 + Math.cos(i * 0.3) * 1.5;
+    const open = price + rand * 0.3;
+    const close = open + (Math.sin(seed + i * 1.3) * 2.5);
+    const high = Math.max(open, close) + Math.abs(Math.sin(i * 0.5)) * 1.5;
+    const low = Math.min(open, close) - Math.abs(Math.cos(i * 0.7)) * 1.5;
+    candles.push({ open, close, high, low });
+    price = close;
+  }
+
+  const allPrices = candles.flatMap(c => [c.high, c.low]);
+  const minP = Math.min(...allPrices);
+  const maxP = Math.max(...allPrices);
+  const pRange = maxP - minP || 1;
+
+  const chartLeft = 64;
+  const chartRight = w - 12;
+  const chartTop = 14;
+  const chartBottom = h - 34;
+  const chartH = chartBottom - chartTop;
+  const candleW = (chartRight - chartLeft) / numCandles;
+
+  candles.forEach((c, i) => {
+    const x = chartLeft + i * candleW + candleW / 2;
+    const bodyW = Math.max(candleW * 0.6, 2);
+    const bullish = c.close >= c.open;
+
+    const highY = chartTop + ((maxP - c.high) / pRange) * chartH;
+    const lowY = chartTop + ((maxP - c.low) / pRange) * chartH;
+    const openY = chartTop + ((maxP - c.open) / pRange) * chartH;
+    const closeY = chartTop + ((maxP - c.close) / pRange) * chartH;
+
+    // Wick
+    ctx.strokeStyle = bullish ? '#26a69a' : '#F7525F';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, highY);
+    ctx.lineTo(x, lowY);
+    ctx.stroke();
+
+    // Body
+    ctx.fillStyle = bullish ? '#26a69a' : '#F7525F';
+    const bodyTop = Math.min(openY, closeY);
+    const bodyH = Math.max(Math.abs(closeY - openY), 1);
+    ctx.fillRect(x - bodyW / 2, bodyTop, bodyW, bodyH);
+  });
+
+  // Volume bars at bottom
+  const volH = 40;
+  candles.forEach((c, i) => {
+    const x = chartLeft + i * candleW + candleW / 2;
+    const barW = Math.max(candleW * 0.5, 1.5);
+    const vol = 0.3 + Math.abs(Math.sin(i * 0.8)) * 0.7;
+    const bullish = c.close >= c.open;
+    ctx.fillStyle = bullish ? 'rgba(38,166,154,0.25)' : 'rgba(247,82,95,0.25)';
+    ctx.fillRect(x - barW / 2, chartBottom - vol * volH, barW, vol * volH);
+  });
+
+  // Current price line
+  const lastClose = candles[candles.length - 1].close;
+  const lastY = chartTop + ((maxP - lastClose) / pRange) * chartH;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = lastClose >= candles[0].open ? '#26a69a' : '#F7525F';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(chartLeft, lastY);
+  ctx.lineTo(chartRight, lastY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Price label
+  ctx.fillStyle = lastClose >= candles[0].open ? '#26a69a' : '#F7525F';
+  ctx.fillRect(chartRight - 60, lastY - 10, 60, 20);
+  ctx.fillStyle = '#fff';
+  ctx.font = '600 11px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(lastClose.toFixed(2), chartRight - 30, lastY + 4);
+
+  // Crosshair target
+  ctx.fillStyle = '#2962FF';
+  ctx.font = '600 12px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('AAPL · ' + tf, chartLeft + 4, 26);
+}
+
+drawChart();
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>

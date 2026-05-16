@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find a Store | GreenBean Coffee</title>
+  <meta name="description" content="Find a GreenBean Coffee store near you. Search by city, zip code, or address. Filter for drive-thru, mobile ordering, and more. Switch between pickup and delivery.">
+  <link rel="canonical" href="https://www.greenbeancoffee.com/store-locator.html">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.greenbeancoffee.com/store-locator.html">
+  <meta property="og:title" content="Find a GreenBean Coffee Store Near You">
+  <meta property="og:description" content="Find a GreenBean Coffee store near you. Search by city, zip code, or address.">
+  <meta property="og:image" content="https://www.greenbeancoffee.com/og-image.jpg">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CafeOrCoffeeShop",
+    "name": "GreenBean Coffee",
+    "url": "https://www.greenbeancoffee.com",
+    "hasMap": "https://www.greenbeancoffee.com/store-locator.html",
+    "@id": "https://www.greenbeancoffee.com/#organization"
+  }
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>">
+  <style>
+    body { overflow: hidden; }
+    @media (max-width: 768px) { body { overflow: auto; } }
+    .store-count {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      padding: 8px 20px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .store-distance {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .store-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .store-action-btn {
+      flex: 1;
+      padding: 7px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-align: center;
+      transition: all var(--transition);
+    }
+    .store-action-btn-primary {
+      background: var(--green);
+      color: var(--white);
+    }
+    .store-action-btn-primary:hover { background: var(--green-dark); }
+    .store-action-btn-secondary {
+      background: var(--border-light);
+      color: var(--text);
+    }
+    .store-action-btn-secondary:hover { background: var(--border); }
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .no-results .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .map-road {
+      position: absolute;
+      background: rgba(255,255,255,0.6);
+    }
+    .map-road-h {
+      left: 0;
+      right: 0;
+      height: 20px;
+    }
+    .map-road-v {
+      top: 0;
+      bottom: 0;
+      width: 20px;
+    }
+    .selected-store-info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: var(--white);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-lg);
+      max-width: 260px;
+      display: none;
+      z-index: 10;
+    }
+    .selected-store-info.visible { display: block; }
+    .selected-store-close {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="header-logo">
+      <div class="logo-icon">🌿</div>
+      <span>GreenBean</span>
+    </a>
+    <nav class="header-nav" aria-label="Main navigation">
+      <a href="menu.html" class="nav-link">Menu</a>
+      <a href="rewards.html" class="nav-link">Rewards</a>
+      <a href="gift.html" class="nav-link">Gift Cards</a>
+      <a href="store-locator.html" class="nav-link active">Find a store</a>
+    </nav>
+    <div class="header-actions">
+      <a href="#" class="btn-signin">Sign in</a>
+      <a href="#" class="btn-joinnow">Join now</a>
+    </div>
+  </div>
+</header>
+
+<!-- Store Locator Layout -->
+<div class="locator-layout" role="main">
+
+  <!-- Sidebar -->
+  <div class="locator-sidebar">
+    <!-- Controls -->
+    <div class="locator-controls">
+      <!-- Order Type Toggle -->
+      <div class="order-toggle" role="group" aria-label="Order type">
+        <button class="order-toggle-btn active" id="btn-pickup" onclick="setOrderType('pickup')">Pickup</button>
+        <button class="order-toggle-btn" id="btn-delivery" onclick="setOrderType('delivery')">Delivery</button>
+      </div>
+
+      <!-- Search + Filter -->
+      <div class="search-row">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            class="locator-search-input"
+            id="locatorSearch"
+            placeholder="City, zip code, or address"
+            aria-label="Search for a store location"
+            autocomplete="off"
+          >
+          <div class="search-suggestions" id="searchSuggestions" role="listbox"></div>
+        </div>
+        <button class="filter-btn" id="filterBtn" onclick="toggleFilter()" aria-expanded="false" aria-controls="filterPanel">
+          <span>⚙</span> Filter
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel" id="filterPanel" aria-hidden="true">
+      <h4>Refine Results</h4>
+      <div class="filter-options">
+        <label class="filter-option">
+          <input type="checkbox" id="filter-drivethu" onchange="applyFilters()">
+          Drive-thru available
+        </label>
+        <label class="filter-option">
+          <input type="checkbox" id="filter-mobile" onchange="applyFilters()">
+          Mobile ordering
+        </label>
+        <label class="filter-option">
+          <input type="checkbox" id="filter-delivery" onchange="applyFilters()">
+          Delivery available
+        </label>
+        <label class="filter-option">
+          <input type="checkbox" id="filter-open" onchange="applyFilters()">
+          Open now
+        </label>
+      </div>
+    </div>
+
+    <!-- Results Count -->
+    <div class="store-count" id="storeCount">Showing <strong>5</strong> locations near you</div>
+
+    <!-- Store Results -->
+    <div class="store-results" id="storeResults" role="list" aria-label="Nearby stores"></div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-container" role="img" aria-label="Store locations map">
+    <div class="map-placeholder">
+      <div class="map-grid"></div>
+
+      <!-- Fake roads -->
+      <div class="map-road map-road-h" style="top:33%"></div>
+      <div class="map-road map-road-h" style="top:66%"></div>
+      <div class="map-road map-road-v" style="left:25%"></div>
+      <div class="map-road map-road-v" style="left:50%"></div>
+      <div class="map-road map-road-v" style="left:75%"></div>
+
+      <!-- Store pins -->
+      <div class="map-pin" style="top:28%;left:22%;" onclick="selectStore(0)" title="Downtown GreenBean"></div>
+      <div class="map-pin" style="top:55%;left:48%;" onclick="selectStore(1)" title="Midtown GreenBean"></div>
+      <div class="map-pin" style="top:20%;left:70%;" onclick="selectStore(2)" title="Westside GreenBean"></div>
+      <div class="map-pin" style="top:70%;left:68%;" onclick="selectStore(3)" title="Eastpark GreenBean"></div>
+      <div class="map-pin" style="top:45%;left:82%;" onclick="selectStore(4)" title="Northgate GreenBean"></div>
+
+      <!-- Selected store popup -->
+      <div class="selected-store-info" id="selectedStoreInfo">
+        <span class="selected-store-close" onclick="clearSelectedStore()">✕</span>
+        <div id="selectedStoreName" style="font-weight:700;font-size:0.95rem;color:var(--forest);margin-bottom:4px;padding-right:20px;"></div>
+        <div id="selectedStoreAddr" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;"></div>
+        <div id="selectedStoreHours" style="font-size:0.8rem;color:var(--green);font-weight:600;margin-bottom:10px;"></div>
+        <a href="#" class="btn btn-primary btn-sm" style="width:100%;justify-content:center;">Order here</a>
+      </div>
+
+      <div class="map-label">📍 Map view — 5 locations nearby</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer (hidden on desktop due to overflow:hidden, visible on mobile) -->
+<footer class="site-footer" style="display:none;" aria-label="Site footer">
+  <div class="footer-inner">
+    <div class="footer-bottom">
+      <div class="footer-bottom-logo">
+        <div class="logo-icon">🌿</div>
+        <span>GreenBean Coffee</span>
+      </div>
+      <p>© 2026 GreenBean Coffee Company. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  @media (max-width: 768px) {
+    footer { display: block !important; }
+  }
+  @media (max-width: 768px) {
+    .footer-col-desktop { display: none; }
+  }
+</style>
+
+<script>
+  const stores = [
+    {
+      name: "Downtown GreenBean",
+      address: "128 Main Street, Suite 100",
+      city: "San Francisco, CA 94102",
+      distance: "0.3 mi",
+      hours: "Open · Closes 9:00 PM",
+      phone: "(415) 555-0101",
+      features: ["drive-thru", "mobile", "delivery", "open"],
+      lat: 28, lng: 22
+    },
+    {
+      name: "Midtown Coffee Bar",
+      address: "45 Market Square",
+      city: "San Francisco, CA 94103",
+      distance: "0.7 mi",
+      hours: "Open · Closes 8:00 PM",
+      phone: "(415) 555-0142",
+      features: ["mobile", "open"],
+      lat: 55, lng: 48
+    },
+    {
+      name: "Westside GreenBean",
+      address: "900 Ocean Avenue",
+      city: "San Francisco, CA 94122",
+      distance: "1.2 mi",
+      hours: "Open · Closes 10:00 PM",
+      phone: "(415) 555-0178",
+      features: ["drive-thru", "mobile", "delivery", "open"],
+      lat: 20, lng: 70
+    },
+    {
+      name: "Eastpark Reserve",
+      address: "2200 Park Boulevard",
+      city: "Oakland, CA 94601",
+      distance: "2.4 mi",
+      hours: "Open · Closes 7:00 PM",
+      phone: "(510) 555-0221",
+      features: ["mobile"],
+      lat: 70, lng: 68
+    },
+    {
+      name: "Northgate GreenBean",
+      address: "750 Gateway Drive",
+      city: "San Francisco, CA 94124",
+      distance: "3.1 mi",
+      hours: "Closes in 30 min",
+      phone: "(415) 555-0298",
+      features: ["drive-thru", "mobile", "delivery"],
+      lat: 45, lng: 82
+    }
+  ];
+
+  let activeOrderType = 'pickup';
+  let activeFilters = { drivethu: false, mobile: false, delivery: false, open: false };
+  let selectedStoreIndex = null;
+
+  function featureTag(key) {
+    const map = {
+      'drive-thru': '🚗 Drive-thru',
+      'mobile': '📱 Mobile Order',
+      'delivery': '🛵 Delivery',
+      'open': 'Open Now'
+    };
+    return map[key] || key;
+  }
+
+  function renderStores(list) {
+    const container = document.getElementById('storeResults');
+    const countEl = document.getElementById('storeCount');
+
+    if (list.length === 0) {
+      container.innerHTML = `<div class="no-results"><div class="icon">🔍</div><div>No stores found.<br>Try a different search or adjust filters.</div></div>`;
+      countEl.innerHTML = 'No locations found';
+      return;
+    }
+
+    countEl.innerHTML = `Showing <strong>${list.length}</strong> location${list.length > 1 ? 's' : ''} near you`;
+
+    container.innerHTML = list.map((s, i) => `
+      <div class="store-card ${selectedStoreIndex === i ? 'active' : ''}" role="listitem" onclick="selectStore(${i})" id="store-card-${i}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
+          <div class="store-name">${s.name}</div>
+          <div class="store-distance">${s.distance}</div>
+        </div>
+        <div class="store-address">${s.address}, ${s.city}</div>
+        <div class="store-hours">${s.hours}</div>
+        <div class="store-meta" style="margin-top:8px;">
+          ${s.features.map(f => `<span class="store-tag ${f === 'open' ? 'store-tag-open' : ''}">${featureTag(f)}</span>`).join('')}
+        </div>
+        <div class="store-actions">
+          <button class="store-action-btn store-action-btn-primary" onclick="event.stopPropagation();alert('Starting order at ${s.name}')">Order here</button>
+          <button class="store-action-btn store-action-btn-secondary" onclick="event.stopPropagation();alert('Getting directions to ${s.name}')">Directions</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function applyFilters() {
+    activeFilters.drivethu = document.getElementById('filter-drivethu').checked;
+    activeFilters.mobile = document.getElementById('filter-mobile').checked;
+    activeFilters.delivery = document.getElementById('filter-delivery').checked;
+    activeFilters.open = document.getElementById('filter-open').checked;
+
+    let filtered = stores;
+    if (activeFilters.drivethu) filtered = filtered.filter(s => s.features.includes('drive-thru'));
+    if (activeFilters.mobile) filtered = filtered.filter(s => s.features.includes('mobile'));
+    if (activeFilters.delivery) filtered = filtered.filter(s => s.features.includes('delivery'));
+    if (activeFilters.open) filtered = filtered.filter(s => s.features.includes('open'));
+
+    // For delivery mode, only show delivery stores
+    if (activeOrderType === 'delivery') {
+      filtered = filtered.filter(s => s.features.includes('delivery'));
+    }
+
+    renderStores(filtered);
+  }
+
+  function setOrderType(type) {
+    activeOrderType = type;
+    document.getElementById('btn-pickup').classList.toggle('active', type === 'pickup');
+    document.getElementById('btn-delivery').classList.toggle('active', type === 'delivery');
+    applyFilters();
+  }
+
+  function toggleFilter() {
+    const panel = document.getElementById('filterPanel');
+    const btn = document.getElementById('filterBtn');
+    const isVisible = panel.classList.contains('visible');
+    panel.classList.toggle('visible', !isVisible);
+    panel.setAttribute('aria-hidden', isVisible ? 'true' : 'false');
+    btn.classList.toggle('active', !isVisible);
+    btn.setAttribute('aria-expanded', isVisible ? 'false' : 'true');
+  }
+
+  function selectStore(index) {
+    selectedStoreIndex = index;
+    const s = stores[index];
+
+    // Update sidebar card
+    document.querySelectorAll('.store-card').forEach((c, i) => c.classList.toggle('active', i === index));
+
+    // Update map popup
+    const popup = document.getElementById('selectedStoreInfo');
+    document.getElementById('selectedStoreName').textContent = s.name;
+    document.getElementById('selectedStoreAddr').textContent = `${s.address}, ${s.city}`;
+    document.getElementById('selectedStoreHours').textContent = s.hours;
+    popup.classList.add('visible');
+
+    // Scroll card into view
+    const card = document.getElementById('store-card-' + index);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function clearSelectedStore() {
+    selectedStoreIndex = null;
+    document.getElementById('selectedStoreInfo').classList.remove('visible');
+    document.querySelectorAll('.store-card').forEach(c => c.classList.remove('active'));
+  }
+
+  // Search functionality
+  const searchInput = document.getElementById('locatorSearch');
+  const suggestions = ['San Francisco, CA', 'Oakland, CA', 'Berkeley, CA', 'Palo Alto, CA', 'San Jose, CA', 'Seattle, WA', 'New York, NY', 'Chicago, IL', 'Austin, TX', 'Boston, MA'];
+
+  searchInput.addEventListener('input', function() {
+    const val = this.value.trim().toLowerCase();
+    const container = document.getElementById('searchSuggestions');
+
+    if (val.length < 2) {
+      container.classList.remove('visible');
+      return;
+    }
+
+    const matches = suggestions.filter(s => s.toLowerCase().includes(val));
+    if (matches.length === 0) {
+      container.classList.remove('visible');
+      return;
+    }
+
+    container.innerHTML = matches.map(m => `
+      <div class="suggestion-item" onclick="selectSuggestion('${m}')">
+        <span>📍</span> ${m}
+      </div>
+    `).join('');
+    container.classList.add('visible');
+  });
+
+  function selectSuggestion(val) {
+    searchInput.value = val;
+    document.getElementById('searchSuggestions').classList.remove('visible');
+    applyFilters(); // "refresh" results
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target)) {
+      document.getElementById('searchSuggestions').classList.remove('visible');
+    }
+  });
+
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      document.getElementById('searchSuggestions').classList.remove('visible');
+      applyFilters();
+    }
+  });
+
+  // Init
+  renderStores(stores);
+</script>
+
+</body>
+</html>

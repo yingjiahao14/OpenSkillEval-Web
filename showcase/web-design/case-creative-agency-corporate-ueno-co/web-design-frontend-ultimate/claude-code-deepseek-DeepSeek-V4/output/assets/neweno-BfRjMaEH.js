@@ -1,0 +1,41 @@
+import{n as e,t}from"./nav-CWDOnK3C.js";var n=`neweno.html`;document.querySelector(`#app`).innerHTML=`
+  ${e(n)}
+
+  <main>
+    <article class="w-full max-w-[1400px] mx-auto px-8 md:px-16 pt-12 md:pt-20 pb-16 md:pb-24">
+      <div class="max-w-[680px] mx-auto">
+        <div class="section-label">A Letter from the Founder</div>
+
+        <h1 class="font-serif text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.1] tracking-[-0.02em] text-[#1A1A1A] mb-4">
+          Neweno
+        </h1>
+        <p class="text-sm text-[#8B7355] mb-16 font-sans">By Erik, Founder &amp; CEO of Volta Studio</p>
+
+        <div class="editorial-body">
+          <p class="drop-cap">
+            Hi. My name is Erik. I'm the founder and CEO of Volta Studio. First of all, I want to say yes. Volta is back. I'm kind of surprised myself. I wasn't really planning on it. I started Volta in my apartment in Reykjavík, Iceland in 2014. And seven years later I sold it to a major tech company for a lot of money. But it wasn't the money. That's maybe hard to believe but that wasn't the reason. Business was great, I didn't need money. I needed a new challenge. Volta had grown over those seven years to multiple offices and over 100 people. We were working with the biggest brands in the world on some really exciting projects. But still, I felt like something was missing.
+          </p>
+
+          <p>
+            I had been on the outside for a long time, working for companies to make something and then we'd hand it off to them to nurture and grow it. I wanted to be on the inside of a big company and see things through, to see them grow. I wanted a challenge and the biggest one I could find was leading innovation at a global platform. Things didn't turn out like I expected. But in hindsight that's not really what matters. We did some great work and I learned more than I could have imagined. About corporate ups and downs, and about my own ups and downs. I saw things you wouldn't believe. And then suddenly I was free and I went and made some other things. I built a lot of wheelchair ramps, I built a restaurant and movie theater, a bank, a recording studio, a community for creative people. I started a podcast, released a visual album, acted in some movies. I did everything I always wanted to do. And it was great. But after four years away from Volta it kept picking at me.
+          </p>
+
+          <p>
+            This little itch. The feeling I get when someone comes with something that's just an idea and they want our help to see it become real. It feels like magic. Like alchemy. I missed that feeling. And so, yes, Volta is back. Blammo!
+          </p>
+        </div>
+
+        <div class="mt-20 pt-12 border-t border-[#D4C5B2]">
+          <p class="font-serif italic text-xl text-[#5A5A5A]">&ldquo;It feels like magic. Like alchemy. I missed that feeling.&rdquo;</p>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <footer class="w-full max-w-[1400px] mx-auto px-8 md:px-16 py-12 border-t border-[#D4C5B2]">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <span class="font-serif font-semibold text-lg">Volta Studio</span>
+      <span class="text-sm text-[#8B7355]">Reykjavík, Iceland &mdash; Est. 2014</span>
+    </div>
+  </footer>
+`,t();

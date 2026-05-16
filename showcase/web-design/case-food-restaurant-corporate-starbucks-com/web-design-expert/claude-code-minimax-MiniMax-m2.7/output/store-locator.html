@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find a Store — GreenBean Coffee</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .search-section {
+      background: var(--surface-cream);
+      padding: var(--space-3xl) 0;
+    }
+    .search-controls {
+      display: flex;
+      gap: var(--space-lg);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-input-wrapper {
+      flex: 1;
+      min-width: 280px;
+      position: relative;
+    }
+    .search-input-wrapper svg {
+      position: absolute;
+      left: var(--space-lg);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+    .search-input {
+      width: 100%;
+      padding: var(--space-md) var(--space-lg) var(--space-md) 48px;
+      font-size: 1rem;
+      border: 2px solid var(--border-light);
+      border-radius: var(--radius-full);
+      background: var(--surface-white);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--green-primary);
+    }
+    .toggle-group {
+      display: inline-flex;
+      background: var(--surface-white);
+      border-radius: var(--radius-full);
+      padding: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+    .toggle-btn {
+      padding: var(--space-sm) var(--space-xl);
+      border-radius: var(--radius-full);
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all var(--duration-fast);
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    .toggle-btn.active {
+      background: var(--green-primary);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-btn {
+      padding: var(--space-sm) var(--space-lg);
+      border: 2px solid var(--border-light);
+      border-radius: var(--radius-full);
+      font-weight: 500;
+      color: var(--text-primary);
+      background: var(--surface-white);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      transition: all var(--duration-fast);
+    }
+    .filter-btn:hover {
+      border-color: var(--green-primary);
+      color: var(--green-primary);
+    }
+    .filter-panel {
+      display: none;
+      margin-top: var(--space-lg);
+      padding: var(--space-xl);
+      background: var(--surface-white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+    .filter-panel.show {
+      display: block;
+    }
+    .filter-group {
+      margin-bottom: var(--space-lg);
+    }
+    .filter-group:last-child {
+      margin-bottom: 0;
+    }
+    .filter-group h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: var(--space-md);
+      color: var(--text-primary);
+    }
+    .filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+    }
+    .filter-chip {
+      padding: var(--space-xs) var(--space-md);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-full);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      background: var(--surface-white);
+      cursor: pointer;
+      transition: all var(--duration-fast);
+    }
+    .filter-chip:hover, .filter-chip.active {
+      border-color: var(--green-primary);
+      color: var(--green-primary);
+      background: oklch(55% 0.22 145 / 0.1);
+    }
+    .locator-layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: var(--space-xl);
+      padding: var(--space-2xl) 0;
+    }
+    .map-container {
+      background: var(--surface-cream);
+      border-radius: var(--radius-lg);
+      min-height: 500px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      position: relative;
+      overflow: hidden;
+    }
+    .map-placeholder {
+      text-align: center;
+    }
+    .map-placeholder svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: var(--space-md);
+      opacity: 0.5;
+    }
+    .results-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .store-card {
+      background: var(--surface-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all var(--duration-fast);
+      border: 2px solid transparent;
+    }
+    .store-card:hover, .store-card.selected {
+      border-color: var(--green-primary);
+      box-shadow: var(--shadow-md);
+    }
+    .store-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-sm);
+    }
+    .store-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+    .store-distance {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .store-address {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+    }
+    .store-hours {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: var(--space-sm);
+    }
+    .store-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .feature-tag {
+      padding: 2px 8px;
+      background: var(--surface-cream);
+      border-radius: var(--radius-sm);
+      font-size: 0.6875rem;
+      color: var(--text-secondary);
+    }
+    .store-actions {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid var(--border-light);
+    }
+    .store-actions .btn {
+      flex: 1;
+      padding: var(--space-sm);
+      font-size: 0.875rem;
+    }
+    @media (max-width: 1024px) {
+      .locator-layout {
+        grid-template-columns: 1fr;
+      }
+      .map-container {
+        min-height: 300px;
+      }
+    }
+    @media (max-width: 768px) {
+      .search-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-input-wrapper {
+        min-width: 100%;
+      }
+      .toggle-group {
+        width: 100%;
+        justify-content: center;
+      }
+      .filter-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M18 8h1c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2h-1v1c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h9c1.1 0 2 .9 2 2v1zM7 8H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V8h-2v6H5v-6H3V8zm5 7V8h2v7H9V8z"/></svg>
+        </div>
+        GreenBean
+      </a>
+      <nav class="nav-main">
+        <ul class="nav-links">
+          <li><a href="menu.html">Menu</a></li>
+          <li><a href="rewards.html">Rewards</a></li>
+          <li><a href="gift.html">Gift Cards</a></li>
+          <li><a href="store-locator.html">Find a store</a></li>
+        </ul>
+        <div class="nav-actions">
+          <a href="#" class="btn btn-ghost">Sign in</a>
+          <a href="#" class="btn btn-secondary">Join now</a>
+        </div>
+      </nav>
+      <button class="mobile-menu-btn" aria-label="Menu">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Nav -->
+  <nav class="mobile-nav">
+    <button class="mobile-nav-close" aria-label="Close">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </button>
+    <ul class="mobile-nav-links">
+      <li><a href="menu.html">Menu</a></li>
+      <li><a href="rewards.html">Rewards</a></li>
+      <li><a href="gift.html">Gift Cards</a></li>
+      <li><a href="store-locator.html">Find a store</a></li>
+      <li><a href="#">Sign in</a></li>
+      <li><a href="#">Join now</a></li>
+    </ul>
+  </nav>
+
+  <!-- Search Section -->
+  <section class="search-section">
+    <div class="container">
+      <div class="search-controls">
+        <div class="search-input-wrapper">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" class="search-input" placeholder="City, zip code, or address" data-store-search>
+        </div>
+
+        <div class="toggle-group">
+          <button class="toggle-btn active" data-order-type="pickup">Pickup</button>
+          <button class="toggle-btn" data-order-type="delivery">Delivery</button>
+        </div>
+
+        <button class="filter-btn" data-filter-btn>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18M7 9h10M10 14h4"/></svg>
+          Filters
+        </button>
+      </div>
+
+      <div class="filter-panel" style="display: none;">
+        <div class="filter-group">
+          <h4>Store Features</h4>
+          <div class="filter-options">
+            <button class="filter-chip">Drive-thru</button>
+            <button class="filter-chip">Mobile Ordering</button>
+            <button class="filter-chip">Delivery</button>
+            <button class="filter-chip">Starbucks Reserve</button>
+            <button class="filter-chip">Oven</button>
+            <button class="filter-chip">WiFi</button>
+          </div>
+        </div>
+        <div class="filter-group">
+          <h4>Store Services</h4>
+          <div class="filter-options">
+            <button class="filter-chip">Curbside Pickup</button>
+            <button class="filter-chip">Virtual Queuing</button>
+            <button class="filter-chip">Cashless Payments</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Locator Layout -->
+  <section class="section">
+    <div class="container">
+      <div class="locator-layout">
+        <!-- Map -->
+        <div class="map-container">
+          <div class="map-placeholder">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <p>Map view powered by Google Maps</p>
+            <p style="font-size: 0.75rem; margin-top: var(--space-sm);">Enter a location to see nearby stores</p>
+          </div>
+        </div>
+
+        <!-- Results List -->
+        <div class="results-list">
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Downtown</span>
+              <span class="store-distance">0.3 mi</span>
+            </div>
+            <p class="store-address">123 Main Street, Suite 100<br>San Francisco, CA 94102</p>
+            <p class="store-hours">Open until 8:00 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Drive-thru</span>
+              <span class="feature-tag">Mobile Ordering</span>
+              <span class="feature-tag">WiFi</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Market Street</span>
+              <span class="store-distance">0.5 mi</span>
+            </div>
+            <p class="store-address">456 Market Street<br>San Francisco, CA 94103</p>
+            <p class="store-hours">Open until 9:00 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Mobile Ordering</span>
+              <span class="feature-tag">Delivery</span>
+              <span class="feature-tag">WiFi</span>
+              <span class="feature-tag">Oven</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Union Square</span>
+              <span class="store-distance">0.8 mi</span>
+            </div>
+            <p class="store-address">789 Powell Street<br>San Francisco, CA 94108</p>
+            <p class="store-hours">Open until 7:00 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Drive-thru</span>
+              <span class="feature-tag">Mobile Ordering</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Mission District</span>
+              <span class="store-distance">1.2 mi</span>
+            </div>
+            <p class="store-address">321 Valencia Street<br>San Francisco, CA 94110</p>
+            <p class="store-hours">Open until 8:00 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Mobile Ordering</span>
+              <span class="feature-tag">Delivery</span>
+              <span class="feature-tag">Oven</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Castro</span>
+              <span class="store-distance">1.5 mi</span>
+            </div>
+            <p class="store-address">567 Castro Street<br>San Francisco, CA 94114</p>
+            <p class="store-hours">Open until 7:30 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Mobile Ordering</span>
+              <span class="feature-tag">WiFi</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+
+          <div class="store-card">
+            <div class="store-card-header">
+              <span class="store-name">GreenBean Coffee - Haight Ashbury</span>
+              <span class="store-distance">1.8 mi</span>
+            </div>
+            <p class="store-address">890 Haight Street<br>San Francisco, CA 94117</p>
+            <p class="store-hours">Open until 8:00 PM</p>
+            <div class="store-features">
+              <span class="feature-tag">Drive-thru</span>
+              <span class="feature-tag">Mobile Ordering</span>
+              <span class="feature-tag">Delivery</span>
+            </div>
+            <div class="store-actions">
+              <button class="btn btn-secondary">Pickup</button>
+              <button class="btn btn-primary">Order</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo" style="color: white;">
+            <div class="logo-icon" style="background: white;">
+              <svg viewBox="0 0 24 24" style="fill: var(--green-primary);"><path d="M18 8h1c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2h-1v1c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h9c1.1 0 2 .9 2 2v1zM7 8H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V8h-2v6H5v-6H3V8zm5 7V8h2v7H9V8z"/></svg>
+            </div>
+            GreenBean
+          </a>
+          <p>Handcrafted beverages made with care, delivered with warmth. Your daily coffee ritual awaits.</p>
+        </div>
+
+        <div class="footer-col footer-col-desktop">
+          <h4>About Us</h4>
+          <ul>
+            <li><a href="#">Our Company</a></li>
+            <li><a href="#">Our Coffee</a></li>
+            <li><a href="#">About GreenBean</a></li>
+            <li><a href="#">GreenBean Archive</a></li>
+            <li><a href="#">Investor Relations</a></li>
+            <li><a href="#">Customer Service</a></li>
+            <li><a href="#">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col footer-col-desktop">
+          <h4>Careers</h4>
+          <ul>
+            <li><a href="#">Culture and Values</a></li>
+            <li><a href="#">Belonging at GreenBean</a></li>
+            <li><a href="#">College Achievement Plan</a></li>
+            <li><a href="#">Alumni Community</a></li>
+            <li><a href="#">U.S. Careers</a></li>
+            <li><a href="#">International Careers</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col footer-col-desktop">
+          <h4>Social Impact</h4>
+          <ul>
+            <li><a href="#">Communities</a></li>
+            <li><a href="#">GreenBean Foundation</a></li>
+            <li><a href="#">Sustainability</a></li>
+            <li><a href="#">Environmental and Social Impact Reporting</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col footer-col-desktop">
+          <h4>For Business Partners</h4>
+          <ul>
+            <li><a href="#">Landlord Support Center</a></li>
+            <li><a href="#">Suppliers</a></li>
+            <li><a href="#">Corporate Gift Card Sales</a></li>
+            <li><a href="#">Office and Foodservice Coffee</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-accordion">
+          <div class="footer-accordion-header">About Us <svg fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="footer-accordion-content">
+            <ul>
+              <li><a href="#">Our Company</a></li>
+              <li><a href="#">Our Coffee</a></li>
+              <li><a href="#">About GreenBean</a></li>
+              <li><a href="#">GreenBean Archive</a></li>
+              <li><a href="#">Investor Relations</a></li>
+              <li><a href="#">Customer Service</a></li>
+              <li><a href="#">Contact Us</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-accordion">
+          <div class="footer-accordion-header">Careers <svg fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="footer-accordion-content">
+            <ul>
+              <li><a href="#">Culture and Values</a></li>
+              <li><a href="#">Belonging at GreenBean</a></li>
+              <li><a href="#">College Achievement Plan</a></li>
+              <li><a href="#">Alumni Community</a></li>
+              <li><a href="#">U.S. Careers</a></li>
+              <li><a href="#">International Careers</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-accordion">
+          <div class="footer-accordion-header">Social Impact <svg fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="footer-accordion-content">
+            <ul>
+              <li><a href="#">Communities</a></li>
+              <li><a href="#">GreenBean Foundation</a></li>
+              <li><a href="#">Sustainability</a></li>
+              <li><a href="#">Environmental and Social Impact Reporting</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-accordion">
+          <div class="footer-accordion-header">For Business Partners <svg fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="footer-accordion-content">
+            <ul>
+              <li><a href="#">Landlord Support Center</a></li>
+              <li><a href="#">Suppliers</a></li>
+              <li><a href="#">Corporate Gift Card Sales</a></li>
+              <li><a href="#">Office and Foodservice Coffee</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>© 2026 GreenBean Coffee Company. All rights reserved.</div>
+        <div class="footer-legal">
+          <a href="#">Privacy Notice</a>
+          <a href="#">Terms of Use</a>
+          <a href="#">Cookie Preferences</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+  <script>
+    // Store locator specific interactions
+    document.addEventListener('DOMContentLoaded', () => {
+      const filterBtn = document.querySelector('[data-filter-btn]');
+      const filterPanel = document.querySelector('.filter-panel');
+      const toggleBtns = document.querySelectorAll('.toggle-btn');
+      const searchInput = document.querySelector('[data-store-search]');
+      const storeCards = document.querySelectorAll('.store-card');
+      const filterChips = document.querySelectorAll('.filter-chip');
+
+      // Toggle filter panel
+      if (filterBtn && filterPanel) {
+        filterBtn.addEventListener('click', () => {
+          filterPanel.classList.toggle('show');
+          filterPanel.style.display = filterPanel.classList.contains('show') ? 'block' : 'none';
+        });
+      }
+
+      // Toggle pickup/delivery
+      toggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          toggleBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+
+      // Filter chips toggle
+      filterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chip.classList.toggle('active');
+        });
+      });
+
+      // Store card selection
+      storeCards.forEach(card => {
+        card.addEventListener('click', () => {
+          storeCards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+      });
+
+      // Search functionality
+      if (searchInput) {
+        let timeout;
+        searchInput.addEventListener('input', () => {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            const query = searchInput.value.toLowerCase();
+            storeCards.forEach(card => {
+              const text = card.textContent.toLowerCase();
+              card.style.display = text.includes(query) ? '' : 'none';
+            });
+          }, 300);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

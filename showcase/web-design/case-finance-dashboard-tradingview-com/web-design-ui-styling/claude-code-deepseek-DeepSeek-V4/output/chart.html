@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChartPulse — AAPL Chart</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        surface: { DEFAULT: '#0F0F0F', light: '#1a1a2e', elevated: '#252540' },
+        accent: { DEFAULT: '#2962FF', light: '#448AFF', dark: '#0039CB' },
+        gain: '#00C853', loss: '#F7525F', muted: '#8892B0', border: '#2a2a4a'
+      }
+    }
+  }
+}
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: #0F0F0F; color: #fff; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1a1a2e; }
+::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+.glass { background: rgba(26, 26, 46, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(42, 42, 74, 0.5); }
+.tab-active { background: #2962FF; color: #fff; }
+.tab-inactive { background: transparent; color: #8892B0; }
+.tab-inactive:hover { color: #fff; background: rgba(41, 98, 255, 0.1); }
+.accordion-header { cursor: pointer; transition: background 0.15s; }
+.accordion-header:hover { background: rgba(41, 98, 255, 0.05); }
+.accordion-body { overflow: hidden; transition: max-height 0.3s ease; }
+.accordion-body.collapsed { max-height: 0 !important; }
+.tool-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: #8892B0; cursor: pointer; transition: all 0.15s; border: none; background: transparent; }
+.tool-btn:hover { color: #fff; background: #252540; }
+.tool-btn.active { color: #2962FF; background: rgba(41, 98, 255, 0.15); }
+#chartCanvas { display: block; width: 100%; cursor: crosshair; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- Navigation -->
+<nav class="glass sticky top-0 z-50 px-4 lg:px-6 py-3 flex items-center justify-between border-b border-[#2a2a4a]">
+  <div class="flex items-center gap-3">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#2962FF"/><path d="M8 22L14 14L20 18L26 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="8" r="2.5" fill="#00C853"/></svg>
+    <span class="text-xl font-bold tracking-tight hidden sm:inline">Chart<span class="text-[#2962FF]">Pulse</span></span>
+  </div>
+  <div class="hidden lg:flex items-center gap-1">
+    <a href="index.html" class="px-4 py-2 rounded-lg text-sm font-medium text-[#8892B0] hover:text-white hover:bg-[#252540] transition-colors">Home</a>
+    <a href="chart.html" class="px-4 py-2 rounded-lg text-sm font-medium bg-[#2962FF] text-white">Products</a>
+    <a href="ideas.html" class="px-4 py-2 rounded-lg text-sm font-medium text-[#8892B0] hover:text-white hover:bg-[#252540] transition-colors">Community</a>
+    <a href="markets.html" class="px-4 py-2 rounded-lg text-sm font-medium text-[#8892B0] hover:text-white hover:bg-[#252540] transition-colors">Markets</a>
+    <a href="brokers.html" class="px-4 py-2 rounded-lg text-sm font-medium text-[#8892B0] hover:text-white hover:bg-[#252540] transition-colors">Brokers</a>
+  </div>
+  <div class="flex items-center gap-2">
+    <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-[#2962FF] hover:bg-[#448AFF] text-white transition-colors">Get started free</button>
+  </div>
+</nav>
+
+<!-- Stock Header Bar -->
+<div class="glass border-b border-[#2a2a4a] px-4 lg:px-6 py-3 flex items-center gap-4 flex-wrap">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-lg bg-[#252540] flex items-center justify-center font-bold text-lg">A</div>
+    <div>
+      <div class="flex items-center gap-2"><span class="font-bold text-lg">AAPL</span><span class="text-xs text-[#8892B0]">Apple Inc.</span><span class="text-xs text-[#8892B0]">NASDAQ</span></div>
+    </div>
+  </div>
+  <div class="flex items-center gap-4 ml-auto">
+    <div class="text-right"><div class="text-xl font-bold">263.40 <span class="text-sm font-normal text-[#8892B0]">USD</span></div></div>
+    <div class="text-right"><div class="text-sm text-[#F7525F]">−3.03 (−1.14%)</div></div>
+    <div class="text-xs text-[#8892B0] hidden lg:block">Pre-market: <span class="text-[#00C853]">267.14 (+1.42%)</span></div>
+  </div>
+</div>
+
+<!-- Main Content: Sidebar + Chart + Detail Panel -->
+<div class="flex flex-1 overflow-hidden">
+  <!-- Watchlist Sidebar -->
+  <aside class="w-72 border-r border-[#2a2a4a] bg-[#0F0F0F] overflow-y-auto flex-shrink-0 hidden lg:block">
+    <div class="p-3 border-b border-[#2a2a4a]">
+      <div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold text-[#8892B0] uppercase tracking-wider">Watchlist</span><button class="text-xs text-[#2962FF] hover:text-[#448AFF]">+ Add</button></div>
+      <input type="text" placeholder="Search symbols..." class="w-full bg-[#1a1a2e] border border-[#2a2a4a] rounded-lg px-3 py-1.5 text-sm text-white placeholder-[#8892B0] focus:outline-none focus:border-[#2962FF]">
+    </div>
+
+    <!-- Indices -->
+    <div class="watchlist-category">
+      <div class="accordion-header flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#8892B0]" data-category="indices">
+        <span>Indices</span>
+        <svg class="w-3 h-3 transition-transform duration-200 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="accordion-body" data-body="indices" style="max-height:200px">
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">SPX</span><span class="font-mono">7,041.29</span><span class="text-[#00C853]">+0.26%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">NDQ</span><span class="font-mono">26,333.00</span><span class="text-[#00C853]">+0.49%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">DJI</span><span class="font-mono">48,578.72</span><span class="text-[#00C853]">+0.24%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">VIX</span><span class="font-mono">17.86</span><span class="text-[#F7525F]">−0.45%</span></div>
+      </div>
+    </div>
+
+    <!-- Stocks -->
+    <div class="watchlist-category">
+      <div class="accordion-header flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#8892B0]" data-category="stocks">
+        <span>Stocks</span>
+        <svg class="w-3 h-3 transition-transform duration-200 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="accordion-body" data-body="stocks" style="max-height:200px">
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 bg-[#2962FF]/10 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold text-[#2962FF]">AAPL</span><span class="font-mono">263.40</span><span class="text-[#F7525F]">−1.14%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">TSLA</span><span class="font-mono">388.90</span><span class="text-[#F7525F]">−0.78%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">NFLX</span><span class="font-mono">107.79</span><span class="text-[#00C853]">+0.07%</span></div>
+      </div>
+    </div>
+
+    <!-- Futures -->
+    <div class="watchlist-category">
+      <div class="accordion-header flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#8892B0]" data-category="futures">
+        <span>Futures</span>
+        <svg class="w-3 h-3 transition-transform duration-200 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="accordion-body" data-body="futures" style="max-height:200px">
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">USOIL</span><span class="font-mono">87.53</span><span class="text-[#F7525F]">−6.06%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">GOLD</span><span class="font-mono">4,801.92</span><span class="text-[#00C853]">+0.30%</span></div>
+      </div>
+    </div>
+
+    <!-- Forex -->
+    <div class="watchlist-category">
+      <div class="accordion-header flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#8892B0]" data-category="forex">
+        <span>Forex</span>
+        <svg class="w-3 h-3 transition-transform duration-200 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="accordion-body" data-body="forex" style="max-height:200px">
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">EURUSD</span><span class="font-mono">1.17949</span><span class="text-[#00C853]">+0.12%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">GBPUSD</span><span class="font-mono">1.35335</span><span class="text-[#00C853]">+0.06%</span></div>
+      </div>
+    </div>
+
+    <!-- Crypto -->
+    <div class="watchlist-category">
+      <div class="accordion-header flex items-center justify-between px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-[#8892B0]" data-category="crypto">
+        <span>Crypto</span>
+        <svg class="w-3 h-3 transition-transform duration-200 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <div class="accordion-body" data-body="crypto" style="max-height:200px">
+        <div class="px-3 py-2 flex items-center justify-between text-xs border-b border-[#2a2a4a]/30 hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">BTCUSD</span><span class="font-mono">75,585</span><span class="text-[#00C853]">+0.54%</span></div>
+        <div class="px-3 py-2 flex items-center justify-between text-xs hover:bg-[#252540]/30 cursor-pointer"><span class="font-semibold">ETHUSD</span><span class="font-mono">2,355.1</span><span class="text-[#00C853]">+0.25%</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Chart Area -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <!-- Toolbar -->
+    <div class="flex items-center gap-1 px-3 py-2 border-b border-[#2a2a4a] flex-wrap">
+      <div class="flex items-center gap-0.5 mr-3">
+        <button class="tool-btn" title="Cursor"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
+        <button class="tool-btn" title="Crosshair"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg></button>
+        <button class="tool-btn" title="Trend Line"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="21" x2="21" y2="3"/></svg></button>
+        <button class="tool-btn" title="Fibonacci"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="3" x2="3" y2="21"/><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <button class="tool-btn" title="Rectangle"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14"/></svg></button>
+      </div>
+      <div class="w-px h-6 bg-[#2a2a4a] mx-1"></div>
+      <div class="flex items-center gap-0.5">
+        <button class="tool-btn" title="Indicators"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 20 9 10 15 16 21 4"/></svg></button>
+        <button class="tool-btn" title="EMA"><span class="text-xs font-bold">EMA</span></button>
+        <button class="tool-btn" title="Bollinger Bands"><span class="text-[11px] font-bold">BB</span></button>
+        <button class="tool-btn" title="MACD"><span class="text-xs font-bold">MACD</span></button>
+        <button class="tool-btn" title="RSI"><span class="text-xs font-bold">RSI</span></button>
+        <button class="tool-btn" title="Volume"><span class="text-xs font-bold">Vol</span></button>
+      </div>
+      <div class="w-px h-6 bg-[#2a2a4a] mx-1"></div>
+      <!-- Timeframes -->
+      <div class="flex bg-[#1a1a2e] rounded-lg p-0.5 gap-0.5" id="timeframe-btns">
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="1D">1D</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="5D">5D</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-active" data-tf="1M">1M</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="3M">3M</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="6M">6M</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="YTD">YTD</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="1Y">1Y</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="5Y">5Y</button>
+        <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-tf="All">All</button>
+      </div>
+      <div class="ml-auto text-xs text-[#8892B0]">1M · Candles</div>
+    </div>
+
+    <!-- Canvas Chart -->
+    <div class="flex-1 relative bg-[#0a0a15]">
+      <canvas id="chartCanvas"></canvas>
+      <div class="absolute top-3 left-3 glass rounded-lg px-3 py-1.5 text-xs">
+        <span class="text-[#8892B0]">O</span> <span class="font-mono">265.20</span>
+        <span class="text-[#8892B0] ml-3">H</span> <span class="font-mono text-[#00C853]">267.80</span>
+        <span class="text-[#8892B0] ml-3">L</span> <span class="font-mono text-[#F7525F]">261.50</span>
+        <span class="text-[#8892B0] ml-3">C</span> <span class="font-mono">263.40</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Stock Detail Panel -->
+  <aside class="w-80 border-l border-[#2a2a4a] bg-[#0F0F0F] overflow-y-auto flex-shrink-0 hidden xl:block">
+    <!-- Stock Info -->
+    <div class="p-4 border-b border-[#2a2a4a]">
+      <h3 class="text-sm font-semibold mb-3">Stock Detail</h3>
+      <div class="space-y-2 text-xs">
+        <div class="flex justify-between"><span class="text-[#8892B0]">Price</span><span class="font-mono">263.40 USD</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Change</span><span class="font-mono text-[#F7525F]">−3.03 (−1.14%)</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Volume</span><span class="font-mono">43.32 M</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Avg Vol (30D)</span><span class="font-mono">40.70 M</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Market Cap</span><span class="font-mono">3.87 T</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Next Earnings</span><span class="text-[#2962FF]">In 14 days</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Pre-market</span><span class="text-[#00C853] font-mono">267.14 (+1.42%)</span></div>
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <div class="p-4 border-b border-[#2a2a4a]">
+      <div class="text-xs text-[#8892B0] leading-relaxed">Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="p-4 border-b border-[#2a2a4a]">
+      <h3 class="text-sm font-semibold mb-3">Key Statistics</h3>
+      <div class="space-y-2 text-xs">
+        <div class="flex justify-between"><span class="text-[#8892B0]">Dividend Yield TTM</span><span class="font-mono">0.39%</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Payout Ratio</span><span class="font-mono">13.03%</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Last Dividend</span><span class="font-mono">0.26</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Ex-Dividend Date</span><span class="font-mono">Feb 9, 2026</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Analyst Rating</span><span class="font-mono text-[#FF9800]">Neutral</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">1Y Price Target</span><span class="font-mono text-[#00C853]">300.40 (+14.05%)</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Performance 1W</span><span class="font-mono text-[#00C853]">+1.70%</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Performance 1M</span><span class="font-mono text-[#00C853]">+4.13%</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Performance 1Y</span><span class="font-mono text-[#00C853]">+32.79%</span></div>
+        <div class="flex justify-between"><span class="text-[#8892B0]">Technicals</span><span class="font-mono text-[#FF9800]">Neutral</span></div>
+      </div>
+    </div>
+
+    <!-- Income Statement -->
+    <div class="p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold">Income Statement</h3>
+        <div class="flex bg-[#1a1a2e] rounded-lg p-0.5 gap-0.5" id="income-tabs">
+          <button class="px-3 py-1 rounded-md text-xs font-medium tab-active" data-incometab="annual">Annual</button>
+          <button class="px-3 py-1 rounded-md text-xs font-medium tab-inactive" data-incometab="quarterly">Quarterly</button>
+        </div>
+      </div>
+      <div id="income-annual" class="income-panel">
+        <table class="w-full text-xs">
+          <thead><tr class="text-[#8892B0] border-b border-[#2a2a4a]"><th class="text-left py-1.5 font-medium">Metric</th><th class="text-right py-1.5 font-medium">2025</th><th class="text-right py-1.5 font-medium">2024</th><th class="text-right py-1.5 font-medium">2023</th></tr></thead>
+          <tbody>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Revenue</td><td class="text-right font-mono">395.8B</td><td class="text-right font-mono">383.3B</td><td class="text-right font-mono">394.3B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Net Income</td><td class="text-right font-mono">97.0B</td><td class="text-right font-mono">97.0B</td><td class="text-right font-mono">99.8B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Gross Profit</td><td class="text-right font-mono">184.1B</td><td class="text-right font-mono">169.1B</td><td class="text-right font-mono">170.8B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Operating Income</td><td class="text-right font-mono">123.2B</td><td class="text-right font-mono">114.3B</td><td class="text-right font-mono">119.4B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">EPS (Diluted)</td><td class="text-right font-mono">6.48</td><td class="text-right font-mono">6.44</td><td class="text-right font-mono">6.42</td></tr>
+            <tr><td class="py-1.5 text-[#8892B0]">EBITDA</td><td class="text-right font-mono">134.7B</td><td class="text-right font-mono">125.8B</td><td class="text-right font-mono">130.1B</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="income-quarterly" class="income-panel hidden">
+        <table class="w-full text-xs">
+          <thead><tr class="text-[#8892B0] border-b border-[#2a2a4a]"><th class="text-left py-1.5 font-medium">Metric</th><th class="text-right py-1.5 font-medium">Q1 2026</th><th class="text-right py-1.5 font-medium">Q4 2025</th><th class="text-right py-1.5 font-medium">Q3 2025</th></tr></thead>
+          <tbody>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Revenue</td><td class="text-right font-mono">124.3B</td><td class="text-right font-mono">94.9B</td><td class="text-right font-mono">85.8B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Net Income</td><td class="text-right font-mono">36.3B</td><td class="text-right font-mono">14.7B</td><td class="text-right font-mono">21.4B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Gross Profit</td><td class="text-right font-mono">58.3B</td><td class="text-right font-mono">43.9B</td><td class="text-right font-mono">39.7B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">Operating Income</td><td class="text-right font-mono">41.7B</td><td class="text-right font-mono">28.6B</td><td class="text-right font-mono">25.5B</td></tr>
+            <tr class="border-b border-[#2a2a4a]/30"><td class="py-1.5 text-[#8892B0]">EPS (Diluted)</td><td class="text-right font-mono">2.40</td><td class="text-right font-mono">0.97</td><td class="text-right font-mono">1.40</td></tr>
+            <tr><td class="py-1.5 text-[#8892B0]">EBITDA</td><td class="text-right font-mono">45.1B</td><td class="text-right font-mono">31.2B</td><td class="text-right font-mono">28.0B</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+// === Candlestick Chart ===
+const canvas = document.getElementById('chartCanvas');
+const ctx = canvas.getContext('2d');
+
+function generateCandles(count) {
+  const candles = [];
+  let price = 250;
+  for (let i = 0; i < count; i++) {
+    const open = price;
+    const volatility = 2 + Math.random() * 6;
+    const close = open + (Math.random() - 0.48) * volatility * 4;
+    const high = Math.max(open, close) + Math.random() * volatility;
+    const low = Math.min(open, close) - Math.random() * volatility;
+    candles.push({ open, high, low, close });
+    price = close;
+  }
+  return candles;
+}
+
+let candles = generateCandles(90);
+let offset = 0;
+let candleWidth = 8;
+let spacing = 2;
+
+function resizeCanvas() {
+  const container = canvas.parentElement;
+  canvas.width = container.clientWidth * (window.devicePixelRatio || 1);
+  canvas.height = container.clientHeight * (window.devicePixelRatio || 1);
+  canvas.style.width = container.clientWidth + 'px';
+  canvas.style.height = container.clientHeight + 'px';
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  drawChart();
+}
+
+function drawChart() {
+  const w = canvas.style.width ? parseFloat(canvas.style.width) : canvas.parentElement.clientWidth;
+  const h = canvas.style.height ? parseFloat(canvas.style.height) : canvas.parentElement.clientHeight;
+  canvas.width = w * (window.devicePixelRatio || 1);
+  canvas.height = h * (window.devicePixelRatio || 1);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+  ctx.clearRect(0, 0, w, h);
+
+  const margin = { top: 20, right: 60, bottom: 40, left: 60 };
+  const chartW = w - margin.left - margin.right;
+  const chartH = h - margin.top - margin.bottom;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(42, 42, 74, 0.3)';
+  ctx.lineWidth = 0.5;
+  const gridLines = 8;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = margin.top + (chartH / gridLines) * i;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(w - margin.right, y);
+    ctx.stroke();
+  }
+
+  // Visible candles
+  const step = candleWidth + spacing;
+  const visible = Math.floor(chartW / step);
+  const allCandles = candles.slice(-visible);
+
+  // Price range
+  const prices = allCandles.flatMap(c => [c.high, c.low]);
+  const minP = Math.min(...prices) * 0.998;
+  const maxP = Math.max(...prices) * 1.002;
+  const priceRange = maxP - minP;
+
+  // Y-axis labels
+  ctx.fillStyle = '#8892B0';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= gridLines; i++) {
+    const val = maxP - (priceRange / gridLines) * i;
+    const y = margin.top + (chartH / gridLines) * i;
+    ctx.fillText(val.toFixed(2), margin.left - 8, y + 3);
+  }
+
+  // Draw candles
+  allCandles.forEach((c, i) => {
+    const x = margin.left + i * step + spacing / 2;
+    const yOpen = margin.top + ((maxP - c.open) / priceRange) * chartH;
+    const yClose = margin.top + ((maxP - c.close) / priceRange) * chartH;
+    const yHigh = margin.top + ((maxP - c.high) / priceRange) * chartH;
+    const yLow = margin.top + ((maxP - c.low) / priceRange) * chartH;
+
+    const isGreen = c.close >= c.open;
+    const color = isGreen ? '#00C853' : '#F7525F';
+
+    // Wick
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + candleWidth / 2, yHigh);
+    ctx.lineTo(x + candleWidth / 2, yLow);
+    ctx.stroke();
+
+    // Body
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyH = Math.max(Math.abs(yClose - yOpen), 1);
+    ctx.fillStyle = isGreen ? '#00C853' : '#F7525F';
+    ctx.fillRect(x, bodyTop, candleWidth, bodyH);
+  });
+
+  // X-axis labels
+  ctx.fillStyle = '#8892B0';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  const now = new Date();
+  for (let i = 0; i < allCandles.length; i += Math.max(1, Math.floor(allCandles.length / 6))) {
+    const x = margin.left + i * step + spacing / 2 + candleWidth / 2;
+    const d = new Date(now);
+    d.setDate(d.getDate() - (allCandles.length - i));
+    ctx.fillText(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), x, h - margin.bottom + 20);
+  }
+
+  // Price line
+  const lastClose = allCandles[allCandles.length - 1].close;
+  const lastY = margin.top + ((maxP - lastClose) / priceRange) * chartH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(margin.left, lastY);
+  ctx.lineTo(w - margin.right, lastY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Price label
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(lastClose.toFixed(2), w - margin.right + 4, lastY + 4);
+}
+
+// Resize observer
+const resizeObserver = new ResizeObserver(() => drawChart());
+resizeObserver.observe(canvas.parentElement);
+
+// Timeframe toggles
+document.querySelectorAll('#timeframe-btns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#timeframe-btns button').forEach(b => { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); });
+    btn.classList.remove('tab-inactive'); btn.classList.add('tab-active');
+    const tf = btn.dataset.tf;
+    const counts = { '1D': 30, '5D': 40, '1M': 90, '3M': 130, '6M': 180, 'YTD': 220, '1Y': 260, '5Y': 350, 'All': 500 };
+    candles = generateCandles(counts[tf] || 90);
+    offset = 0;
+    if (tf === '1D') { candleWidth = 12; spacing = 3; }
+    else if (tf === '5D') { candleWidth = 10; spacing = 2; }
+    else if (tf === '1M') { candleWidth = 8; spacing = 2; }
+    else if (tf === '3M') { candleWidth = 6; spacing = 1.5; }
+    else { candleWidth = 4; spacing = 1; }
+    drawChart();
+  });
+});
+
+// Watchlist accordion
+document.querySelectorAll('.accordion-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const category = header.dataset.category;
+    const body = document.querySelector(`[data-body="${category}"]`);
+    const chevron = header.querySelector('.chevron');
+    if (body.classList.contains('collapsed')) {
+      body.classList.remove('collapsed');
+      body.style.maxHeight = '200px';
+      chevron.style.transform = 'rotate(0deg)';
+    } else {
+      body.classList.add('collapsed');
+      body.style.maxHeight = '0px';
+      chevron.style.transform = 'rotate(-90deg)';
+    }
+  });
+});
+
+// Income statement tabs
+document.querySelectorAll('#income-tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#income-tabs button').forEach(b => { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); });
+    btn.classList.remove('tab-inactive'); btn.classList.add('tab-active');
+    document.querySelectorAll('.income-panel').forEach(p => p.classList.add('hidden'));
+    const panel = document.getElementById('income-' + btn.dataset.incometab);
+    if (panel) panel.classList.remove('hidden');
+  });
+});
+
+// Tool buttons
+document.querySelectorAll('.tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => btn.classList.toggle('active'));
+});
+
+// Initial draw
+drawChart();
+window.addEventListener('resize', drawChart);
+</script>
+</body>
+</html>

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChartPulse — Track All Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cp: {
+                            bg: '#0F0F0F',
+                            panel: '#1a1a2e',
+                            border: '#2A2E39',
+                            blue: '#2962FF',
+                            red: '#F7525F',
+                            green: '#22AB94',
+                            text: '#D1D4DC',
+                            muted: '#787B86'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        body { background-color: #0F0F0F; color: #D1D4DC; font-family: 'Inter', sans-serif; }
+        .text-green { color: #22AB94; }
+        .text-red { color: #F7525F; }
+        .bg-green { background-color: #22AB94; }
+        .bg-red { background-color: #F7525F; }
+        .border-green { border-color: #22AB94; }
+        .border-red { border-color: #F7525F; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0F0F0F; }
+        ::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #434651; }
+
+        .sparkline {
+            display: inline-block;
+            width: 60px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 15 L10 12 L20 18 L30 10 L40 14 L50 5 L60 8' stroke='%23787B86' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .sparkline-up {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 18 L10 15 L20 16 L30 10 L40 12 L50 2 L60 5' stroke='%2322AB94' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .sparkline-down {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5 L10 2 L20 12 L30 10 L40 16 L50 15 L60 18' stroke='%23F7525F' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        
+        /* Utility styles for active tabs */
+        .tab-active { color: #fff; border-bottom: 2px solid #2962FF; }
+        
+        /* Tab panel transition */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<nav class="bg-[#0F0F0F] border-b border-gray-800 sticky top-0 z-50">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+                <a href="index.html" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+                    <i data-lucide="activity" class="text-cp-blue"></i>
+                    ChartPulse
+                </a>
+                <div class="hidden md:block ml-10">
+                    <div class="flex items-baseline space-x-4 text-sm font-medium text-gray-300">
+                        <a href="chart.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Products</a>
+                        <a href="ideas.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Community</a>
+                        <a href="markets.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Markets</a>
+                        <a href="brokers.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Brokers</a>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
+                    </div>
+                    <input type="text" class="bg-[#1C1F26] border border-gray-800 text-white text-sm rounded-lg focus:ring-cp-blue focus:border-cp-blue block w-full pl-10 p-2" placeholder="Search markets...">
+                </div>
+                <button class="text-white hover:text-gray-300 px-4 py-2 text-sm font-medium transition-colors">Log in</button>
+                <button class="text-white bg-cp-blue hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Sign up</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="flex-grow max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">Markets Summary</h1>
+        <p class="text-cp-muted">Track the pulse of the global markets, from indices to crypto.</p>
+    </div>
+
+    <!-- Asset Tabs -->
+    <div class="border-b border-gray-800 mb-10 sticky top-16 bg-cp-bg z-40 py-2">
+        <div class="flex space-x-6 overflow-x-auto no-scrollbar" data-tabs>
+            <a href="#indices-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap tab-active text-white">Indices</a>
+            <a href="#stocks-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">US stocks</a>
+            <a href="#crypto-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">Crypto</a>
+            <a href="#futures-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">Futures</a>
+            <a href="#forex-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">Forex</a>
+            <a href="#bonds-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">Bonds</a>
+            <a href="#etfs-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">ETFs</a>
+            <a href="#economy-section" class="tab-btn pb-2 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white transition-colors">Economy</a>
+        </div>
+    </div>
+
+    <div class="space-y-16">
+        
+        <!-- Indices Section -->
+        <section id="indices-section" class="scroll-mt-32">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="bar-chart" class="text-cp-blue"></i> US Market Indices</h2>
+            <div class="bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                <table class="w-full text-sm text-left text-gray-300">
+                    <thead class="text-xs text-cp-muted uppercase bg-[#14161C] border-b border-cp-border">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-semibold">Index</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Price</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Change</th>
+                            <th scope="col" class="px-6 py-4 text-center font-semibold">Chart</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">S&P 500 <span class="text-xs text-cp-muted ml-2 font-normal">SPX</span></td>
+                            <td class="px-6 py-4 text-right font-medium">7,041.29</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.26%</td>
+                            <td class="px-6 py-4 text-center"><div class="sparkline sparkline-up"></div></td>
+                        </tr>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">Nasdaq 100 <span class="text-xs text-cp-muted ml-2 font-normal">NDX</span></td>
+                            <td class="px-6 py-4 text-right font-medium">26,333.00</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.49%</td>
+                            <td class="px-6 py-4 text-center"><div class="sparkline sparkline-up"></div></td>
+                        </tr>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">Dow 30 <span class="text-xs text-cp-muted ml-2 font-normal">DJI</span></td>
+                            <td class="px-6 py-4 text-right font-medium">48,578.73</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.24%</td>
+                            <td class="px-6 py-4 text-center"><div class="sparkline sparkline-up"></div></td>
+                        </tr>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">VIX <span class="text-xs text-cp-muted ml-2 font-normal">VIX</span></td>
+                            <td class="px-6 py-4 text-right font-medium">17.87</td>
+                            <td class="px-6 py-4 text-right text-red font-medium">−0.39%</td>
+                            <td class="px-6 py-4 text-center"><div class="sparkline sparkline-down"></div></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Stocks Section -->
+        <section id="stocks-section" class="scroll-mt-32">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2"><i data-lucide="briefcase" class="text-cp-blue"></i> World Stocks</h2>
+                <div class="flex bg-[#14161C] rounded-lg p-1 border border-cp-border overflow-x-auto no-scrollbar">
+                    <button class="px-3 py-1 text-xs font-medium rounded-md bg-gray-800 text-white whitespace-nowrap">1D</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">1M</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">3M</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">1Y</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">5Y</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">All</button>
+                    <div class="w-px bg-gray-700 mx-2"></div>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">Area</button>
+                    <button class="px-3 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-white transition-colors whitespace-nowrap">Candles</button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Main Stocks Table -->
+                <div class="lg:col-span-2 bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                    <table class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-cp-muted uppercase bg-[#14161C] border-b border-cp-border">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 font-semibold">Company</th>
+                                <th scope="col" class="px-6 py-4 text-right font-semibold">Price</th>
+                                <th scope="col" class="px-6 py-4 text-right font-semibold">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-white">NVIDIA <span class="text-xs text-cp-muted ml-2 font-normal">NVDA</span></td>
+                                <td class="px-6 py-4 text-right font-medium">198.35</td>
+                                <td class="px-6 py-4 text-right text-red font-medium">−0.26%</td>
+                            </tr>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-white">Apple <span class="text-xs text-cp-muted ml-2 font-normal">AAPL</span></td>
+                                <td class="px-6 py-4 text-right font-medium">263.40</td>
+                                <td class="px-6 py-4 text-right text-red font-medium">−1.14%</td>
+                            </tr>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-white">Microsoft <span class="text-xs text-cp-muted ml-2 font-normal">MSFT</span></td>
+                                <td class="px-6 py-4 text-right font-medium">420.26</td>
+                                <td class="px-6 py-4 text-right text-green font-medium">+2.20%</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-4 font-semibold text-white">Tesla <span class="text-xs text-cp-muted ml-2 font-normal">TSLA</span></td>
+                                <td class="px-6 py-4 text-right font-medium">388.90</td>
+                                <td class="px-6 py-4 text-right text-red font-medium">−0.78%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Stock Movers -->
+                <div class="lg:col-span-1 flex flex-col gap-6">
+                    <div class="bg-cp-panel border border-cp-border rounded-xl p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-white">Top Gainers</h3>
+                            <div class="text-xs text-cp-muted flex gap-1" data-tabs>
+                                <button class="tab-btn tab-active text-white px-2 py-1 rounded whitespace-nowrap" data-target="gainers-reg" data-container="gainers-cont">Regular hours</button>
+                                <button class="tab-btn text-gray-400 hover:text-white px-2 py-1 rounded whitespace-nowrap transition-colors" data-target="gainers-pre" data-container="gainers-cont">Pre-market</button>
+                                <button class="tab-btn text-gray-400 hover:text-white px-2 py-1 rounded whitespace-nowrap transition-colors" data-target="gainers-after" data-container="gainers-cont">After-hours</button>
+                            </div>
+                        </div>
+                        <div id="gainers-cont">
+                            <div id="gainers-reg" class="tab-content active space-y-3">
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Myseum, Inc.</span>
+                                    <span class="text-green font-bold bg-green/10 px-2 py-1 rounded">+129.17%</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-300">Psyence Biomedical</span>
+                                    <span class="text-green font-bold bg-green/10 px-2 py-1 rounded">+103.82%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-cp-panel border border-cp-border rounded-xl p-5">
+                        <h3 class="font-bold text-white mb-4">Top Losers</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-300">Texxon Holding</span>
+                                <span class="text-red font-bold bg-red/10 px-2 py-1 rounded">−44.96%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-300">Allbirds, Inc.</span>
+                                <span class="text-red font-bold bg-red/10 px-2 py-1 rounded">−35.79%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Forex Section -->
+        <section id="forex-section" class="scroll-mt-32">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="globe" class="text-cp-blue"></i> Forex Pairs</h2>
+            <div class="bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                <table class="w-full text-sm text-left text-gray-300">
+                    <thead class="text-xs text-cp-muted uppercase bg-[#14161C] border-b border-cp-border">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-semibold">Pair</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Rate</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Change</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">EUR to USD</td>
+                            <td class="px-6 py-4 text-right font-medium">1.17932</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.13%</td>
+                        </tr>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">GBP to USD</td>
+                            <td class="px-6 py-4 text-right font-medium">1.3529</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.06%</td>
+                        </tr>
+                        <tr class="hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">USD to JPY</td>
+                            <td class="px-6 py-4 text-right font-medium">159.210</td>
+                            <td class="px-6 py-4 text-right text-green font-medium">+0.06%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Bonds Section -->
+        <section id="bonds-section" class="scroll-mt-32">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-cp-blue"></i> Government & Corporate Bonds</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                    <div class="p-4 border-b border-cp-border bg-[#14161C]"><h3 class="font-bold text-white">US Government Bonds</h3></div>
+                    <table class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-cp-muted uppercase border-b border-cp-border">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 font-semibold">Bond</th>
+                                <th scope="col" class="px-6 py-3 text-right font-semibold">Yield</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-semibold text-white">US 2Y</td>
+                                <td class="px-6 py-3 text-right font-medium text-cp-blue">3.767%</td>
+                            </tr>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-semibold text-white">US 10Y</td>
+                                <td class="px-6 py-3 text-right font-medium text-cp-blue">4.295%</td>
+                            </tr>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-semibold text-white">US 30Y</td>
+                                <td class="px-6 py-3 text-right font-medium text-cp-blue">4.919%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                    <div class="p-4 border-b border-cp-border bg-[#14161C]"><h3 class="font-bold text-white">Corporate Bonds</h3></div>
+                    <table class="w-full text-sm text-left text-gray-300">
+                        <thead class="text-xs text-cp-muted uppercase border-b border-cp-border">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 font-semibold">Issuer</th>
+                                <th scope="col" class="px-6 py-3 text-right font-semibold">Coupon</th>
+                                <th scope="col" class="px-6 py-3 text-right font-semibold">Yield to maturity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-semibold text-white">Petroleos Mexicanos <span class="block text-xs font-normal text-cp-muted">Jan 23, 2050</span></td>
+                                <td class="px-6 py-3 text-right font-medium">7.69%</td>
+                                <td class="px-6 py-3 text-right font-medium text-green"><span class="sr-only">Yield to maturity </span>8.60%</td>
+                            </tr>
+                            <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                                <td class="px-6 py-3 font-semibold text-white">Grupo Televisa <span class="block text-xs font-normal text-cp-muted">Jan 31, 2046</span></td>
+                                <td class="px-6 py-3 text-right font-medium">6.125%</td>
+                                <td class="px-6 py-3 text-right font-medium text-green">8.59%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Economy / Earnings Calendar -->
+        <section id="economy-section" class="scroll-mt-32">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2"><i data-lucide="calendar" class="text-cp-blue"></i> Earnings Calendar</h2>
+            <div class="bg-cp-panel border border-cp-border rounded-xl overflow-hidden">
+                <table class="w-full text-sm text-left text-gray-300">
+                    <thead class="text-xs text-cp-muted uppercase bg-[#14161C] border-b border-cp-border">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-semibold">Company</th>
+                            <th scope="col" class="px-6 py-4 font-semibold">Date</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Actual (EPS)</th>
+                            <th scope="col" class="px-6 py-4 text-right font-semibold">Estimate (EPS)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">Autoliv, Inc.</td>
+                            <td class="px-6 py-4">Today</td>
+                            <td class="px-6 py-4 text-right font-medium text-green"><span class="sr-only">Actual </span>2.05 USD</td>
+                            <td class="px-6 py-4 text-right font-medium"><span class="sr-only">Estimate </span>1.83 USD</td>
+                        </tr>
+                        <tr class="border-b border-cp-border hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">Regions Financial</td>
+                            <td class="px-6 py-4">Today</td>
+                            <td class="px-6 py-4 text-right font-medium text-green"><span class="sr-only">Actual </span>0.62 USD</td>
+                            <td class="px-6 py-4 text-right font-medium"><span class="sr-only">Estimate </span>0.60 USD</td>
+                        </tr>
+                        <tr class="hover:bg-gray-800/50 transition-colors">
+                            <td class="px-6 py-4 font-semibold text-white">Ally Financial</td>
+                            <td class="px-6 py-4">Today</td>
+                            <td class="px-6 py-4 text-right font-medium text-gray-500"><span class="sr-only">Actual </span>—</td>
+                            <td class="px-6 py-4 text-right font-medium"><span class="sr-only">Estimate </span>0.93 USD</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        
+    </div>
+</main>
+
+<footer class="bg-[#0F0F0F] border-t border-gray-800 pt-16 pb-8 mt-auto">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 mb-12">
+            <div class="col-span-2 lg:col-span-2">
+                <a href="index.html" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight mb-4">
+                    <i data-lucide="activity" class="text-cp-blue"></i>
+                    ChartPulse
+                </a>
+                <p class="text-gray-400 text-sm mb-4">Every trade a #ChartPulse trade</p>
+                <p class="text-gray-500 text-xs leading-relaxed">A supercharged charting platform and social network for traders and investors to analyze, discuss, and trade global markets.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Products</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="chart.html" class="hover:text-white transition-colors">Supercharts</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Screeners</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Pine Script</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Heatmaps</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Calendars</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Community</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="#" class="hover:text-white transition-colors">Social Network</a></li>
+                    <li><a href="ideas.html" class="hover:text-white transition-colors">Ideas</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Indicators & Strategies</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Editors' Picks</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Markets</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="markets.html" class="hover:text-white transition-colors">Stocks</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">ETFs</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Crypto</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Forex</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Futures</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Bonds</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Economy</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Brokers</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="brokers.html" class="hover:text-white transition-colors">Top Brokers</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Broker Comparison</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Special Offers</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-gray-500 text-sm">© 2026 ChartPulse. All rights reserved.</div>
+            <div class="flex flex-wrap gap-4 md:gap-6 text-sm text-gray-500 justify-center">
+                <a href="#" class="hover:text-white transition-colors">Terms of Use</a>
+                <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="#" class="hover:text-white transition-colors">Cookies Policy</a>
+                <a href="#" class="hover:text-white transition-colors">Disclaimer</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+    <script>
+        lucide.createIcons();
+        
+        // Setup Tab System
+        document.querySelectorAll('[data-tabs]').forEach(tabGroup => {
+            const tabs = tabGroup.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('tab-active', 'text-white'));
+                    tabs.forEach(t => t.classList.add('text-gray-400'));
+                    
+                    tab.classList.remove('text-gray-400');
+                    tab.classList.add('tab-active', 'text-white');
+                    
+                    const targetId = tab.getAttribute('data-target');
+                    const targetContainer = document.getElementById(tab.getAttribute('data-container'));
+                    if (targetContainer) {
+                        const contents = targetContainer.querySelectorAll('.tab-content');
+                        contents.forEach(c => c.classList.remove('active'));
+                        const t = document.getElementById(targetId);
+                        if(t) t.classList.add('active');
+                    }
+                });
+            });
+        });
+        
+        // Watchlist Accordion toggle
+        document.querySelectorAll('.watchlist-category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.getAttribute('data-target'));
+                const icon = btn.querySelector('.chevron');
+                if (target.style.display === 'none') {
+                    target.style.display = 'block';
+                    if(icon) icon.style.transform = 'rotate(0deg)';
+                } else {
+                    target.style.display = 'none';
+                    if(icon) icon.style.transform = 'rotate(-90deg)';
+                }
+            });
+        });
+        
+        // Toggle Buttons (like Ideas Video only)
+        document.querySelectorAll('[data-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('bg-cp-blue');
+                btn.classList.toggle('text-white');
+                btn.classList.toggle('bg-gray-800');
+                btn.classList.toggle('text-gray-400');
+            });
+        });
+
+    </script>
+</body>
+</html>

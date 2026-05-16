@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChartPulse — Track All Markets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0F0F0F;
+      --bg-secondary: #16161F;
+      --bg-card: #1A1A24;
+      --bg-hover: #22222E;
+      --border: #2A2A3A;
+      --text: #F1F1F4;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --accent: #2962FF;
+      --accent-hover: #1E4ED8;
+      --green: #22C55E;
+      --red: #F7525F;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.5; }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    img { max-width: 100%; display: block; }
+
+    /* Navbar */
+    .navbar { position: sticky; top: 0; z-index: 100; background: rgba(15,15,15,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); }
+    .nav-logo .logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 6px; display: grid; place-items: center; }
+    .nav-logo .logo-icon svg { width: 16px; height: 16px; }
+    .nav-links { display: flex; gap: 28px; }
+    .nav-links a { font-size: 14px; font-weight: 500; color: var(--text-secondary); transition: color 0.15s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); }
+    .nav-actions { display: flex; gap: 12px; align-items: center; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+    .btn-ghost { color: var(--text-secondary); }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    /* Hero */
+    .hero { padding: 80px 24px 60px; text-align: center; max-width: 900px; margin: 0 auto; }
+    .hero h1 { font-size: 48px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 16px; }
+    .hero p { font-size: 18px; color: var(--text-secondary); max-width: 640px; margin: 0 auto 32px; line-height: 1.6; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero-actions .btn { padding: 12px 24px; font-size: 14px; }
+    .btn-outline { border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--bg-hover); }
+
+    /* Market Summary */
+    .section { max-width: 1400px; margin: 0 auto; padding: 40px 24px; }
+    .section-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
+    .market-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+    .market-tab { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: var(--bg-card); border: 1px solid var(--border); transition: all 0.15s; }
+    .market-tab:hover { background: var(--bg-hover); color: var(--text); }
+    .market-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .market-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: background 0.15s; }
+    .market-card:hover { background: var(--bg-hover); }
+    .market-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .market-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .market-card-ticker { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+    .market-card-price { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+    .market-card-change { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+    .sparkline { height: 32px; margin-top: 8px; opacity: 0.7; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Community Ideas */
+    .ideas-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .ideas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .idea-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: transform 0.15s, border-color 0.15s; }
+    .idea-card:hover { transform: translateY(-2px); border-color: var(--border); }
+    .idea-thumb { height: 160px; background: var(--bg-secondary); display: grid; place-items: center; position: relative; }
+    .idea-thumb .chart-placeholder { width: 100%; height: 100%; }
+    .idea-badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .idea-body { padding: 14px; }
+    .idea-author { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; }
+    .idea-author-name { font-size: 12px; font-weight: 600; }
+    .idea-title { font-size: 14px; font-weight: 600; line-height: 1.4; margin-bottom: 6px; }
+    .idea-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; }
+
+    /* Indicators */
+    .indicators-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .indicator-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; transition: background 0.15s; }
+    .indicator-card:hover { background: var(--bg-hover); }
+    .indicator-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--bg-secondary); display: grid; place-items: center; flex-shrink: 0; }
+    .indicator-icon svg { width: 18px; height: 18px; color: var(--accent); }
+    .indicator-name { font-size: 14px; font-weight: 600; }
+    .indicator-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .indicator-tag { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: inline-block; padding: 2px 8px; background: var(--bg-secondary); border-radius: 4px; }
+
+    /* Top Stories */
+    .stories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .story-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: background 0.15s; }
+    .story-card:hover { background: var(--bg-hover); }
+    .story-tag { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+    .story-title { font-size: 15px; font-weight: 600; line-height: 1.4; margin-bottom: 8px; }
+    .story-excerpt { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+    .story-meta { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+
+    /* Trending Stocks */
+    .trending-table { width: 100%; border-collapse: collapse; }
+    .trending-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .trending-table td { padding: 12px; font-size: 14px; border-bottom: 1px solid var(--border); }
+    .trending-table tr:hover td { background: var(--bg-hover); }
+    .ticker-cell { display: flex; align-items: center; gap: 10px; }
+    .ticker-symbol { font-weight: 700; font-size: 14px; }
+    .ticker-name { font-size: 12px; color: var(--text-secondary); }
+    .price-cell { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .change-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+    .change-pill.up { background: rgba(34,197,94,0.12); }
+    .change-pill.down { background: rgba(247,82,95,0.12); }
+
+    /* Trade Ideas Banner */
+    .trade-banner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; text-align: center; margin-top: 24px; }
+    .trade-banner h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .trade-banner p { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+
+    /* Footer */
+    .footer { border-top: 1px solid var(--border); margin-top: 40px; padding: 40px 24px; }
+    .footer-inner { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 32px; }
+    .footer-col h4 { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text); margin-bottom: 14px; letter-spacing: 0.04em; }
+    .footer-col a { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; transition: color 0.15s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { max-width: 1400px; margin: 32px auto 0; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .footer-bottom p { font-size: 12px; color: var(--text-muted); }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .nav-links { display: none; }
+      .market-grid { grid-template-columns: 1fr; }
+      .ideas-grid { grid-template-columns: 1fr; }
+      .stories-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+      </div>
+      ChartPulse
+    </a>
+    <div class="nav-links">
+      <a href="chart.html">Products</a>
+      <a href="ideas.html">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="nav-actions">
+      <button class="btn btn-ghost">Sign in</button>
+      <button class="btn btn-primary">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>The best trades require research, then commitment.</h1>
+  <p>Where the world charts, chats, and trades markets. A supercharged super-charting platform and social network for traders and investors.</p>
+  <div class="hero-actions">
+    <button class="btn btn-primary">Get started for free</button>
+    <button class="btn btn-outline">Explore features</button>
+  </div>
+</section>
+
+<!-- Market Summary -->
+<section class="section">
+  <h2 class="section-title">Market Summary</h2>
+  <div class="market-bar">
+    <button class="market-tab active" data-market="us">US stocks</button>
+    <button class="market-tab" data-market="crypto">Crypto</button>
+    <button class="market-tab" data-market="futures">Futures</button>
+    <button class="market-tab" data-market="forex">Forex</button>
+    <button class="market-tab" data-market="economy">Economy</button>
+    <button class="market-tab" data-market="brokers">Brokers</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-us">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">S&amp;P 500</span><span class="market-card-ticker">SPX</span></div>
+        <div class="market-card-price">7,041.29</div>
+        <div class="market-card-change up">+0.26%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,22 10,20 20,21 30,18 40,19 50,16 60,17 70,14 80,15 90,12 100,10"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Nasdaq 100</span><span class="market-card-ticker">NDX</span></div>
+        <div class="market-card-price">26,333.00</div>
+        <div class="market-card-change up">+0.49%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,24 10,22 20,23 30,20 40,18 50,19 60,16 70,14 80,12 90,10 100,8"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Japan 225</span><span class="market-card-ticker">NI225</span></div>
+        <div class="market-card-price">58,475.90</div>
+        <div class="market-card-change down">−1.75%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#F7525F" stroke-width="1.5" points="0,8 10,10 20,12 30,11 40,14 50,16 60,15 70,18 80,20 90,22 100,24"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">SSE Composite</span><span class="market-card-ticker">000001</span></div>
+        <div class="market-card-price">4,051.43</div>
+        <div class="market-card-change down">−0.10%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#F7525F" stroke-width="1.5" points="0,14 10,15 20,14 30,16 40,15 50,17 60,16 70,18 80,17 90,19 100,18"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">FTSE 100</span><span class="market-card-ticker">UKX</span></div>
+        <div class="market-card-price">10,562.63</div>
+        <div class="market-card-change down">−0.26%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#F7525F" stroke-width="1.5" points="0,10 10,12 20,11 30,14 40,13 50,16 60,15 70,18 80,17 90,20 100,22"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">DAX</span><span class="market-card-ticker">DAX</span></div>
+        <div class="market-card-price">24,269.50</div>
+        <div class="market-card-change up">+0.48%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,20 10,19 20,18 30,17 40,18 50,16 60,15 70,14 80,13 90,12 100,10"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-crypto">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Crypto Market Cap</span><span class="market-card-ticker">TOTAL</span></div>
+        <div class="market-card-price">2.54 T USD</div>
+        <div class="market-card-change up">+1.37%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Bitcoin Dominance</span><span class="market-card-ticker">BTC.D</span></div>
+        <div class="market-card-price">59.61%</div>
+        <div class="market-card-change">—</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Ethereum Share</span><span class="market-card-ticker">ETH.D</span></div>
+        <div class="market-card-price">11.20%</div>
+        <div class="market-card-change">—</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Bitcoin</span><span class="market-card-ticker">BTCUSD</span></div>
+        <div class="market-card-price">75,593 USD</div>
+        <div class="market-card-change up">+0.55%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,20 10,18 20,19 30,16 40,17 50,14 60,15 70,12 80,13 90,10 100,8"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Ethereum</span><span class="market-card-ticker">ETHUSD</span></div>
+        <div class="market-card-price">2,355.7 USD</div>
+        <div class="market-card-change up">+0.28%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,22 10,20 20,21 30,19 40,18 50,19 60,17 70,16 80,15 90,14 100,13"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-futures">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Light Crude Oil</span><span class="market-card-ticker">CL1!</span></div>
+        <div class="market-card-price">87.72</div>
+        <div class="market-card-change down">−7.36%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#F7525F" stroke-width="1.5" points="0,6 10,8 20,10 30,12 40,14 50,16 60,18 70,20 80,22 90,24 100,26"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Natural Gas</span><span class="market-card-ticker">NG1!</span></div>
+        <div class="market-card-price">2.692</div>
+        <div class="market-card-change up">+1.70%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,24 10,22 20,23 30,20 40,19 50,18 60,16 70,15 80,14 90,12 100,10"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Gold</span><span class="market-card-ticker">GC1!</span></div>
+        <div class="market-card-price">4,818.6</div>
+        <div class="market-card-change up">+0.21%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,18 10,17 20,18 30,16 40,17 50,15 60,16 70,14 80,15 90,13 100,12"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Copper</span><span class="market-card-ticker">HG1!</span></div>
+        <div class="market-card-price">6.0430</div>
+        <div class="market-card-change down">−0.55%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#F7525F" stroke-width="1.5" points="0,10 10,12 20,11 30,13 40,12 50,14 60,13 70,15 80,14 90,16 100,17"/></svg>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">Silver</span><span class="market-card-ticker">SI1!</span></div>
+        <div class="market-card-price">79.645</div>
+        <div class="market-card-change up">+1.19%</div>
+        <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none"><polyline fill="none" stroke="#22C55E" stroke-width="1.5" points="0,20 10,19 20,18 30,17 40,16 50,15 60,14 70,13 80,12 90,11 100,10"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-forex">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">EUR to USD</span><span class="market-card-ticker">EURUSD</span></div>
+        <div class="market-card-price">1.17932</div>
+        <div class="market-card-change up">+0.13%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">GBP to USD</span><span class="market-card-ticker">GBPUSD</span></div>
+        <div class="market-card-price">1.3529</div>
+        <div class="market-card-change up">+0.06%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">USD to JPY</span><span class="market-card-ticker">USDJPY</span></div>
+        <div class="market-card-price">159.210</div>
+        <div class="market-card-change up">+0.06%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">USD to CHF</span><span class="market-card-ticker">USDCHF</span></div>
+        <div class="market-card-price">0.78260</div>
+        <div class="market-card-change down">−0.05%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">AUD to USD</span><span class="market-card-ticker">AUDUSD</span></div>
+        <div class="market-card-price">0.71718</div>
+        <div class="market-card-change up">+0.19%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-economy">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">US 10Y Yield</span><span class="market-card-ticker">US10Y</span></div>
+        <div class="market-card-price">4.295%</div>
+        <div class="market-card-change up">+0.02%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">US 2Y Yield</span><span class="market-card-ticker">US02Y</span></div>
+        <div class="market-card-price">3.767%</div>
+        <div class="market-card-change down">−0.01%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">US 30Y Yield</span><span class="market-card-ticker">US30Y</span></div>
+        <div class="market-card-price">4.919%</div>
+        <div class="market-card-change up">+0.03%</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">US 5Y Yield</span><span class="market-card-ticker">US05Y</span></div>
+        <div class="market-card-price">3.903%</div>
+        <div class="market-card-change up">+0.01%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="panel-brokers">
+    <div class="market-grid">
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">FOREX.com</span><span class="market-card-ticker">Platinum</span></div>
+        <div class="market-card-price" style="font-size:16px;">4.5 Great</div>
+        <div class="market-card-change" style="color:var(--text-secondary);">13.7K Reviews · 175.7K Accounts</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">OKX</span><span class="market-card-ticker">Platinum</span></div>
+        <div class="market-card-price" style="font-size:16px;">4.9 Excellent</div>
+        <div class="market-card-change" style="color:var(--text-secondary);">22.5K Reviews · 239.9K Accounts</div>
+      </div>
+      <div class="market-card">
+        <div class="market-card-header"><span class="market-card-name">OANDA</span><span class="market-card-ticker">Platinum</span></div>
+        <div class="market-card-price" style="font-size:16px;">4.5 Great</div>
+        <div class="market-card-change" style="color:var(--text-secondary);">31.3K Reviews · 296.7K Accounts</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Community Ideas -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <h2 class="section-title">Community Ideas</h2>
+  <div class="ideas-tabs">
+    <button class="market-tab active" data-ideas="editors">Editors' picks</button>
+    <button class="market-tab" data-ideas="popular">Popular</button>
+  </div>
+  <div class="ideas-grid" id="ideas-editors">
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#22C55E" stroke-width="2" points="0,120 40,110 80,115 120,90 160,95 200,70 240,75 280,50 320,55 360,30 400,20"/>
+          <rect x="30" y="20" width="80" height="30" rx="4" fill="rgba(0,0,0,0.6)"/>
+          <text x="70" y="40" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" font-family="Inter">LONG</text>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">TR</div><span class="idea-author-name">TradeRunner</span></div>
+        <div class="idea-title">AAPL breakout setup forming on daily timeframe</div>
+        <div class="idea-meta"><span>1.2K views</span><span>45 likes</span><span>2h ago</span></div>
+      </div>
+    </div>
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#F7525F" stroke-width="2" points="0,20 40,30 80,25 120,50 160,45 200,70 240,65 280,90 320,85 360,110 400,120"/>
+          <rect x="30" y="20" width="80" height="30" rx="4" fill="rgba(0,0,0,0.6)"/>
+          <text x="70" y="40" text-anchor="middle" fill="#fff" font-size="11" font-weight="600" font-family="Inter">SHORT</text>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">MK</div><span class="idea-author-name">MarketKing</span></div>
+        <div class="idea-title">TSLA head and shoulders pattern confirmed</div>
+        <div class="idea-meta"><span>3.4K views</span><span>128 likes</span><span>5h ago</span></div>
+      </div>
+    </div>
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#2962FF" stroke-width="2" points="0,100 40,95 80,98 120,85 160,88 200,75 240,78 280,65 320,68 360,55 400,50"/>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">CW</div><span class="idea-author-name">ChartWhiz</span></div>
+        <div class="idea-title">BTCUSD accumulation zone analysis</div>
+        <div class="idea-meta"><span>890 views</span><span>32 likes</span><span>8h ago</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ideas-grid" id="ideas-popular" style="display:none;">
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#22C55E" stroke-width="2" points="0,130 40,125 80,120 120,115 160,110 200,100 240,95 280,85 320,80 360,70 400,60"/>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">VX</div><span class="idea-author-name">VixTrader</span></div>
+        <div class="idea-title">NVDA earnings play with options strangle</div>
+        <div class="idea-meta"><span>12K views</span><span>560 likes</span><span>1d ago</span></div>
+      </div>
+    </div>
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#F7525F" stroke-width="2" points="0,40 40,50 80,45 120,60 160,55 200,75 240,70 280,90 320,85 360,105 400,115"/>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">FX</div><span class="idea-author-name">ForexFox</span></div>
+        <div class="idea-title">EURUSD short opportunity at resistance</div>
+        <div class="idea-meta"><span>8.5K views</span><span>312 likes</span><span>1d ago</span></div>
+      </div>
+    </div>
+    <div class="idea-card">
+      <div class="idea-thumb">
+        <svg class="chart-placeholder" viewBox="0 0 400 160" preserveAspectRatio="none">
+          <rect width="400" height="160" fill="#16161F"/>
+          <polyline fill="none" stroke="#22C55E" stroke-width="2" points="0,110 40,105 80,100 120,95 160,90 200,85 240,80 280,75 320,70 360,65 400,55"/>
+        </svg>
+      </div>
+      <div class="idea-body">
+        <div class="idea-author"><div class="avatar">AL</div><span class="idea-author-name">AlphaLeo</span></div>
+        <div class="idea-title">Gold safe-haven momentum building</div>
+        <div class="idea-meta"><span>6.2K views</span><span>210 likes</span><span>2d ago</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Indicators & Strategies -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <h2 class="section-title">Indicators &amp; Strategies</h2>
+  <div class="ideas-tabs">
+    <button class="market-tab active" data-indicators="editors">Editors' picks</button>
+    <button class="market-tab" data-indicators="popular">Popular</button>
+  </div>
+  <div class="indicators-grid" id="indicators-editors">
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/></svg></div>
+      <div>
+        <div class="indicator-name">Relative Strength Index (RSI)</div>
+        <div class="indicator-desc">Momentum oscillator measuring speed and change of price movements.</div>
+        <span class="indicator-tag">Oscillator</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg></div>
+      <div>
+        <div class="indicator-name">Bollinger Bands</div>
+        <div class="indicator-desc">Volatility bands placed above and below a moving average.</div>
+        <span class="indicator-tag">Volatility</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <div>
+        <div class="indicator-name">MACD</div>
+        <div class="indicator-desc">Trend-following momentum indicator showing relationship between two EMAs.</div>
+        <span class="indicator-tag">Momentum</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div>
+        <div class="indicator-name">Moving Average Cross</div>
+        <div class="indicator-desc">Classic strategy using 50/200 SMA crossovers for trend signals.</div>
+        <span class="indicator-tag">Trend</span>
+      </div>
+    </div>
+  </div>
+  <div class="indicators-grid" id="indicators-popular" style="display:none;">
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <div>
+        <div class="indicator-name">Ichimoku Cloud</div>
+        <div class="indicator-desc">All-in-one indicator providing support, resistance, momentum and trend.</div>
+        <span class="indicator-tag">Trend</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div>
+        <div class="indicator-name">Volume Profile</div>
+        <div class="indicator-desc">Shows trading activity at specific price levels over time.</div>
+        <span class="indicator-tag">Volume</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/></svg></div>
+      <div>
+        <div class="indicator-name">Stochastic RSI</div>
+        <div class="indicator-desc">More sensitive version of RSI for detecting short-term overbought/oversold.</div>
+        <span class="indicator-tag">Oscillator</span>
+      </div>
+    </div>
+    <div class="indicator-card">
+      <div class="indicator-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/></svg></div>
+      <div>
+        <div class="indicator-name">Fibonacci Retracement</div>
+        <div class="indicator-desc">Identifies potential support and resistance levels based on Fib ratios.</div>
+        <span class="indicator-tag">Levels</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Top Stories -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <h2 class="section-title">Top Stories</h2>
+  <div class="stories-grid">
+    <div class="story-card">
+      <div class="story-tag">Markets</div>
+      <div class="story-title">Apple's iPhone shipments in China rose 20% in Q1</div>
+      <div class="story-excerpt">The strongest growth among major smartphone vendors signals renewed momentum in the world's largest mobile market.</div>
+      <div class="story-meta">2 hours ago · Bloomberg</div>
+    </div>
+    <div class="story-card">
+      <div class="story-tag">Earnings</div>
+      <div class="story-title">NVIDIA announces next-gen AI chip architecture</div>
+      <div class="story-excerpt">Analysts raise price targets as the new platform promises 4x performance gains for data center workloads.</div>
+      <div class="story-meta">4 hours ago · Reuters</div>
+    </div>
+    <div class="story-card">
+      <div class="story-tag">Crypto</div>
+      <div class="story-title">Bitcoin ETF inflows hit record $1.2B this week</div>
+      <div class="story-excerpt">Institutional demand continues to surge as major wealth platforms complete their onboarding pipelines.</div>
+      <div class="story-meta">6 hours ago · CoinDesk</div>
+    </div>
+  </div>
+</section>
+
+<!-- Trending Stocks -->
+<section class="section" style="border-top:1px solid var(--border);">
+  <h2 class="section-title">Community Trending Stocks</h2>
+  <table class="trending-table">
+    <thead>
+      <tr><th>Ticker</th><th>Price</th><th>Change</th><th>Volume</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">NFLX</span><span class="ticker-name">Netflix, Inc.</span></div></td>
+        <td class="price-cell">107.79</td>
+        <td><span class="change-pill up">+0.07%</span></td>
+        <td class="price-cell">2.1M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">PBM</span><span class="ticker-name">Psyence Biomedical Ltd.</span></div></td>
+        <td class="price-cell">5.87</td>
+        <td><span class="change-pill up">+103.82%</span></td>
+        <td class="price-cell">45.2M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">AMD</span><span class="ticker-name">Advanced Micro Devices</span></div></td>
+        <td class="price-cell">278.26</td>
+        <td><span class="change-pill up">+7.80%</span></td>
+        <td class="price-cell">18.7M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">ONFO</span><span class="ticker-name">Onfolio Holdings Inc.</span></div></td>
+        <td class="price-cell">1.50</td>
+        <td><span class="change-pill up">+124.89%</span></td>
+        <td class="price-cell">8.3M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">RKLB</span><span class="ticker-name">Rocket Lab Corporation</span></div></td>
+        <td class="price-cell">82.93</td>
+        <td><span class="change-pill up">+12.68%</span></td>
+        <td class="price-cell">5.9M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">AXTI</span><span class="ticker-name">AXT Inc</span></div></td>
+        <td class="price-cell">81.78</td>
+        <td><span class="change-pill up">+29.95%</span></td>
+        <td class="price-cell">3.4M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">PL</span><span class="ticker-name">Planet Labs PBC</span></div></td>
+        <td class="price-cell">39.89</td>
+        <td><span class="change-pill up">+15.93%</span></td>
+        <td class="price-cell">4.1M</td>
+      </tr>
+      <tr>
+        <td><div class="ticker-cell"><span class="ticker-symbol">MARA</span><span class="ticker-name">MARA Holdings, Inc.</span></div></td>
+        <td class="price-cell">11.55</td>
+        <td><span class="change-pill up">+10.32%</span></td>
+        <td class="price-cell">12.6M</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Trade Ideas Banner -->
+<section class="section">
+  <div class="trade-banner">
+    <h3>Share your trade ideas with the world</h3>
+    <p>Join 100 million traders and investors taking the future into their own hands. Free to sign up — $0 forever.</p>
+    <button class="btn btn-primary">Get started for free</button>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-col">
+      <h4>Products</h4>
+      <a href="chart.html">Supercharts</a>
+      <a href="#">Screeners</a>
+      <a href="#">Pine Script</a>
+      <a href="#">Heatmaps</a>
+      <a href="#">Calendars</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="ideas.html">Social Network</a>
+      <a href="ideas.html">Ideas</a>
+      <a href="#">Indicators &amp; Strategies</a>
+      <a href="#">Editors' Picks</a>
+    </div>
+    <div class="footer-col">
+      <h4>Markets</h4>
+      <a href="markets.html">Stocks</a>
+      <a href="markets.html">ETFs</a>
+      <a href="markets.html">Crypto</a>
+      <a href="markets.html">Forex</a>
+      <a href="markets.html">Futures</a>
+      <a href="markets.html">Bonds</a>
+      <a href="markets.html">Economy</a>
+    </div>
+    <div class="footer-col">
+      <h4>Brokers</h4>
+      <a href="brokers.html">Top Brokers</a>
+      <a href="brokers.html">Broker Comparison</a>
+      <a href="brokers.html">Special Offers</a>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="#">About</a>
+      <a href="#">Blog</a>
+      <a href="#">Careers</a>
+      <a href="#">Media Kit</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="#">Terms of Use</a>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Cookies Policy</a>
+      <a href="#">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>Every trade a #ChartPulse trade</p>
+    <p>ChartPulse &copy; 2026</p>
+  </div>
+</footer>
+
+<script>
+  // Market tabs
+  document.querySelectorAll('[data-market]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-market]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + tab.dataset.market).classList.add('active');
+    });
+  });
+
+  // Ideas tabs
+  document.querySelectorAll('[data-ideas]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-ideas]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('ideas-editors').style.display = tab.dataset.ideas === 'editors' ? 'grid' : 'none';
+      document.getElementById('ideas-popular').style.display = tab.dataset.ideas === 'popular' ? 'grid' : 'none';
+    });
+  });
+
+  // Indicators tabs
+  document.querySelectorAll('[data-indicators]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('[data-indicators]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('indicators-editors').style.display = tab.dataset.indicators === 'editors' ? 'grid' : 'none';
+      document.getElementById('indicators-popular').style.display = tab.dataset.indicators === 'popular' ? 'grid' : 'none';
+    });
+  });
+</script>
+</body>
+</html>

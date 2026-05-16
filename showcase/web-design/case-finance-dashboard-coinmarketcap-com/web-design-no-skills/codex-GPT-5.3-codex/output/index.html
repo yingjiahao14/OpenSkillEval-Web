@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoinTracker Pro — Cryptocurrency Prices, Charts and Market Capitalizations</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --border: #e6ebf2;
+      --text: #0d1421;
+      --muted: #808a9d;
+      --blue: #3861fb;
+      --green: #16c784;
+      --red: #ea3943;
+      --shadow: 0 1px 2px rgba(13, 20, 33, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.35;
+    }
+    .container { width: min(1600px, 96vw); margin: 0 auto; }
+    .top-strip {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(200px, 1fr));
+      gap: 12px;
+      padding: 10px 0;
+    }
+    .metric {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+    }
+    .metric .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .metric .value { font-weight: 700; font-size: 16px; }
+    .up { color: var(--green); font-weight: 600; }
+    .down { color: var(--red); font-weight: 600; }
+    .neutral { color: #b07b00; font-weight: 600; }
+
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 12px 0;
+    }
+    .brand { font-size: 22px; font-weight: 800; color: var(--blue); }
+    .nav-links { display: flex; gap: 14px; flex-wrap: wrap; }
+    .nav-links a {
+      text-decoration: none; color: #334155; font-weight: 600; font-size: 14px;
+      padding: 6px 8px; border-radius: 6px;
+    }
+    .nav-links a:hover { background: #eef3ff; color: var(--blue); }
+    .auth { display: flex; gap: 8px; }
+    button, .btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    main { padding: 16px 0 30px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .promo {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      background: linear-gradient(90deg, #f8faff, #eef3ff);
+    }
+    .promo strong { color: var(--blue); }
+    .arrows { display: flex; gap: 8px; }
+    .arrow {
+      width: 30px; height: 30px; border-radius: 50%; border: 1px solid #c9d6ff;
+      background: #fff; color: var(--blue); font-weight: 700;
+    }
+
+    .alerts { padding: 12px 16px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #334155;
+      background: #fff;
+    }
+
+    .tabs-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    .tab {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: #334155;
+      font-size: 13px;
+      border-radius: 999px;
+      padding: 7px 12px;
+    }
+    .tab.active { background: #eef3ff; color: var(--blue); border-color: #c9d6ff; }
+
+    .index-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr .8fr .8fr .8fr;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      background: #fcfdff;
+    }
+
+    .table-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; gap: 12px;
+    }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; }
+    .panel {
+      display: none;
+      margin: 0 14px 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fbfdff;
+    }
+    .panel.open { display: block; }
+
+    .table-wrap { overflow: auto; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 1250px;
+      font-variant-numeric: tabular-nums;
+    }
+    th, td {
+      padding: 11px 10px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    th {
+      text-align: left;
+      color: #5a6478;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+      background: #fafcff;
+      position: sticky; top: 0;
+      z-index: 5;
+    }
+    td.num, th.num { text-align: right; }
+    .name-cell { display: flex; align-items: center; gap: 10px; }
+    .coin-icon {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #dbe4ff; color: var(--blue);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+    }
+    .sym { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .spark { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1px; }
+
+    .pagination {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px;
+      color: #556070;
+      font-size: 13px;
+    }
+    .pages { display: flex; gap: 6px; align-items: center; }
+    .page-btn {
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .page-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    .summary, .info, footer { padding: 16px; }
+    .read-more { color: var(--blue); text-decoration: none; font-weight: 600; cursor: pointer; }
+    #more-summary { display: none; margin-top: 10px; color: #445066; }
+
+    .info h3 { margin: 12px 0 6px; }
+    .info p { margin: 0 0 10px; color: #445066; }
+
+    footer {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      font-size: 13px;
+      color: #4b5568;
+    }
+    footer h4 { margin: 0 0 8px; color: #111827; }
+    footer p { margin: 4px 0; }
+    .copyright {
+      grid-column: 1/-1;
+      margin-top: 8px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      color: #6b7280;
+    }
+
+    @media (max-width: 980px) {
+      .metrics-row { grid-template-columns: 1fr 1fr; }
+      .index-row { grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; }
+      footer { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .metrics-row { grid-template-columns: 1fr; }
+      .nav { flex-direction: column; align-items: flex-start; }
+      footer { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-strip">
+    <div class="container metrics-row">
+      <div class="metric"><span class="label">Market Cap</span><span class="value">$2.56T</span><span class="up">↑ 1.46%</span></div>
+      <div class="metric"><span class="label">CTP20 Index</span><span class="value">$155.36</span><span class="up">↑ 1.5%</span></div>
+      <div class="metric"><span class="label">Fear &amp; Greed</span><span class="value">57</span><span class="neutral">Neutral</span></div>
+      <div class="metric"><span class="label">Altcoin Season</span><span class="value">37/100</span><span class="down">Bitcoin season</span></div>
+    </div>
+  </div>
+
+  <header>
+    <div class="container nav">
+      <div class="brand">CoinTracker Pro</div>
+      <nav class="nav-links">
+        <a href="index.html">Cryptocurrencies</a><a href="index.html">Dashboards</a><a href="index.html">Exchanges</a><a href="index.html">DexScan</a><a href="index.html">More</a>
+      </nav>
+      <div class="auth"><button>Log In</button><button class="btn-primary">Sign Up</button></div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card promo" id="promo-banner">
+      <div><strong id="promo-text">CTP Launch: Secure $GENIUS Airdrop — Join Now</strong></div>
+      <div class="arrows"><button class="arrow" id="promo-prev">‹</button><button class="arrow" id="promo-next">›</button></div>
+    </section>
+
+    <section class="card alerts">
+      <strong>Stablecoin issuer eyes Solana DeFi expansion 👀</strong>
+      <div class="chips">
+        <span class="chip">Why is the market up today?</span><span class="chip">Are altcoins outperforming Bitcoin?</span><span class="chip">What are the trending narratives?</span><span class="chip">What cryptos are showing bullish momentum?</span><span class="chip">What upcoming events may impact crypto?</span><span class="chip">What is the market sentiment?</span><span class="chip">What are KOLs discussing?</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="tabs-wrap" id="category-tabs"></div>
+      <div class="tabs-wrap" id="network-tabs" style="border-top:1px solid var(--border)"></div>
+
+      <div class="index-row">
+        <div><strong>CoinTracker 20 Index (DTFCTP20)</strong></div>
+        <div class="num"><strong>$154.29</strong></div>
+        <div class="num up">+0.21%</div>
+        <div class="num up">+1.15%</div>
+        <div class="num up">+4.97%</div>
+      </div>
+
+      <div class="table-head">
+        <strong>Cryptocurrency Rankings</strong>
+        <div class="controls">
+          <button id="sort-marketcap">Market Cap ▾</button>
+          <button id="sort-volume">Volume(24h)</button>
+          <button id="toggle-filters">Filters</button>
+          <button id="toggle-columns">Columns</button>
+        </div>
+      </div>
+
+      <div class="panel" id="filters-panel">
+        <strong>Filters</strong>
+        <label style="margin-left:10px"><input type="checkbox" id="only-positive" /> 24h positive only</label>
+      </div>
+      <div class="panel" id="columns-panel">
+        <strong>Toggle Columns</strong>
+        <label style="margin-left:10px"><input type="checkbox" data-col="vol" checked /> Volume(24h)</label>
+        <label style="margin-left:10px"><input type="checkbox" data-col="supply" checked /> Circulating Supply</label>
+        <label style="margin-left:10px"><input type="checkbox" data-col="spark" checked /> Last 7 Days</label>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">#</th><th>Name</th><th class="num">Price</th><th class="num">1h %</th><th class="num">24h %</th><th class="num">7d %</th><th class="num">Market Cap</th><th class="num col-vol">Volume(24h)</th><th class="num col-supply">Circulating Supply</th><th class="num col-spark">Last 7 Days</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span id="count-text">Showing 1–100 of 8,364 assets</span>
+        <div class="pages" id="pages"></div>
+      </div>
+    </section>
+
+    <section class="card summary">
+      <p>The global crypto market cap is <strong>$2.56T</strong>, a <strong>1.47% increase</strong> over the last day. The total crypto market volume over the last 24 hours is <strong>$156.9B</strong>, a <strong>14.51% increase</strong>. The total volume in DeFi is currently $12.2B, 7.78% of the total crypto market 24-hour volume. The volume of all stablecoins is $195.53B, representing 124.63% of total 24-hour volume. Bitcoin's dominance is currently <strong>59.04%</strong>, a decrease of 0.05% over the day.</p>
+      <a class="read-more" id="read-more">Read More</a>
+      <div id="more-summary">Additional breakdown: Mid-cap altcoins are seeing improving breadth, exchange inflows remain moderate, and derivatives funding rates are neutral-to-positive across majors.</div>
+    </section>
+
+    <section class="card info">
+      <h3>Today's Cryptocurrency Prices, Charts and Data</h3><p>Welcome to CoinTracker Pro! Founded to provide up-to-date cryptocurrency prices, charts, and data about the emerging cryptocurrency markets. We take our data seriously and stand for accurate, timely, and unbiased information.</p>
+      <h3>All Your Crypto Market Data Needs in One Place</h3><p>CoinTracker Pro ensures all relevant information about cryptocurrencies, coins, and tokens can be located in one easily discoverable place.</p>
+      <h3>Live and Historic Crypto Charts for Free</h3><p>Each coin data page features graphs showing current and historic price information. Professional traders can access our API, enabling millions of calls to track current and historic prices.</p>
+      <h3>How Do We Calculate Cryptocurrency Prices?</h3><p>We receive updated prices directly from exchanges based on their trading pairs, then convert to USD.</p>
+      <h3>How Do We Calculate Crypto Valuations?</h3><p>Valuations are based on total circulating supply multiplied by the currency reference price.</p>
+    </section>
+
+    <footer class="card">
+      <div><h4>Products</h4><p>Cryptocurrencies</p><p>Exchanges</p><p>DexScan</p><p>Portfolio</p><p>Watchlist</p></div>
+      <div><h4>Company</h4><p>About</p><p>Terms of Use</p><p>Privacy Policy</p><p>Methodology</p><p>Disclaimer</p></div>
+      <div><h4>Support</h4><p>FAQ</p><p>Glossary</p><p>Crypto Learning Center</p><p>API Documentation</p></div>
+      <div><h4>Community</h4><p>Twitter</p><p>Telegram</p><p>Discord</p><p>Instagram</p></div>
+      <div class="copyright">© 2025 CoinTracker Pro. All rights reserved.</div>
+    </footer>
+  </main>
+
+  <script>
+    const categoryTabs = ["Top", "Trending", "Watchlist", "Prediction Markets", "Most Visited", "New", "More"];
+    const networkTabs = ["All Networks", "BSC", "Solana", "Base", "Ethereum", "More"];
+    const promos = [
+      "CTP Launch: Secure $GENIUS Airdrop — Join Now",
+      "Featured Partner: Institutional custody now live",
+      "Ecosystem Update: New analytics endpoints available"
+    ];
+
+    const baseCoins = [
+      {name:"Bitcoin",sym:"BTC",price:75612.78,h1:0.45,h24:1.33,d7:4.84,mcap:"$1.51T",vol:"$42.82B",supply:"20.01M BTC",spark:"▁▂▃▅▆",network:"All Networks"},
+      {name:"Ethereum",sym:"ETH",price:2356.00,h1:0.51,h24:0.80,d7:6.29,mcap:"$284.35B",vol:"$21.36B",supply:"120.69M ETH",spark:"▂▃▄▅▆",network:"Ethereum"},
+      {name:"Tether",sym:"USDT",price:1.00,h1:0.01,h24:0.03,d7:0.01,mcap:"$185.84B",vol:"$138.79B",supply:"185.8B USDT",spark:"▅▅▅▅▅",network:"Ethereum"},
+      {name:"XRP",sym:"XRP",price:1.44,h1:0.71,h24:2.71,d7:7.89,mcap:"$89.13B",vol:"$4.03B",supply:"61.56B XRP",spark:"▂▃▃▅▇",network:"Base"},
+      {name:"BNB",sym:"BNB",price:632.59,h1:0.38,h24:1.89,d7:4.98,mcap:"$85.27B",vol:"$1.95B",supply:"134.78M BNB",spark:"▃▃▄▅▆",network:"BSC"},
+      {name:"Solana",sym:"SOL",price:88.25,h1:0.67,h24:3.74,d7:5.67,mcap:"$50.77B",vol:"$6.71B",supply:"575.26M SOL",spark:"▂▃▄▅▆",network:"Solana"}
+    ];
+
+    const coins = Array.from({length: 8400}, (_, i) => {
+      const b = baseCoins[i % baseCoins.length];
+      const rank = i + 1;
+      const shift = (i % 23) - 11;
+      const price = Math.max(0.0001, b.price * (1 + shift / 250));
+      const h1 = +(b.h1 + shift / 50).toFixed(2);
+      const h24 = +(b.h24 + shift / 20).toFixed(2);
+      const d7 = +(b.d7 + shift / 10).toFixed(2);
+      return {
+        rank,
+        name: rank <= 6 ? b.name : `${b.name} ${Math.ceil(rank/6)}`,
+        sym: rank <= 6 ? b.sym : `${b.sym}${Math.ceil(rank/6)}`,
+        price,
+        h1, h24, d7,
+        mcap: b.mcap,
+        vol: b.vol,
+        supply: b.supply,
+        spark: b.spark,
+        network: b.network,
+        category: categoryTabs[rank % categoryTabs.length]
+      };
+    });
+
+    let selectedCategory = "Top";
+    let selectedNetwork = "All Networks";
+    let currentPage = 1;
+    const perPage = 100;
+    let sortBy = "rank";
+
+    const tbody = document.getElementById('tbody');
+    const pagesEl = document.getElementById('pages');
+
+    function pctClass(v){ return v >= 0 ? 'up' : 'down'; }
+    function fmtPrice(v){ return v >= 1 ? `$${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` : `$${v.toFixed(4)}`; }
+
+    function filtered(){
+      return coins.filter(c =>
+        (selectedCategory === 'Top' || c.category === selectedCategory) &&
+        (selectedNetwork === 'All Networks' || selectedNetwork === 'More' || c.network === selectedNetwork) &&
+        (!document.getElementById('only-positive').checked || c.h24 > 0)
+      );
+    }
+
+    function sortedRows(arr){
+      if (sortBy === 'volume') return [...arr].sort((a,b)=> b.vol.localeCompare(a.vol));
+      if (sortBy === 'marketcap') return [...arr].sort((a,b)=> b.mcap.localeCompare(a.mcap));
+      return [...arr].sort((a,b)=> a.rank-b.rank);
+    }
+
+    function renderTable(){
+      const rows = sortedRows(filtered());
+      const start = (currentPage-1)*perPage;
+      const page = rows.slice(start,start+perPage);
+      tbody.innerHTML = page.map(c => `
+        <tr>
+          <td class="num">${c.rank}</td>
+          <td><div class="name-cell"><span class="coin-icon">${c.sym.slice(0,2)}</span><span><strong>${c.name}</strong> <span class="sym">${c.sym}</span></span></div></td>
+          <td class="num">${fmtPrice(c.price)}</td>
+          <td class="num ${pctClass(c.h1)}">${c.h1>=0?'+':''}${c.h1.toFixed(2)}%</td>
+          <td class="num ${pctClass(c.h24)}">${c.h24>=0?'+':''}${c.h24.toFixed(2)}%</td>
+          <td class="num ${pctClass(c.d7)}">${c.d7>=0?'+':''}${c.d7.toFixed(2)}%</td>
+          <td class="num">${c.mcap}</td>
+          <td class="num col-vol">${c.vol}</td>
+          <td class="num col-supply">${c.supply}</td>
+          <td class="num col-spark spark ${pctClass(c.d7)}">${c.spark}</td>
+        </tr>
+      `).join('');
+
+      const total = rows.length;
+      document.getElementById('count-text').textContent = `Showing ${Math.min(start+1,total)}–${Math.min(start+perPage,total)} of ${total.toLocaleString()} assets`;
+      renderPages(Math.max(1,Math.ceil(total/perPage)));
+    }
+
+    function renderPages(totalPages){
+      const pageNumbers = [1,2,3,4,totalPages].filter((v,i,a)=>a.indexOf(v)===i).filter(v=>v<=totalPages);
+      pagesEl.innerHTML = '';
+      pageNumbers.forEach((p, idx)=>{
+        if (idx===4 && totalPages>5) pagesEl.insertAdjacentHTML('beforeend','<span>...</span>');
+        const b = document.createElement('button');
+        b.className = 'page-btn' + (p===currentPage ? ' active':'');
+        b.textContent = p;
+        b.onclick = ()=>{ currentPage = p; renderTable(); };
+        pagesEl.appendChild(b);
+      });
+    }
+
+    function renderTabs(target, tabs, selected, cb){
+      target.innerHTML = '';
+      tabs.forEach(tab => {
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (tab===selected?' active':'');
+        btn.textContent = tab;
+        btn.onclick = ()=> cb(tab);
+        target.appendChild(btn);
+      });
+    }
+
+    function syncColumns(){
+      document.querySelectorAll('[data-col]').forEach(chk=>{
+        const on = chk.checked;
+        document.querySelectorAll('.col-'+chk.dataset.col).forEach(el=> el.style.display = on ? '' : 'none');
+      });
+    }
+
+    renderTabs(document.getElementById('category-tabs'), categoryTabs, selectedCategory, (tab)=>{
+      selectedCategory = tab; currentPage = 1;
+      renderTabs(document.getElementById('category-tabs'), categoryTabs, selectedCategory, arguments.callee);
+      renderTable();
+    });
+
+    renderTabs(document.getElementById('network-tabs'), networkTabs, selectedNetwork, (tab)=>{
+      selectedNetwork = tab; currentPage = 1;
+      renderTabs(document.getElementById('network-tabs'), networkTabs, selectedNetwork, arguments.callee);
+      renderTable();
+    });
+
+    document.getElementById('toggle-filters').onclick = ()=> document.getElementById('filters-panel').classList.toggle('open');
+    document.getElementById('toggle-columns').onclick = ()=> document.getElementById('columns-panel').classList.toggle('open');
+    document.getElementById('only-positive').onchange = ()=>{ currentPage = 1; renderTable(); };
+    document.querySelectorAll('[data-col]').forEach(chk=> chk.onchange = syncColumns);
+
+    document.getElementById('sort-marketcap').onclick = ()=>{ sortBy = 'marketcap'; renderTable(); };
+    document.getElementById('sort-volume').onclick = ()=>{ sortBy = 'volume'; renderTable(); };
+
+    document.getElementById('read-more').onclick = ()=>{
+      const more = document.getElementById('more-summary');
+      const open = more.style.display === 'block';
+      more.style.display = open ? 'none' : 'block';
+      document.getElementById('read-more').textContent = open ? 'Read More' : 'Read Less';
+    };
+
+    let promoIdx = 0;
+    const promoText = document.getElementById('promo-text');
+    const setPromo = ()=> promoText.textContent = promos[promoIdx];
+    document.getElementById('promo-prev').onclick = ()=>{ promoIdx = (promoIdx - 1 + promos.length) % promos.length; setPromo(); };
+    document.getElementById('promo-next').onclick = ()=>{ promoIdx = (promoIdx + 1) % promos.length; setPromo(); };
+    setInterval(()=>{ promoIdx = (promoIdx + 1) % promos.length; setPromo(); }, 4000);
+
+    renderTable();
+    syncColumns();
+  </script>
+</body>
+</html>

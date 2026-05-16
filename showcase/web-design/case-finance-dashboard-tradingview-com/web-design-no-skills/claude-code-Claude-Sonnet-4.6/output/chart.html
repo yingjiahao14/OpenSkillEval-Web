@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AAPL Chart — ChartPulse</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    .nav { flex-shrink: 0; }
+
+    /* ─── Chart Layout ─── */
+    .chart-layout {
+      display: flex; flex: 1; overflow: hidden;
+      background: var(--bg-primary);
+    }
+
+    /* ─── Watchlist Sidebar ─── */
+    .watchlist-sidebar {
+      width: 240px; flex-shrink: 0;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .watchlist-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .watchlist-header span { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+    .watchlist-header-cols {
+      display: grid; grid-template-columns: 1fr 70px 55px;
+      padding: 4px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .wcol { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .wcol:not(:first-child) { text-align: right; }
+    .watchlist-body { overflow-y: auto; flex: 1; }
+
+    /* Accordion */
+    .wl-category { border-bottom: 1px solid var(--border); }
+    .wl-cat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; cursor: pointer;
+      user-select: none; transition: background 0.1s;
+    }
+    .wl-cat-header:hover { background: rgba(255,255,255,0.03); }
+    .wl-cat-name { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+    .wl-cat-arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+    .wl-cat-arrow.open { transform: rotate(90deg); }
+    .wl-rows { overflow: hidden; }
+    .wl-row {
+      display: grid; grid-template-columns: 1fr 70px 55px;
+      padding: 7px 12px; cursor: pointer;
+      transition: background 0.1s;
+    }
+    .wl-row:hover { background: rgba(255,255,255,0.03); }
+    .wl-row.selected { background: rgba(41,98,255,0.1); }
+    .wl-symbol { font-size: 12px; font-weight: 600; }
+    .wl-price { font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+    .wl-chg { font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+    .wl-chg.up { color: var(--gain); }
+    .wl-chg.down { color: var(--loss); }
+
+    /* ─── Main Chart Area ─── */
+    .chart-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Toolbar */
+    .chart-toolbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+      display: flex; align-items: center; gap: 4px;
+      height: 44px; flex-shrink: 0;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .chart-toolbar::-webkit-scrollbar { display: none; }
+    .tb-symbol {
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+      padding: 6px 12px; border-radius: 6px;
+      background: rgba(41,98,255,0.15); border: 1px solid rgba(41,98,255,0.3);
+      cursor: pointer; white-space: nowrap;
+    }
+    .tb-price { font-size: 14px; font-weight: 700; color: var(--text-primary); padding: 0 8px; }
+    .tb-chg { font-size: 12px; font-weight: 600; color: var(--loss); padding-right: 12px; border-right: 1px solid var(--border); }
+    .tb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+    .tb-btn {
+      padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: 500;
+      color: var(--text-secondary); cursor: pointer; border: none; background: transparent;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .tb-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+    .tb-btn.active { background: var(--bg-card); color: var(--text-primary); }
+
+    /* Timeframe bar */
+    .timeframe-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+      display: flex; align-items: center; gap: 2px;
+      height: 36px; flex-shrink: 0;
+    }
+    .tf-btn {
+      padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500;
+      color: var(--text-secondary); cursor: pointer; border: none; background: transparent;
+      transition: all 0.15s;
+    }
+    .tf-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+    .tf-btn.active { background: var(--accent-blue); color: #fff; }
+
+    /* Chart canvas area */
+    .chart-canvas-area {
+      flex: 1; background: var(--bg-primary);
+      position: relative; overflow: hidden;
+      display: flex; align-items: stretch;
+    }
+    .chart-svg-wrap { flex: 1; position: relative; }
+    .chart-svg-wrap svg { width: 100%; height: 100%; }
+
+    /* Price axis */
+    .price-axis {
+      width: 64px; background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 12px 8px;
+    }
+    .price-tick { font-size: 10px; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Volume bar at bottom of chart */
+    .chart-bottom { height: 80px; background: var(--bg-primary); border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    /* ─── Right Panel ─── */
+    .right-panel {
+      width: 280px; flex-shrink: 0;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex; flex-direction: column;
+    }
+    .rp-section { border-bottom: 1px solid var(--border); padding: 14px; }
+    .rp-ticker { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .rp-company { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+    .rp-price { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .rp-chg { font-size: 13px; font-weight: 600; color: var(--loss); margin-top: 4px; }
+    .rp-premarket {
+      display: inline-flex; gap: 6px; align-items: center;
+      background: var(--gain-bg); border-radius: 6px;
+      padding: 5px 10px; margin-top: 10px;
+    }
+    .rp-premarket-label { font-size: 10px; color: var(--text-secondary); }
+    .rp-premarket-val { font-size: 12px; font-weight: 700; color: var(--gain); }
+    .rp-headline {
+      font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+      margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+    }
+
+    /* Key stats */
+    .rp-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rp-kv-item { }
+    .rp-kv-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+    .rp-kv-val { font-size: 12px; font-weight: 600; }
+    .rp-kv-val.up { color: var(--gain); }
+    .rp-kv-val.down { color: var(--loss); }
+
+    /* Financials tabs */
+    .fin-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .fin-tab {
+      flex: 1; padding: 8px; font-size: 11px; font-weight: 600;
+      text-align: center; cursor: pointer; color: var(--text-secondary);
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+      background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .fin-tab.active { color: var(--text-primary); border-bottom-color: var(--accent-blue); }
+    .fin-panel { display: none; }
+    .fin-panel.active { display: block; }
+
+    .fin-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid rgba(42,42,58,0.5);
+    }
+    .fin-row:last-child { border-bottom: none; }
+    .fin-label { font-size: 11px; color: var(--text-secondary); }
+    .fin-val { font-size: 11px; font-weight: 600; }
+    .fin-val.up { color: var(--gain); }
+    .fin-val.neutral { color: var(--text-secondary); }
+
+    /* Rating badge */
+    .rating-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700;
+    }
+    .rating-neutral { background: rgba(136,136,168,0.15); color: var(--text-secondary); }
+
+    /* Drawing tools sidebar */
+    .draw-sidebar {
+      width: 40px; flex-shrink: 0;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0; gap: 4px;
+    }
+    .draw-btn {
+      width: 30px; height: 30px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer;
+      color: var(--text-secondary); background: transparent;
+      border: none; transition: all 0.15s;
+    }
+    .draw-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+    .draw-btn.active { background: rgba(41,98,255,0.2); color: var(--accent-blue); }
+
+    @media (max-width: 1024px) {
+      .watchlist-sidebar { display: none; }
+      .right-panel { width: 240px; }
+    }
+    @media (max-width: 768px) {
+      body { overflow: auto; }
+      .chart-layout { flex-direction: column; height: auto; }
+      .right-panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+      .chart-canvas-area { height: 400px; }
+    }
+  </style>
+</head>
+<body>
+<!-- ─── Navigation ─── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-logo">Chart<span>Pulse</span></div>
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link active" href="chart.html">Products</a>
+      <a class="nav-link" href="markets.html">Markets</a>
+      <a class="nav-link" href="ideas.html">Community</a>
+      <a class="nav-link" href="brokers.html">Brokers</a>
+    </div>
+    <div class="nav-actions">
+      <button class="btn btn-ghost btn-sm">Sign in</button>
+      <button class="btn btn-primary btn-sm">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── Chart Layout ─── -->
+<div class="chart-layout">
+
+  <!-- Watchlist Sidebar -->
+  <div class="watchlist-sidebar">
+    <div class="watchlist-header">
+      <span>Watchlist</span>
+      <span style="font-size:16px;cursor:pointer;color:var(--text-muted);">+</span>
+    </div>
+    <div class="watchlist-header-cols">
+      <span class="wcol">Symbol</span>
+      <span class="wcol">Last</span>
+      <span class="wcol">Chg%</span>
+    </div>
+    <div class="watchlist-body">
+
+      <!-- Indices -->
+      <div class="wl-category">
+        <div class="wl-cat-header" onclick="toggleCat(this)">
+          <span class="wl-cat-name">Indices</span>
+          <span class="wl-cat-arrow open">▶</span>
+        </div>
+        <div class="wl-rows">
+          <div class="wl-row"><span class="wl-symbol">SPX</span><span class="wl-price">7,041.29</span><span class="wl-chg up">+0.26%</span></div>
+          <div class="wl-row"><span class="wl-symbol">NDQ</span><span class="wl-price">26,333.00</span><span class="wl-chg up">+0.49%</span></div>
+          <div class="wl-row"><span class="wl-symbol">DJI</span><span class="wl-price">48,578.72</span><span class="wl-chg up">+0.24%</span></div>
+          <div class="wl-row"><span class="wl-symbol">VIX</span><span class="wl-price">17.86</span><span class="wl-chg down">−0.45%</span></div>
+        </div>
+      </div>
+
+      <!-- Stocks -->
+      <div class="wl-category">
+        <div class="wl-cat-header" onclick="toggleCat(this)">
+          <span class="wl-cat-name">Stocks</span>
+          <span class="wl-cat-arrow open">▶</span>
+        </div>
+        <div class="wl-rows">
+          <div class="wl-row selected"><span class="wl-symbol">AAPL</span><span class="wl-price">263.40</span><span class="wl-chg down">−1.14%</span></div>
+          <div class="wl-row"><span class="wl-symbol">TSLA</span><span class="wl-price">388.90</span><span class="wl-chg down">−0.78%</span></div>
+          <div class="wl-row"><span class="wl-symbol">NFLX</span><span class="wl-price">107.79</span><span class="wl-chg up">+0.07%</span></div>
+        </div>
+      </div>
+
+      <!-- Futures -->
+      <div class="wl-category">
+        <div class="wl-cat-header" onclick="toggleCat(this)">
+          <span class="wl-cat-name">Futures</span>
+          <span class="wl-cat-arrow open">▶</span>
+        </div>
+        <div class="wl-rows">
+          <div class="wl-row"><span class="wl-symbol">USOIL</span><span class="wl-price">87.53</span><span class="wl-chg down">−6.06%</span></div>
+          <div class="wl-row"><span class="wl-symbol">GOLD</span><span class="wl-price">4,801.92</span><span class="wl-chg up">+0.30%</span></div>
+        </div>
+      </div>
+
+      <!-- Forex -->
+      <div class="wl-category">
+        <div class="wl-cat-header" onclick="toggleCat(this)">
+          <span class="wl-cat-name">Forex</span>
+          <span class="wl-cat-arrow open">▶</span>
+        </div>
+        <div class="wl-rows">
+          <div class="wl-row"><span class="wl-symbol">EURUSD</span><span class="wl-price">1.17949</span><span class="wl-chg up">+0.12%</span></div>
+          <div class="wl-row"><span class="wl-symbol">GBPUSD</span><span class="wl-price">1.35335</span><span class="wl-chg up">+0.06%</span></div>
+        </div>
+      </div>
+
+      <!-- Crypto -->
+      <div class="wl-category">
+        <div class="wl-cat-header" onclick="toggleCat(this)">
+          <span class="wl-cat-name">Crypto</span>
+          <span class="wl-cat-arrow open">▶</span>
+        </div>
+        <div class="wl-rows">
+          <div class="wl-row"><span class="wl-symbol">BTCUSD</span><span class="wl-price">75,585</span><span class="wl-chg up">+0.54%</span></div>
+          <div class="wl-row"><span class="wl-symbol">ETHUSD</span><span class="wl-price">2,355.1</span><span class="wl-chg up">+0.25%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chart -->
+  <div class="chart-main">
+    <!-- Toolbar -->
+    <div class="chart-toolbar">
+      <div class="tb-symbol">AAPL · NASDAQ</div>
+      <div class="tb-price">263.40</div>
+      <div class="tb-chg">−3.03 (−1.14%)</div>
+      <button class="tb-btn active">Candles</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn active">1D</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn">Indicators</button>
+      <button class="tb-btn">Strategies</button>
+      <button class="tb-btn">Compare</button>
+      <div class="tb-sep"></div>
+      <button class="tb-btn">📸 Screenshot</button>
+      <button class="tb-btn">⚙ Settings</button>
+    </div>
+
+    <!-- Timeframe -->
+    <div class="timeframe-bar">
+      <button class="tf-btn" onclick="switchTF(this)">1D</button>
+      <button class="tf-btn" onclick="switchTF(this)">5D</button>
+      <button class="tf-btn active" onclick="switchTF(this)">1M</button>
+      <button class="tf-btn" onclick="switchTF(this)">3M</button>
+      <button class="tf-btn" onclick="switchTF(this)">6M</button>
+      <button class="tf-btn" onclick="switchTF(this)">YTD</button>
+      <button class="tf-btn" onclick="switchTF(this)">1Y</button>
+      <button class="tf-btn" onclick="switchTF(this)">5Y</button>
+      <button class="tf-btn" onclick="switchTF(this)">All</button>
+    </div>
+
+    <!-- Chart Canvas -->
+    <div class="chart-canvas-area">
+      <div class="draw-sidebar">
+        <button class="draw-btn active" title="Cursor">✛</button>
+        <button class="draw-btn" title="Crosshair">⊕</button>
+        <button class="draw-btn" title="Trend Line">╱</button>
+        <button class="draw-btn" title="Horizontal Line">—</button>
+        <button class="draw-btn" title="Rectangle">▭</button>
+        <button class="draw-btn" title="Text">T</button>
+        <button class="draw-btn" title="Fibonacci">🔢</button>
+        <div style="flex:1;"></div>
+        <button class="draw-btn" title="Zoom In">+</button>
+        <button class="draw-btn" title="Zoom Out">−</button>
+        <button class="draw-btn" title="Reset">⟳</button>
+      </div>
+      <div class="chart-svg-wrap" id="chartWrap">
+        <svg id="chartSvg" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id="gridLine" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:rgba(42,42,58,0.5)"/>
+              <stop offset="100%" style="stop-color:rgba(42,42,58,0.1)"/>
+            </linearGradient>
+          </defs>
+          <!-- Grid lines -->
+          <line x1="0" y1="50" x2="800" y2="50" stroke="rgba(42,42,58,0.4)" stroke-width="1"/>
+          <line x1="0" y1="130" x2="800" y2="130" stroke="rgba(42,42,58,0.4)" stroke-width="1"/>
+          <line x1="0" y1="200" x2="800" y2="200" stroke="rgba(42,42,58,0.4)" stroke-width="1"/>
+          <line x1="0" y1="270" x2="800" y2="270" stroke="rgba(42,42,58,0.4)" stroke-width="1"/>
+          <line x1="0" y1="350" x2="800" y2="350" stroke="rgba(42,42,58,0.4)" stroke-width="1"/>
+          <!-- Vertical grid -->
+          <line x1="100" y1="0" x2="100" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="200" y1="0" x2="200" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="300" y1="0" x2="300" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="400" y1="0" x2="400" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="500" y1="0" x2="500" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="600" y1="0" x2="600" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+          <line x1="700" y1="0" x2="700" y2="400" stroke="rgba(42,42,58,0.3)" stroke-width="1"/>
+
+          <!-- Candlesticks (AAPL 1M simulated data — red/green candles) -->
+          <!-- Each candle: wick line + body rect. Format: x open close high low -->
+          <!-- Green candles -->
+          <g id="candles">
+            <!-- candle 1 -->
+            <line x1="25" y1="310" x2="25" y2="340" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="20" y="320" width="10" height="15" fill="#26a65b" rx="1"/>
+            <!-- candle 2 -->
+            <line x1="45" y1="295" x2="45" y2="330" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="40" y="305" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 3 (red) -->
+            <line x1="65" y1="288" x2="65" y2="322" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="60" y="295" width="10" height="17" fill="#f7525f" rx="1"/>
+            <!-- candle 4 -->
+            <line x1="85" y1="278" x2="85" y2="310" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="80" y="285" width="10" height="16" fill="#26a65b" rx="1"/>
+            <!-- candle 5 (red) -->
+            <line x1="105" y1="272" x2="105" y2="305" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="100" y="278" width="10" height="18" fill="#f7525f" rx="1"/>
+            <!-- candle 6 -->
+            <line x1="125" y1="258" x2="125" y2="292" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="120" y="265" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 7 -->
+            <line x1="145" y1="245" x2="145" y2="278" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="140" y="252" width="10" height="17" fill="#26a65b" rx="1"/>
+            <!-- candle 8 (red) -->
+            <line x1="165" y1="238" x2="165" y2="272" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="160" y="245" width="10" height="18" fill="#f7525f" rx="1"/>
+            <!-- candle 9 -->
+            <line x1="185" y1="228" x2="185" y2="260" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="180" y="235" width="10" height="16" fill="#26a65b" rx="1"/>
+            <!-- candle 10 -->
+            <line x1="205" y1="218" x2="205" y2="250" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="200" y="225" width="10" height="15" fill="#26a65b" rx="1"/>
+            <!-- candle 11 (red) -->
+            <line x1="225" y1="212" x2="225" y2="248" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="220" y="220" width="10" height="20" fill="#f7525f" rx="1"/>
+            <!-- candle 12 (red) -->
+            <line x1="245" y1="215" x2="245" y2="252" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="240" y="222" width="10" height="20" fill="#f7525f" rx="1"/>
+            <!-- candle 13 -->
+            <line x1="265" y1="200" x2="265" y2="240" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="260" y="210" width="10" height="20" fill="#26a65b" rx="1"/>
+            <!-- candle 14 -->
+            <line x1="285" y1="188" x2="285" y2="225" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="280" y="196" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 15 (red) -->
+            <line x1="305" y1="182" x2="305" y2="218" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="300" y="190" width="10" height="18" fill="#f7525f" rx="1"/>
+            <!-- candle 16 -->
+            <line x1="325" y1="172" x2="325" y2="205" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="320" y="180" width="10" height="16" fill="#26a65b" rx="1"/>
+            <!-- candle 17 -->
+            <line x1="345" y1="162" x2="345" y2="196" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="340" y="170" width="10" height="17" fill="#26a65b" rx="1"/>
+            <!-- candle 18 (red) -->
+            <line x1="365" y1="165" x2="365" y2="200" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="360" y="173" width="10" height="18" fill="#f7525f" rx="1"/>
+            <!-- candle 19 -->
+            <line x1="385" y1="155" x2="385" y2="190" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="380" y="163" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 20 (red) -->
+            <line x1="405" y1="158" x2="405" y2="195" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="400" y="167" width="10" height="19" fill="#f7525f" rx="1"/>
+            <!-- candle 21 -->
+            <line x1="425" y1="145" x2="425" y2="182" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="420" y="153" width="10" height="20" fill="#26a65b" rx="1"/>
+            <!-- candle 22 -->
+            <line x1="445" y1="135" x2="445" y2="170" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="440" y="142" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 23 (red) -->
+            <line x1="465" y1="130" x2="465" y2="165" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="460" y="138" width="10" height="17" fill="#f7525f" rx="1"/>
+            <!-- candle 24 -->
+            <line x1="485" y1="120" x2="485" y2="155" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="480" y="128" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 25 -->
+            <line x1="505" y1="112" x2="505" y2="145" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="500" y="118" width="10" height="17" fill="#26a65b" rx="1"/>
+            <!-- candle 26 (red) -->
+            <line x1="525" y1="108" x2="525" y2="145" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="520" y="117" width="10" height="20" fill="#f7525f" rx="1"/>
+            <!-- candle 27 -->
+            <line x1="545" y1="98" x2="545" y2="132" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="540" y="106" width="10" height="17" fill="#26a65b" rx="1"/>
+            <!-- candle 28 -->
+            <line x1="565" y1="88" x2="565" y2="122" stroke="#26a65b" stroke-width="1.5"/>
+            <rect x="560" y="96" width="10" height="18" fill="#26a65b" rx="1"/>
+            <!-- candle 29 (red) -->
+            <line x1="585" y1="90" x2="585" y2="128" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="580" y="99" width="10" height="20" fill="#f7525f" rx="1"/>
+            <!-- candle 30 (current, red - showing loss) -->
+            <line x1="605" y1="85" x2="605" y2="120" stroke="#f7525f" stroke-width="1.5"/>
+            <rect x="600" y="94" width="10" height="18" fill="#f7525f" rx="1"/>
+
+            <!-- Current price line -->
+            <line x1="0" y1="97" x2="800" y2="97" stroke="rgba(247,82,95,0.6)" stroke-width="1" stroke-dasharray="4,4"/>
+            <rect x="750" y="90" width="50" height="14" fill="#f7525f" rx="2"/>
+            <text x="775" y="100" fill="#fff" font-size="9" text-anchor="middle">263.40</text>
+          </g>
+
+          <!-- Date labels -->
+          <text x="25" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Mar 24</text>
+          <text x="125" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Mar 29</text>
+          <text x="225" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Apr 3</text>
+          <text x="325" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Apr 8</text>
+          <text x="425" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Apr 13</text>
+          <text x="525" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Apr 17</text>
+          <text x="605" y="395" fill="rgba(136,136,168,0.7)" font-size="9" text-anchor="middle">Apr 22</text>
+        </svg>
+      </div>
+      <div class="price-axis">
+        <span class="price-tick">280.00</span>
+        <span class="price-tick">275.00</span>
+        <span class="price-tick">270.00</span>
+        <span class="price-tick">265.00</span>
+        <span class="price-tick" style="color:var(--loss);">263.40</span>
+        <span class="price-tick">260.00</span>
+        <span class="price-tick">255.00</span>
+        <span class="price-tick">250.00</span>
+      </div>
+    </div>
+
+    <!-- Volume bars -->
+    <div class="chart-bottom">
+      <svg viewBox="0 0 800 80" preserveAspectRatio="none" style="width:100%;height:100%;">
+        <text x="8" y="14" fill="rgba(136,136,168,0.6)" font-size="9">Volume</text>
+        <!-- Volume bars matching candle positions -->
+        <rect x="20" y="30" width="10" height="45" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="40" y="25" width="10" height="50" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="60" y="35" width="10" height="40" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="80" y="28" width="10" height="47" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="100" y="40" width="10" height="35" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="120" y="20" width="10" height="55" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="140" y="32" width="10" height="43" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="160" y="38" width="10" height="37" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="180" y="27" width="10" height="48" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="200" y="22" width="10" height="53" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="220" y="18" width="10" height="57" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="240" y="25" width="10" height="50" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="260" y="30" width="10" height="45" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="280" y="28" width="10" height="47" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="300" y="35" width="10" height="40" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="320" y="26" width="10" height="49" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="340" y="22" width="10" height="53" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="360" y="31" width="10" height="44" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="380" y="24" width="10" height="51" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="400" y="29" width="10" height="46" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="420" y="19" width="10" height="56" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="440" y="21" width="10" height="54" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="460" y="33" width="10" height="42" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="480" y="25" width="10" height="50" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="500" y="23" width="10" height="52" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="520" y="16" width="10" height="59" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="540" y="27" width="10" height="48" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="560" y="20" width="10" height="55" fill="rgba(38,166,91,0.5)" rx="1"/>
+        <rect x="580" y="14" width="10" height="61" fill="rgba(247,82,95,0.5)" rx="1"/>
+        <rect x="600" y="10" width="10" height="65" fill="rgba(247,82,95,0.5)" rx="1"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Right Detail Panel -->
+  <div class="right-panel">
+    <!-- Stock header -->
+    <div class="rp-section">
+      <div class="rp-ticker">AAPL · NASDAQ</div>
+      <div class="rp-company">Apple Inc.</div>
+      <div class="rp-price">263.40 <span style="font-size:14px;color:var(--text-muted);">USD</span></div>
+      <div class="rp-chg">−3.03 (−1.14%) Today</div>
+      <div class="rp-premarket">
+        <span class="rp-premarket-label">Pre-market</span>
+        <span class="rp-premarket-val">267.14 (+1.42%)</span>
+      </div>
+      <div class="rp-headline">Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</div>
+    </div>
+
+    <!-- Key Stats -->
+    <div class="rp-section">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Key Stats</div>
+      <div class="rp-kv">
+        <div class="rp-kv-item"><div class="rp-kv-label">Volume</div><div class="rp-kv-val">43.32 M</div></div>
+        <div class="rp-kv-item"><div class="rp-kv-label">Avg Vol (30D)</div><div class="rp-kv-val">40.70 M</div></div>
+        <div class="rp-kv-item"><div class="rp-kv-label">Market Cap</div><div class="rp-kv-val">3.87 T</div></div>
+        <div class="rp-kv-item"><div class="rp-kv-label">Next Earnings</div><div class="rp-kv-val" style="color:var(--gold);">In 14 days</div></div>
+      </div>
+    </div>
+
+    <!-- Financials -->
+    <div class="rp-section">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Financials</div>
+      <div class="fin-tabs">
+        <button class="fin-tab active" onclick="switchFinTab(this,'fin-annual')">Annual</button>
+        <button class="fin-tab" onclick="switchFinTab(this,'fin-quarterly')">Quarterly</button>
+      </div>
+      <div id="fin-annual" class="fin-panel active" style="padding-top:8px;">
+        <div class="fin-row"><span class="fin-label">Dividend yield TTM</span><span class="fin-val">0.39%</span></div>
+        <div class="fin-row"><span class="fin-label">Payout ratio (TTM)</span><span class="fin-val">13.03%</span></div>
+        <div class="fin-row"><span class="fin-label">Last dividend</span><span class="fin-val">$0.26</span></div>
+        <div class="fin-row"><span class="fin-label">Ex-dividend date</span><span class="fin-val">Feb 9, 2026</span></div>
+        <div class="fin-row"><span class="fin-label">Analyst rating</span><span class="fin-val"><span class="rating-badge rating-neutral">Neutral</span></span></div>
+        <div class="fin-row"><span class="fin-label">1Y price target</span><span class="fin-val up">300.40 (+14.05%)</span></div>
+      </div>
+      <div id="fin-quarterly" class="fin-panel" style="padding-top:8px;">
+        <div class="fin-row"><span class="fin-label">Q4 Revenue</span><span class="fin-val up">+8.2% YoY</span></div>
+        <div class="fin-row"><span class="fin-label">Q4 EPS</span><span class="fin-val up">$2.40</span></div>
+        <div class="fin-row"><span class="fin-label">Q4 EPS Est.</span><span class="fin-val">$2.35</span></div>
+        <div class="fin-row"><span class="fin-label">Gross margin</span><span class="fin-val">45.2%</span></div>
+        <div class="fin-row"><span class="fin-label">Operating margin</span><span class="fin-val">31.8%</span></div>
+        <div class="fin-row"><span class="fin-label">Net income</span><span class="fin-val up">$36.3B</span></div>
+      </div>
+    </div>
+
+    <!-- Performance -->
+    <div class="rp-section">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Performance</div>
+      <div class="fin-row"><span class="fin-label">1 Week</span><span class="fin-val up">+1.70%</span></div>
+      <div class="fin-row"><span class="fin-label">1 Month</span><span class="fin-val up">+4.13%</span></div>
+      <div class="fin-row"><span class="fin-label">1 Year</span><span class="fin-val up">+32.79%</span></div>
+      <div class="fin-row"><span class="fin-label">Technicals</span><span class="fin-val neutral"><span class="rating-badge rating-neutral">Neutral</span></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleCat(header) {
+  const rows = header.nextElementSibling;
+  const arrow = header.querySelector('.wl-cat-arrow');
+  const isOpen = arrow.classList.contains('open');
+  if (isOpen) {
+    rows.style.display = 'none';
+    arrow.classList.remove('open');
+    arrow.style.transform = 'rotate(0deg)';
+  } else {
+    rows.style.display = 'block';
+    arrow.classList.add('open');
+    arrow.style.transform = 'rotate(90deg)';
+  }
+}
+
+function switchTF(btn) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function switchFinTab(btn, panelId) {
+  document.querySelectorAll('.fin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.fin-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+</script>
+</body>
+</html>

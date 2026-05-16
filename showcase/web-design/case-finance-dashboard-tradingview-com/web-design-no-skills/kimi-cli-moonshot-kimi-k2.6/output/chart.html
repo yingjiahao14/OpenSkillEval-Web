@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart Workspace — ChartPulse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .chart-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr 280px;
+      grid-template-rows: auto 1fr;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+    .chart-sidebar-left {
+      grid-row: 1 / -1;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chart-main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chart-sidebar-right {
+      grid-row: 1 / -1;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border-color);
+      overflow-y: auto;
+    }
+    .watchlist-header {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .watchlist-search {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .watchlist-search input {
+      width: 100%;
+      padding: 0.375rem 0.5rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 0.25rem;
+      color: var(--text-primary);
+      font-size: 0.8125rem;
+    }
+    .watchlist-search input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+    }
+    .watchlist-categories {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .watchlist-category-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+    .watchlist-category-title:hover {
+      color: var(--text-primary);
+    }
+    .watchlist-category-title .chevron {
+      transition: transform 0.2s;
+      font-size: 0.625rem;
+    }
+    .watchlist-category-title.collapsed .chevron {
+      transform: rotate(-90deg);
+    }
+    .watchlist-category-body {
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+    }
+    .watchlist-category-body.collapsed {
+      max-height: 0;
+    }
+    .watchlist-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .watchlist-row:hover {
+      background: var(--bg-hover);
+    }
+    .watchlist-row.active {
+      background: rgba(41, 98, 255, 0.1);
+    }
+    .watchlist-row .sym {
+      font-weight: 600;
+    }
+    .watchlist-row .last {
+      text-align: right;
+      min-width: 55px;
+    }
+    .watchlist-row .chg {
+      text-align: right;
+      min-width: 55px;
+    }
+    .chart-canvas-container {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+    }
+    .detail-section {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .detail-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.375rem 0;
+      font-size: 0.875rem;
+    }
+    .detail-row-label {
+      color: var(--text-secondary);
+    }
+    .detail-row-value {
+      font-weight: 500;
+    }
+    .headline-box {
+      background: var(--bg-tertiary);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+    .financial-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .financial-tab {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 0.25rem;
+      border: none;
+      background: var(--bg-hover);
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .financial-tab.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+    @media (max-width: 1024px) {
+      .chart-layout {
+        grid-template-columns: 200px 1fr;
+      }
+      .chart-sidebar-right {
+        display: none;
+      }
+    }
+    @media (max-width: 768px) {
+      .chart-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+      .chart-sidebar-left {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <a href="index.html" class="nav-brand">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="6" fill="#2962FF"/>
+        <path d="M8 18L12 12L15 16L20 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      ChartPulse
+    </a>
+    <div class="nav-links">
+      <a href="chart.html" class="nav-link active">Products</a>
+      <a href="ideas.html" class="nav-link">Community</a>
+      <a href="markets.html" class="nav-link">Markets</a>
+      <a href="brokers.html" class="nav-link">Brokers</a>
+    </div>
+    <div class="nav-actions">
+      <button class="btn btn-ghost text-sm">Sign In</button>
+      <button class="btn btn-primary text-sm">Get Started</button>
+    </div>
+  </nav>
+
+  <div class="chart-layout">
+    <!-- Left Sidebar: Watchlist -->
+    <aside class="chart-sidebar-left">
+      <div class="watchlist-header">
+        <span>Watchlist</span>
+        <span style="font-size: 1rem; cursor: pointer;">+</span>
+      </div>
+      <div class="watchlist-search">
+        <input type="text" placeholder="Search symbol...">
+      </div>
+      <div class="watchlist-categories">
+        <!-- Indices -->
+        <div class="watchlist-category">
+          <div class="watchlist-category-title" onclick="toggleCategory(this)">
+            <span>Indices</span>
+            <span class="chevron">&#9662;</span>
+          </div>
+          <div class="watchlist-category-body">
+            <div class="watchlist-row active">
+              <span class="sym">SPX</span>
+              <span class="last">7,041.29</span>
+              <span class="chg text-green">+0.26%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">NDQ</span>
+              <span class="last">26,333.00</span>
+              <span class="chg text-green">+0.49%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">DJI</span>
+              <span class="last">48,578.72</span>
+              <span class="chg text-green">+0.24%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">VIX</span>
+              <span class="last">17.86</span>
+              <span class="chg text-red">−0.45%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Stocks -->
+        <div class="watchlist-category">
+          <div class="watchlist-category-title" onclick="toggleCategory(this)">
+            <span>Stocks</span>
+            <span class="chevron">&#9662;</span>
+          </div>
+          <div class="watchlist-category-body">
+            <div class="watchlist-row">
+              <span class="sym">AAPL</span>
+              <span class="last">263.40</span>
+              <span class="chg text-red">−1.14%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">TSLA</span>
+              <span class="last">388.90</span>
+              <span class="chg text-red">−0.78%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">NFLX</span>
+              <span class="last">107.79</span>
+              <span class="chg text-green">+0.07%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Futures -->
+        <div class="watchlist-category">
+          <div class="watchlist-category-title" onclick="toggleCategory(this)">
+            <span>Futures</span>
+            <span class="chevron">&#9662;</span>
+          </div>
+          <div class="watchlist-category-body">
+            <div class="watchlist-row">
+              <span class="sym">USOIL</span>
+              <span class="last">87.53</span>
+              <span class="chg text-red">−6.06%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">GOLD</span>
+              <span class="last">4,801.92</span>
+              <span class="chg text-green">+0.30%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Forex -->
+        <div class="watchlist-category">
+          <div class="watchlist-category-title" onclick="toggleCategory(this)">
+            <span>Forex</span>
+            <span class="chevron">&#9662;</span>
+          </div>
+          <div class="watchlist-category-body">
+            <div class="watchlist-row">
+              <span class="sym">EURUSD</span>
+              <span class="last">1.17949</span>
+              <span class="chg text-green">+0.12%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">GBPUSD</span>
+              <span class="last">1.35335</span>
+              <span class="chg text-green">+0.06%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Crypto -->
+        <div class="watchlist-category">
+          <div class="watchlist-category-title" onclick="toggleCategory(this)">
+            <span>Crypto</span>
+            <span class="chevron">&#9662;</span>
+          </div>
+          <div class="watchlist-category-body">
+            <div class="watchlist-row">
+              <span class="sym">BTCUSD</span>
+              <span class="last">75,585</span>
+              <span class="chg text-green">+0.54%</span>
+            </div>
+            <div class="watchlist-row">
+              <span class="sym">ETHUSD</span>
+              <span class="last">2,355.1</span>
+              <span class="chg text-green">+0.25%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chart Area -->
+    <main class="chart-main">
+      <!-- Toolbar -->
+      <div class="chart-toolbar">
+        <button class="toolbar-btn active" title="Candles">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="3" height="6" fill="currentColor"/><rect x="9" y="3" width="3" height="6" fill="currentColor"/><line x1="3.5" y1="2" x2="3.5" y2="12" stroke="currentColor" stroke-width="0.75"/><line x1="10.5" y1="1" x2="10.5" y2="10" stroke="currentColor" stroke-width="0.75"/></svg>
+        </button>
+        <button class="toolbar-btn" title="Line">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="1,10 4,7 7,9 10,4 13,5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="toolbar-btn" title="Area">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 10 L4 7 L7 9 L10 4 L13 5 L13 13 L1 13 Z" fill="currentColor" opacity="0.3"/><polyline points="1,10 4,7 7,9 10,4 13,5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" title="Trend Line">&#9998;</button>
+        <button class="toolbar-btn" title="Horizontal Line">&#9473;</button>
+        <button class="toolbar-btn" title="Fibonacci">F</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" title="Text">T</button>
+        <button class="toolbar-btn" title="Measure">&#128207;</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn active" data-tf="1D">1D</button>
+        <button class="toolbar-btn" data-tf="5D">5D</button>
+        <button class="toolbar-btn" data-tf="1M">1M</button>
+        <button class="toolbar-btn" data-tf="3M">3M</button>
+        <button class="toolbar-btn" data-tf="6M">6M</button>
+        <button class="toolbar-btn" data-tf="YTD">YTD</button>
+        <button class="toolbar-btn" data-tf="1Y">1Y</button>
+        <button class="toolbar-btn" data-tf="5Y">5Y</button>
+        <button class="toolbar-btn" data-tf="All">All</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn" title="Indicators">f(x)</button>
+        <button class="toolbar-btn" title="Alert">&#128276;</button>
+        <button class="toolbar-btn" title="Settings">&#9881;</button>
+      </div>
+
+      <!-- Chart Header -->
+      <div style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary);">
+        <div>
+          <span style="font-size: 1.125rem; font-weight: 700;">AAPL</span>
+          <span style="font-size: 0.75rem; color: var(--text-secondary); margin-left: 0.5rem;">Apple Inc — NASDAQ</span>
+        </div>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 1rem;">
+          <span style="font-size: 1.25rem; font-weight: 700;">263.40</span>
+          <span style="font-size: 0.875rem;" class="text-red">−3.03 (−1.14%)</span>
+        </div>
+      </div>
+
+      <!-- Candlestick Chart -->
+      <div class="chart-canvas-container">
+        <canvas id="candleChart" class="chart-canvas"></canvas>
+      </div>
+    </main>
+
+    <!-- Right Sidebar: Stock Details -->
+    <aside class="chart-sidebar-right">
+      <!-- Price & Change -->
+      <div class="detail-section">
+        <div style="margin-bottom: 0.5rem;">
+          <div style="font-size: 1.75rem; font-weight: 700;">263.40 <span style="font-size: 0.875rem; font-weight: 400; color: var(--text-secondary);">USD</span></div>
+          <div style="font-size: 1rem;" class="text-red">−3.03 (−1.14%)</div>
+        </div>
+        <div class="headline-box">
+          Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.
+        </div>
+      </div>
+
+      <!-- Key Stats -->
+      <div class="detail-section">
+        <div class="detail-section-title">Key Statistics</div>
+        <div class="detail-row">
+          <span class="detail-row-label">Volume</span>
+          <span class="detail-row-value">43.32 M</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">Avg Volume (30D)</span>
+          <span class="detail-row-value">40.70 M</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">Market capitalization</span>
+          <span class="detail-row-value">3.87 T</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">Next earnings report</span>
+          <span class="detail-row-value">In 14 days</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">Pre-market</span>
+          <span class="detail-row-value text-green">267.14 USD (+1.42%)</span>
+        </div>
+      </div>
+
+      <!-- Financials -->
+      <div class="detail-section">
+        <div class="detail-section-title">Financials</div>
+        <div class="financial-tabs">
+          <button class="financial-tab active" onclick="switchFinancial(this, 'annual')">Annual</button>
+          <button class="financial-tab" onclick="switchFinancial(this, 'quarterly')">Quarterly</button>
+        </div>
+        <div id="financialAnnual">
+          <div class="detail-row">
+            <span class="detail-row-label">Dividend yield TTM</span>
+            <span class="detail-row-value">0.39%</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Payout ratio (TTM)</span>
+            <span class="detail-row-value">13.03%</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Last dividend payment</span>
+            <span class="detail-row-value">0.26</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Last ex-dividend date</span>
+            <span class="detail-row-value">Feb 9, 2026</span>
+          </div>
+        </div>
+        <div id="financialQuarterly" style="display: none;">
+          <div class="detail-row">
+            <span class="detail-row-label">Dividend yield TTM</span>
+            <span class="detail-row-value">0.39%</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Payout ratio (Q)</span>
+            <span class="detail-row-value">12.85%</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Last dividend payment</span>
+            <span class="detail-row-value">0.26</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row-label">Last ex-dividend date</span>
+            <span class="detail-row-value">Feb 9, 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyst Rating -->
+      <div class="detail-section">
+        <div class="detail-section-title">Analyst Rating</div>
+        <div class="detail-row">
+          <span class="detail-row-label">Rating</span>
+          <span class="detail-row-value badge badge-gray" style="padding: 0.125rem 0.5rem;">Neutral</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">1 year price target</span>
+          <span class="detail-row-value">300.40 <span class="text-green">(+14.05%)</span></span>
+        </div>
+      </div>
+
+      <!-- Performance -->
+      <div class="detail-section">
+        <div class="detail-section-title">Performance</div>
+        <div class="detail-row">
+          <span class="detail-row-label">1 Week</span>
+          <span class="detail-row-value text-green">+1.70%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">1 Month</span>
+          <span class="detail-row-value text-green">+4.13%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">1 Year</span>
+          <span class="detail-row-value text-green">+32.79%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row-label">Technicals</span>
+          <span class="detail-row-value badge badge-gray" style="padding: 0.125rem 0.5rem;">Neutral</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    // Watchlist accordion toggle
+    function toggleCategory(header) {
+      const body = header.nextElementSibling;
+      header.classList.toggle('collapsed');
+      body.classList.toggle('collapsed');
+      if (!body.classList.contains('collapsed')) {
+        body.style.maxHeight = body.scrollHeight + 'px';
+      } else {
+        body.style.maxHeight = '0';
+      }
+    }
+    
+    // Initialize accordions open
+    document.querySelectorAll('.watchlist-category-body').forEach(body => {
+      body.style.maxHeight = body.scrollHeight + 'px';
+    });
+    
+    // Timeframe toggle
+    const tfButtons = document.querySelectorAll('[data-tf]');
+    let candleData = generateCandleData(150);
+    
+    tfButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tfButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Regenerate data with different volatility for visual effect
+        const tf = btn.dataset.tf;
+        const count = tf === '1D' ? 100 : tf === '5D' ? 150 : tf === '1M' ? 200 : 250;
+        candleData = generateCandleData(count);
+        drawCandlestickChart('candleChart', candleData, tf);
+      });
+    });
+    
+    // Financial tabs
+    function switchFinancial(btn, view) {
+      document.querySelectorAll('.financial-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('financialAnnual').style.display = view === 'annual' ? 'block' : 'none';
+      document.getElementById('financialQuarterly').style.display = view === 'quarterly' ? 'block' : 'none';
+    }
+    
+    // Draw chart on load and resize
+    function renderChart() {
+      drawCandlestickChart('candleChart', candleData, '1D');
+    }
+    
+    window.addEventListener('load', renderChart);
+    window.addEventListener('resize', renderChart);
+    
+    // Watchlist row click
+    document.querySelectorAll('.watchlist-row').forEach(row => {
+      row.addEventListener('click', () => {
+        document.querySelectorAll('.watchlist-row').forEach(r => r.classList.remove('active'));
+        row.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

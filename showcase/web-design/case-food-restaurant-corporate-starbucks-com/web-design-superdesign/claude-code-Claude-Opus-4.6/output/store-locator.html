@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find a Store — GreenBean Coffee</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .locator-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      height: calc(100vh - 72px);
+      overflow: hidden;
+    }
+
+    .locator-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--gray-200);
+      background: var(--white);
+    }
+
+    .locator-controls {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--white);
+      z-index: 2;
+    }
+
+    .order-type-toggle {
+      display: flex;
+      background: var(--gray-100);
+      border-radius: var(--radius-full);
+      padding: 0.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .order-type-btn {
+      flex: 1;
+      padding: 0.625rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      color: var(--gray-500);
+      transition: all var(--transition-fast);
+      text-align: center;
+    }
+
+    .order-type-btn.active {
+      background: var(--white);
+      color: var(--green);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .search-input-wrap {
+      position: relative;
+      margin-bottom: 0.75rem;
+    }
+
+    .search-input-wrap svg {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      color: var(--gray-400);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.875rem 1rem 0.875rem 2.75rem;
+      font-size: 0.9375rem;
+      font-family: var(--font-body);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-lg);
+      outline: none;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      background: var(--white);
+    }
+
+    .search-input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(0,130,74,0.1);
+    }
+
+    .search-input::placeholder {
+      color: var(--gray-400);
+    }
+
+    .search-suggestions {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      z-index: 10;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .search-suggestions.visible {
+      display: block;
+    }
+
+    .suggestion-item {
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: background var(--transition-fast);
+    }
+
+    .suggestion-item:hover {
+      background: var(--green-light);
+    }
+
+    .suggestion-item svg {
+      position: static;
+      transform: none;
+      width: 16px;
+      height: 16px;
+      color: var(--gray-400);
+      flex-shrink: 0;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--gray-600);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-full);
+      transition: all var(--transition-fast);
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-light);
+    }
+
+    .filter-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .filter-panel {
+      display: none;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--gray-50);
+    }
+
+    .filter-panel.visible {
+      display: block;
+    }
+
+    .filter-panel h4 {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--gray-400);
+      margin-bottom: 0.75rem;
+    }
+
+    .filter-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .filter-chip {
+      padding: 0.375rem 0.875rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--gray-600);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-full);
+      transition: all var(--transition-fast);
+      cursor: pointer;
+    }
+
+    .filter-chip:hover,
+    .filter-chip.selected {
+      background: var(--green);
+      color: var(--white);
+      border-color: var(--green);
+    }
+
+    .store-results {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .results-header {
+      padding: 1rem 1.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      border-bottom: 1px solid var(--gray-100);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .store-card {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--gray-100);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .store-card:hover {
+      background: var(--green-light);
+    }
+
+    .store-card.active {
+      background: var(--green-light);
+      border-left: 3px solid var(--green);
+    }
+
+    .store-name {
+      font-weight: 600;
+      font-size: 0.9375rem;
+      color: var(--gray-800);
+      margin-bottom: 0.25rem;
+    }
+
+    .store-address {
+      font-size: 0.8125rem;
+      color: var(--gray-500);
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+
+    .store-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .store-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--gray-400);
+    }
+
+    .store-meta .open {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .store-features {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.625rem;
+      flex-wrap: wrap;
+    }
+
+    .store-feature {
+      padding: 0.1875rem 0.625rem;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--gray-500);
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--gray-200);
+    }
+
+    .store-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .store-actions .btn {
+      font-size: 0.75rem;
+      padding: 0.375rem 0.875rem;
+    }
+
+    .map-area {
+      background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 30%, #E0F2F1 60%, #B2DFDB 100%);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .map-placeholder {
+      text-align: center;
+      color: var(--gray-500);
+    }
+
+    .map-placeholder svg {
+      width: 64px;
+      height: 64px;
+      color: var(--green);
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .map-placeholder p {
+      font-size: 0.9375rem;
+      font-weight: 500;
+    }
+
+    .map-placeholder small {
+      font-size: 0.8125rem;
+      color: var(--gray-400);
+      display: block;
+      margin-top: 0.25rem;
+    }
+
+    .map-pins {
+      position: absolute;
+      inset: 0;
+    }
+
+    .map-pin {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--green);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      box-shadow: var(--shadow-lg);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      transform: translate(-50%, -50%);
+    }
+
+    .map-pin:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+      z-index: 5;
+    }
+
+    .map-pin.active {
+      background: var(--forest);
+      transform: translate(-50%, -50%) scale(1.3);
+      z-index: 5;
+    }
+
+    .map-roads {
+      position: absolute;
+      inset: 0;
+      opacity: 0.12;
+    }
+
+    .map-road {
+      position: absolute;
+      background: var(--gray-500);
+      border-radius: 2px;
+    }
+
+    .map-road.h { height: 2px; }
+    .map-road.v { width: 2px; }
+
+    @media (max-width: 768px) {
+      .locator-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .locator-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-200);
+      }
+      .store-results {
+        max-height: 400px;
+      }
+      .map-area {
+        height: 50vh;
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header" id="siteHeader">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>
+        </div>
+        GreenBean
+      </a>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="menu.html">Menu</a></li>
+          <li><a href="rewards.html">Rewards</a></li>
+          <li><a href="gift.html">Gift Cards</a></li>
+          <li><a href="store-locator.html" class="active">Find a Store</a></li>
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <a href="#" class="btn btn-secondary btn-sm">Sign in</a>
+        <a href="#" class="btn btn-primary btn-sm">Join now</a>
+      </div>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+        <div class="hamburger"><span></span><span></span><span></span></div>
+      </button>
+    </div>
+  </header>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="menu.html">Menu</a>
+    <a href="rewards.html">Rewards</a>
+    <a href="gift.html">Gift Cards</a>
+    <a href="store-locator.html" class="active">Find a Store</a>
+    <div class="mobile-actions">
+      <a href="#" class="btn btn-secondary" style="text-align:center">Sign in</a>
+      <a href="#" class="btn btn-primary" style="text-align:center">Join now</a>
+    </div>
+  </div>
+
+  <main>
+    <div class="locator-layout">
+      <!-- Left Panel -->
+      <div class="locator-panel">
+        <div class="locator-controls">
+          <div class="order-type-toggle">
+            <button class="order-type-btn active" onclick="setOrderType(this)">Pickup</button>
+            <button class="order-type-btn" onclick="setOrderType(this)">Delivery</button>
+          </div>
+          <div class="search-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" class="search-input" id="storeSearch" placeholder="Search by city, zip code, or address" oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)">
+            <div class="search-suggestions" id="suggestions">
+              <div class="suggestion-item" onclick="selectSuggestion('San Francisco, CA')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                San Francisco, CA
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion('San Jose, CA')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                San Jose, CA
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion('Santa Monica, CA')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Santa Monica, CA
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion('Seattle, WA')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Seattle, WA
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion('Sacramento, CA')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Sacramento, CA
+              </div>
+            </div>
+          </div>
+          <div class="filter-row">
+            <button class="filter-btn" id="filterToggle" onclick="toggleFilters()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+              Filters
+            </button>
+            <button class="filter-btn" onclick="this.classList.toggle('active')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Near me
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="filter-panel" id="filterPanel">
+          <h4>Store Features</h4>
+          <div class="filter-options">
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">Drive-Thru</span>
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">Mobile Ordering</span>
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">WiFi</span>
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">Nitro Cold Brew</span>
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">Mobile Pay</span>
+            <span class="filter-chip" onclick="this.classList.toggle('selected')">Accessible</span>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="store-results">
+          <div class="results-header">5 stores nearby</div>
+
+          <div class="store-card active" onclick="selectStore(this, 1)">
+            <div class="store-name">GreenBean — Market Street</div>
+            <div class="store-address">123 Market St, San Francisco, CA 94105</div>
+            <div class="store-meta">
+              <span class="open">Open until 9:00 PM</span>
+              <span>0.3 mi</span>
+            </div>
+            <div class="store-features">
+              <span class="store-feature">Mobile Ordering</span>
+              <span class="store-feature">WiFi</span>
+              <span class="store-feature">Drive-Thru</span>
+            </div>
+            <div class="store-actions">
+              <a href="menu.html" class="btn btn-primary btn-sm">Order here</a>
+              <button class="btn btn-secondary btn-sm">Directions</button>
+            </div>
+          </div>
+
+          <div class="store-card" onclick="selectStore(this, 2)">
+            <div class="store-name">GreenBean — Ferry Building</div>
+            <div class="store-address">1 Ferry Building, Suite 7, San Francisco, CA 94111</div>
+            <div class="store-meta">
+              <span class="open">Open until 8:00 PM</span>
+              <span>0.5 mi</span>
+            </div>
+            <div class="store-features">
+              <span class="store-feature">Mobile Ordering</span>
+              <span class="store-feature">Nitro Cold Brew</span>
+            </div>
+            <div class="store-actions">
+              <a href="menu.html" class="btn btn-primary btn-sm">Order here</a>
+              <button class="btn btn-secondary btn-sm">Directions</button>
+            </div>
+          </div>
+
+          <div class="store-card" onclick="selectStore(this, 3)">
+            <div class="store-name">GreenBean — Union Square</div>
+            <div class="store-address">333 Post St, San Francisco, CA 94108</div>
+            <div class="store-meta">
+              <span class="open">Open until 9:30 PM</span>
+              <span>0.8 mi</span>
+            </div>
+            <div class="store-features">
+              <span class="store-feature">Mobile Ordering</span>
+              <span class="store-feature">WiFi</span>
+              <span class="store-feature">Accessible</span>
+            </div>
+            <div class="store-actions">
+              <a href="menu.html" class="btn btn-primary btn-sm">Order here</a>
+              <button class="btn btn-secondary btn-sm">Directions</button>
+            </div>
+          </div>
+
+          <div class="store-card" onclick="selectStore(this, 4)">
+            <div class="store-name">GreenBean — Mission District</div>
+            <div class="store-address">2100 Mission St, San Francisco, CA 94110</div>
+            <div class="store-meta">
+              <span class="open">Open until 8:30 PM</span>
+              <span>1.2 mi</span>
+            </div>
+            <div class="store-features">
+              <span class="store-feature">Drive-Thru</span>
+              <span class="store-feature">Mobile Pay</span>
+            </div>
+            <div class="store-actions">
+              <a href="menu.html" class="btn btn-primary btn-sm">Order here</a>
+              <button class="btn btn-secondary btn-sm">Directions</button>
+            </div>
+          </div>
+
+          <div class="store-card" onclick="selectStore(this, 5)">
+            <div class="store-name">GreenBean — Embarcadero Center</div>
+            <div class="store-address">4 Embarcadero Center, San Francisco, CA 94111</div>
+            <div class="store-meta">
+              <span>Closed &middot; Opens 5:30 AM</span>
+              <span>0.6 mi</span>
+            </div>
+            <div class="store-features">
+              <span class="store-feature">Mobile Ordering</span>
+              <span class="store-feature">WiFi</span>
+            </div>
+            <div class="store-actions">
+              <a href="menu.html" class="btn btn-primary btn-sm">Order here</a>
+              <button class="btn btn-secondary btn-sm">Directions</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Area -->
+      <div class="map-area">
+        <!-- Decorative road grid -->
+        <div class="map-roads">
+          <div class="map-road h" style="top: 20%; left: 5%; width: 90%;"></div>
+          <div class="map-road h" style="top: 40%; left: 10%; width: 80%;"></div>
+          <div class="map-road h" style="top: 55%; left: 0; width: 100%;"></div>
+          <div class="map-road h" style="top: 75%; left: 15%; width: 70%;"></div>
+          <div class="map-road v" style="left: 20%; top: 5%; height: 90%;"></div>
+          <div class="map-road v" style="left: 40%; top: 10%; height: 80%;"></div>
+          <div class="map-road v" style="left: 60%; top: 0; height: 100%;"></div>
+          <div class="map-road v" style="left: 80%; top: 15%; height: 70%;"></div>
+        </div>
+
+        <!-- Store pins -->
+        <div class="map-pins">
+          <div class="map-pin active" id="pin-1" style="top: 45%; left: 40%;" onclick="selectPin(1)">1</div>
+          <div class="map-pin" id="pin-2" style="top: 30%; left: 55%;" onclick="selectPin(2)">2</div>
+          <div class="map-pin" id="pin-3" style="top: 38%; left: 35%;" onclick="selectPin(3)">3</div>
+          <div class="map-pin" id="pin-4" style="top: 60%; left: 30%;" onclick="selectPin(4)">4</div>
+          <div class="map-pin" id="pin-5" style="top: 35%; left: 50%;" onclick="selectPin(5)">5</div>
+        </div>
+
+        <div class="map-placeholder" style="position: relative; z-index: 1;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <p>Interactive Map</p>
+          <small>Powered by Google Maps</small>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      document.getElementById('siteHeader').classList.toggle('scrolled', window.scrollY > 10);
+    });
+    function toggleMobileMenu() {
+      document.getElementById('mobileNav').classList.toggle('open');
+    }
+
+    function setOrderType(btn) {
+      document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function handleSearch(value) {
+      const suggestions = document.getElementById('suggestions');
+      if (value.length > 0) {
+        const items = suggestions.querySelectorAll('.suggestion-item');
+        let count = 0;
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          const match = text.includes(value.toLowerCase());
+          item.style.display = match ? 'flex' : 'none';
+          if (match) count++;
+        });
+        suggestions.classList.toggle('visible', count > 0);
+      } else {
+        suggestions.classList.remove('visible');
+      }
+    }
+
+    function selectSuggestion(text) {
+      document.getElementById('storeSearch').value = text;
+      document.getElementById('suggestions').classList.remove('visible');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-input-wrap')) {
+        document.getElementById('suggestions').classList.remove('visible');
+      }
+    });
+
+    function toggleFilters() {
+      document.getElementById('filterPanel').classList.toggle('visible');
+      document.getElementById('filterToggle').classList.toggle('active');
+    }
+
+    function selectStore(card, num) {
+      document.querySelectorAll('.store-card').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.map-pin').forEach(p => p.classList.remove('active'));
+      card.classList.add('active');
+      const pin = document.getElementById('pin-' + num);
+      if (pin) pin.classList.add('active');
+    }
+
+    function selectPin(num) {
+      document.querySelectorAll('.store-card').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.map-pin').forEach(p => p.classList.remove('active'));
+      document.getElementById('pin-' + num).classList.add('active');
+      const cards = document.querySelectorAll('.store-card');
+      if (cards[num - 1]) {
+        cards[num - 1].classList.add('active');
+        cards[num - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  </script>
+</body>
+</html>

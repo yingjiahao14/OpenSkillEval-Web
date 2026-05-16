@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart — ChartPulse</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Chart page specific styles */
+    .chart-workspace {
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+
+    /* Watchlist Sidebar */
+    .watchlist-sidebar {
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px 0;
+    }
+
+    .watchlist-header {
+      padding: 0 16px 16px;
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .watchlist-category {
+      margin-bottom: 4px;
+    }
+
+    .watchlist-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .watchlist-category-header:hover {
+      color: var(--text-secondary);
+    }
+
+    .watchlist-category-header .arrow {
+      transition: transform 0.2s;
+    }
+
+    .watchlist-category-header.collapsed .arrow {
+      transform: rotate(-90deg);
+    }
+
+    .watchlist-items {
+      display: block;
+    }
+
+    .watchlist-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+
+    .watchlist-item:hover {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .watchlist-item.active {
+      background: rgba(41, 98, 255, 0.15);
+      border-left: 2px solid var(--accent-blue);
+    }
+
+    .watchlist-item-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .watchlist-item-ticker {
+      font-weight: 600;
+    }
+
+    .watchlist-item-price {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .watchlist-item-right {
+      text-align: right;
+    }
+
+    .watchlist-item-change {
+      font-size: 12px;
+    }
+
+    /* Main Chart Area */
+    .chart-main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .symbol-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .symbol-name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .symbol-exchange {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .symbol-price {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .symbol-change {
+      font-size: 14px;
+    }
+
+    .timeframe-selector {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-secondary);
+      padding: 4px;
+      border-radius: 6px;
+    }
+
+    .timeframe-btn {
+      padding: 6px 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .timeframe-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .timeframe-btn.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-btn {
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-primary);
+    }
+
+    .chart-container {
+      flex: 1;
+      position: relative;
+      background: var(--bg-primary);
+      min-height: 300px;
+    }
+
+    #candlestick-chart {
+      width: 100%;
+      height: 100%;
+    }
+
+    .chart-legend {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-candle {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .legend-candle.bullish {
+      background: var(--positive);
+    }
+
+    .legend-candle.bearish {
+      background: var(--negative);
+    }
+
+    /* Right Panel */
+    .stock-detail-panel {
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-ticker {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .detail-company {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .detail-exchange {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .detail-price-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-current-price {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .detail-change {
+      font-size: 14px;
+    }
+
+    .detail-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .detail-metric {
+      background: var(--bg-tertiary);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .detail-metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .detail-metric-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-secondary);
+    }
+
+    .detail-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-tertiary);
+      padding: 4px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+
+    .detail-tab {
+      flex: 1;
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .detail-tab.active {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .financial-table {
+      font-size: 12px;
+    }
+
+    .financial-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .financial-row:last-child {
+      border-bottom: none;
+    }
+
+    .financial-label {
+      color: var(--text-muted);
+    }
+
+    .financial-value {
+      font-weight: 500;
+    }
+
+    .detail-headline {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent-blue);
+    }
+
+    .detail-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+
+    .detail-btn-primary {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .detail-btn-primary:hover {
+      background: #1e5ce6;
+    }
+
+    .detail-btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .detail-btn-secondary:hover {
+      background: var(--border);
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .chart-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .watchlist-sidebar, .stock-detail-panel {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="nav-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 3v18h18"/>
+        <path d="M18 9l-5-6-4 8-3-2"/>
+      </svg>
+      <a href="index.html" style="color: var(--text-primary); text-decoration: none;">ChartPulse</a>
+    </div>
+    <ul class="nav-links">
+      <li><a href="chart.html" class="active">Products</a></li>
+      <li><a href="ideas.html">Community</a></li>
+      <li><a href="markets.html">Markets</a></li>
+      <li><a href="brokers.html">Brokers</a></li>
+    </ul>
+    <div class="nav-actions">
+      <button class="btn btn-secondary">Log in</button>
+      <button class="btn btn-primary">Sign up free</button>
+    </div>
+  </nav>
+
+  <!-- Main Chart Workspace -->
+  <div class="chart-workspace">
+    <!-- Watchlist Sidebar -->
+    <aside class="watchlist-sidebar">
+      <div class="watchlist-header">Watchlist</div>
+
+      <!-- Indices -->
+      <div class="watchlist-category">
+        <div class="watchlist-category-header" onclick="toggleCategory(this)">
+          <span>Indices</span>
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="watchlist-items">
+          <div class="watchlist-item active" onclick="selectSymbol(this, 'SPX')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">SPX</span>
+              <span class="watchlist-item-price">7,041.29</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.26%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'NDQ')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">NDQ</span>
+              <span class="watchlist-item-price">26,333.00</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.49%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'DJI')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">DJI</span>
+              <span class="watchlist-item-price">48,578.72</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.24%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'VIX')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">VIX</span>
+              <span class="watchlist-item-price">17.86</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change negative">−0.45%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stocks -->
+      <div class="watchlist-category">
+        <div class="watchlist-category-header" onclick="toggleCategory(this)">
+          <span>Stocks</span>
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="watchlist-items">
+          <div class="watchlist-item" onclick="selectSymbol(this, 'AAPL')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">AAPL</span>
+              <span class="watchlist-item-price">263.40</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change negative">−1.14%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'TSLA')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">TSLA</span>
+              <span class="watchlist-item-price">388.90</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change negative">−0.78%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'NFLX')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">NFLX</span>
+              <span class="watchlist-item-price">107.79</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.07%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Futures -->
+      <div class="watchlist-category">
+        <div class="watchlist-category-header" onclick="toggleCategory(this)">
+          <span>Futures</span>
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="watchlist-items">
+          <div class="watchlist-item" onclick="selectSymbol(this, 'USOIL')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">USOIL</span>
+              <span class="watchlist-item-price">87.53</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change negative">−6.06%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'GOLD')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">GOLD</span>
+              <span class="watchlist-item-price">4,801.92</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.30%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forex -->
+      <div class="watchlist-category">
+        <div class="watchlist-category-header" onclick="toggleCategory(this)">
+          <span>Forex</span>
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="watchlist-items">
+          <div class="watchlist-item" onclick="selectSymbol(this, 'EURUSD')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">EURUSD</span>
+              <span class="watchlist-item-price">1.17949</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.12%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'GBPUSD')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">GBPUSD</span>
+              <span class="watchlist-item-price">1.35335</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.06%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crypto -->
+      <div class="watchlist-category">
+        <div class="watchlist-category-header" onclick="toggleCategory(this)">
+          <span>Crypto</span>
+          <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </div>
+        <div class="watchlist-items">
+          <div class="watchlist-item" onclick="selectSymbol(this, 'BTCUSD')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">BTCUSD</span>
+              <span class="watchlist-item-price">75,585</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.54%</span>
+            </div>
+          </div>
+          <div class="watchlist-item" onclick="selectSymbol(this, 'ETHUSD')">
+            <div class="watchlist-item-left">
+              <span class="watchlist-item-ticker">ETHUSD</span>
+              <span class="watchlist-item-price">2,355.1</span>
+            </div>
+            <div class="watchlist-item-right">
+              <span class="watchlist-item-change change positive">+0.25%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chart Area -->
+    <main class="chart-main">
+      <div class="chart-toolbar">
+        <div class="toolbar-left">
+          <div class="symbol-info">
+            <div>
+              <span class="symbol-name">AAPL</span>
+              <span class="symbol-exchange">NASDAQ</span>
+            </div>
+            <div>
+              <span class="symbol-price">263.40</span>
+              <span class="symbol-change change negative">−3.03 (−1.14%)</span>
+            </div>
+          </div>
+          <div class="timeframe-selector">
+            <button class="timeframe-btn">1D</button>
+            <button class="timeframe-btn">5D</button>
+            <button class="timeframe-btn active">1M</button>
+            <button class="timeframe-btn">3M</button>
+            <button class="timeframe-btn">6M</button>
+            <button class="timeframe-btn">YTD</button>
+            <button class="timeframe-btn">1Y</button>
+            <button class="timeframe-btn">5Y</button>
+            <button class="timeframe-btn">All</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <button class="toolbar-btn" title="Drawing tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+            </svg>
+          </button>
+          <button class="toolbar-btn" title="Indicators">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12h2m4 0h12M6 8v8m4-12v16m4-10v8m4-4v8"/>
+            </svg>
+          </button>
+          <button class="toolbar-btn" title="Fullscreen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="legend-candle bullish"></div>
+            <span>Bullish</span>
+          </div>
+          <div class="chart-legend-item">
+            <div class="legend-candle bearish"></div>
+            <span>Bearish</span>
+          </div>
+        </div>
+        <div id="candlestick-chart"></div>
+      </div>
+    </main>
+
+    <!-- Stock Detail Panel -->
+    <aside class="stock-detail-panel">
+      <div class="detail-header">
+        <div>
+          <div class="detail-ticker">AAPL</div>
+          <div class="detail-company">Apple Inc</div>
+        </div>
+        <span class="detail-exchange">NASDAQ</span>
+      </div>
+
+      <div class="detail-price-section">
+        <div class="detail-current-price">263.40 USD</div>
+        <div class="detail-change change negative">−3.03 (−1.14%)</div>
+      </div>
+
+      <div class="detail-metrics">
+        <div class="detail-metric">
+          <div class="detail-metric-label">Volume</div>
+          <div class="detail-metric-value">43.32 M</div>
+        </div>
+        <div class="detail-metric">
+          <div class="detail-metric-label">Avg Volume (30D)</div>
+          <div class="detail-metric-value">40.70 M</div>
+        </div>
+        <div class="detail-metric">
+          <div class="detail-metric-label">Market Cap</div>
+          <div class="detail-metric-value">3.87 T</div>
+        </div>
+        <div class="detail-metric">
+          <div class="detail-metric-label">Earnings</div>
+          <div class="detail-metric-value">In 14 days</div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Pre-Market</div>
+        <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 13px; color: var(--text-muted);">Price</span>
+            <span style="font-weight: 600;">267.14 USD</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <span style="font-size: 13px; color: var(--text-muted);">Change</span>
+            <span class="change positive">+1.42%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Key Statistics</div>
+        <div class="financial-table">
+          <div class="financial-row">
+            <span class="financial-label">Dividend Yield (TTM)</span>
+            <span class="financial-value">0.39%</span>
+          </div>
+          <div class="financial-row">
+            <span class="financial-label">Payout Ratio (TTM)</span>
+            <span class="financial-value">13.03%</span>
+          </div>
+          <div class="financial-row">
+            <span class="financial-label">Last Dividend</span>
+            <span class="financial-value">0.26</span>
+          </div>
+          <div class="financial-row">
+            <span class="financial-label">Ex-Dividend Date</span>
+            <span class="financial-value">Feb 9, 2026</span>
+          </div>
+          <div class="financial-row">
+            <span class="financial-label">Analyst Rating</span>
+            <span class="financial-value">Neutral</span>
+          </div>
+          <div class="financial-row">
+            <span class="financial-label">1Y Price Target</span>
+            <span class="financial-value">300.40 (+14.05%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Performance</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+          <div style="text-align: center; padding: 8px; background: var(--bg-tertiary); border-radius: 6px;">
+            <div style="font-size: 11px; color: var(--text-muted);">1W</div>
+            <div class="change positive" style="font-weight: 600;">+1.70%</div>
+          </div>
+          <div style="text-align: center; padding: 8px; background: var(--bg-tertiary); border-radius: 6px;">
+            <div style="font-size: 11px; color: var(--text-muted);">1M</div>
+            <div class="change positive" style="font-weight: 600;">+4.13%</div>
+          </div>
+          <div style="text-align: center; padding: 8px; background: var(--bg-tertiary); border-radius: 6px;">
+            <div style="font-size: 11px; color: var(--text-muted);">1Y</div>
+            <div class="change positive" style="font-weight: 600;">+32.79%</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">News</div>
+        <div class="detail-headline">
+          Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 20px;">
+        <button class="detail-btn detail-btn-primary">Trade</button>
+        <button class="detail-btn detail-btn-secondary">Add to Watchlist</button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    function toggleCategory(header) {
+      header.classList.toggle('collapsed');
+      const items = header.nextElementSibling;
+      items.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
+    }
+
+    function selectSymbol(item, symbol) {
+      document.querySelectorAll('.watchlist-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+    }
+  </script>
+</body>
+</html>

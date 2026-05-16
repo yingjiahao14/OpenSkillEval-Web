@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find a Store — GreenBean Coffee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .locator-layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      min-height: calc(100vh - 80px);
+    }
+
+    /* Sidebar */
+    .locator-sidebar {
+      background: white;
+      border-right: 1px solid var(--gb-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .locator-controls { padding: 28px 24px 20px; border-bottom: 1px solid var(--gb-border); }
+    .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .search-input {
+      flex: 1;
+      padding: 14px 18px 14px 44px;
+      border-radius: 14px;
+      border: 1.5px solid var(--gb-border);
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--gb-cream-paper);
+      outline: none;
+      transition: border-color .2s;
+      position: relative;
+    }
+    .search-input:focus { border-color: var(--gb-green); }
+    .search-input-wrap {
+      flex: 1; position: relative;
+    }
+    .search-input-wrap svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gb-mute);
+      pointer-events: none;
+    }
+    .filter-btn {
+      padding: 14px 20px;
+      border-radius: 14px;
+      border: 1.5px solid var(--gb-border);
+      background: white;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gb-forest);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filter-btn:hover { border-color: var(--gb-green); color: var(--gb-green); }
+    .filter-btn.active { background: var(--gb-green); color: white; border-color: var(--gb-green); }
+
+    /* Suggestions */
+    .suggestions {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: white;
+      border: 1px solid var(--gb-border);
+      border-radius: 14px;
+      margin-top: 6px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.1);
+      z-index: 20;
+      overflow: hidden;
+    }
+    .suggestions.show { display: block; }
+    .suggestion-item {
+      padding: 14px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background .15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--gb-text);
+    }
+    .suggestion-item:hover { background: var(--gb-cream-soft); }
+    .suggestion-item svg { color: var(--gb-mute); flex-shrink: 0; }
+
+    /* Order Type Toggle */
+    .order-toggle { display: flex; gap: 4px; background: var(--gb-cream-soft); border-radius: 12px; padding: 4px; }
+    .order-toggle button {
+      flex: 1;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gb-mute);
+      transition: all .2s;
+      cursor: pointer;
+    }
+    .order-toggle button.active {
+      background: white;
+      color: var(--gb-forest);
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+
+    /* Filter Panel */
+    .filter-panel {
+      display: none;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--gb-border);
+      background: var(--gb-cream-soft);
+    }
+    .filter-panel.open { display: block; animation: fadeIn .2s ease; }
+    .filter-panel h4 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gb-mute);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .filter-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filter-chip {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1.5px solid var(--gb-border);
+      background: white;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--gb-text);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filter-chip:hover { border-color: var(--gb-green); color: var(--gb-green); }
+    .filter-chip.active {
+      background: var(--gb-green);
+      color: white;
+      border-color: var(--gb-green);
+    }
+
+    /* Results list */
+    .locator-results {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .store-card {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--gb-border);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .store-card:hover { background: var(--gb-cream-soft); }
+    .store-card.selected { background: var(--gb-cream-soft); border-left: 3px solid var(--gb-green); }
+    .store-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--gb-forest);
+      margin-bottom: 4px;
+    }
+    .store-address { font-size: 13.5px; color: var(--gb-mute); margin-bottom: 8px; }
+    .store-meta { display: flex; gap: 14px; flex-wrap: wrap; }
+    .store-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--gb-mute);
+    }
+    .store-tag.open { color: var(--gb-green); font-weight: 600; }
+    .store-dist {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gb-text);
+      float: right;
+      margin-top: -30px;
+    }
+    .store-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+    }
+    .store-actions .btn { padding: 8px 16px; font-size: 12.5px; }
+
+    /* Map */
+    .locator-map {
+      background: #E8DCC4;
+      position: relative;
+      overflow: hidden;
+    }
+    .map-placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, #E8DCC4 0%, #D4C4A8 50%, #C8B890 100%);
+    }
+    .map-grid {
+      position: absolute;
+      inset: 0;
+      opacity: .2;
+      background-image:
+        linear-gradient(rgba(0,0,0,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,.05) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .map-road {
+      position: absolute;
+      background: rgba(255,255,255,.7);
+      border-radius: 3px;
+    }
+    .map-road.h1 { width: 100%; height: 4px; top: 30%; }
+    .map-road.h2 { width: 80%; height: 3px; top: 55%; left: 10%; }
+    .map-road.h3 { width: 60%; height: 3px; top: 75%; left: 20%; }
+    .map-road.v1 { width: 4px; height: 100%; left: 25%; }
+    .map-road.v2 { width: 3px; height: 80%; left: 50%; top: 10%; }
+    .map-road.v3 { width: 3px; height: 60%; left: 72%; top: 20%; }
+    .map-pin {
+      position: absolute;
+      width: 36px;
+      height: 48px;
+      cursor: pointer;
+      transition: transform .2s;
+      z-index: 5;
+    }
+    .map-pin:hover { transform: scale(1.2) translateY(-4px); }
+    .map-pin svg { width: 100%; height: 100%; }
+    .map-label {
+      position: absolute;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gb-forest);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .map-center-text {
+      text-align: center;
+      z-index: 10;
+      position: relative;
+    }
+    .map-center-text svg { margin: 0 auto 16px; opacity: .6; }
+    .map-center-text p { font-size: 15px; color: var(--gb-mute); font-weight: 500; }
+
+    @media (max-width: 860px) {
+      .locator-layout {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+      .locator-sidebar { border-right: none; border-bottom: 1px solid var(--gb-border); }
+      .locator-results { max-height: 400px; }
+      .locator-map { min-height: 400px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="gb-header">
+    <div class="gb-header-inner">
+      <a href="index.html" class="gb-logo">
+        <div class="gb-logo-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg></div>
+        GreenBean
+      </a>
+      <nav class="gb-nav">
+        <a href="menu.html">Menu</a>
+        <a href="rewards.html">Rewards</a>
+        <a href="gift.html">Gift Cards</a>
+        <a href="store-locator.html" class="active">Find a store</a>
+      </nav>
+      <div class="gb-actions">
+        <a href="#" class="btn btn-ghost" style="font-size:14px">Sign in</a>
+        <a href="#" class="btn btn-primary">Join now</a>
+      </div>
+      <button class="gb-mobile-toggle" onclick="toggleMobileNav()" aria-label="Toggle menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+    </div>
+    <div class="gb-mobile-menu" id="mobileMenu" style="display:none;padding:16px 24px 24px;border-top:1px solid var(--gb-border);"><nav style="display:flex;flex-direction:column;gap:16px;"><a href="menu.html" style="font-weight:500;font-size:16px;color:var(--gb-forest);">Menu</a><a href="rewards.html" style="font-weight:500;font-size:16px;color:var(--gb-forest);">Rewards</a><a href="gift.html" style="font-weight:500;font-size:16px;color:var(--gb-forest);">Gift Cards</a><a href="store-locator.html" style="font-weight:600;font-size:16px;color:var(--gb-green);">Find a store</a></nav></div>
+  </header>
+
+  <!-- STORE LOCATOR -->
+  <div class="locator-layout">
+    <!-- Sidebar -->
+    <div class="locator-sidebar">
+      <div class="locator-controls">
+        <div class="order-toggle">
+          <button class="active" onclick="switchOrderType(this)">Pickup</button>
+          <button onclick="switchOrderType(this)">Delivery</button>
+        </div>
+        <div style="height:16px;"></div>
+        <div class="search-row">
+          <div class="search-input-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" class="search-input" placeholder="City, zip code, or address" id="storeSearch" autocomplete="off">
+            <div class="suggestions" id="suggestions">
+              <div class="suggestion-item" onclick="selectSuggestion(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                New York, NY
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                New Orleans, LA
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                Newark, NJ
+              </div>
+              <div class="suggestion-item" onclick="selectSuggestion(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                Newport Beach, CA
+              </div>
+            </div>
+          </div>
+          <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Filter
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Panel -->
+      <div class="filter-panel" id="filterPanel">
+        <h4>Store Features</h4>
+        <div class="filter-options">
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Drive-thru</button>
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Mobile Ordering</button>
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Wi-Fi</button>
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Delivery</button>
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Nitro Cold Brew</button>
+          <button class="filter-chip" onclick="this.classList.toggle('active')">Reserve Bar</button>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="locator-results">
+        <div class="store-card selected">
+          <div class="store-name">GreenBean — Union Square</div>
+          <div class="store-address">59 E 14th St, New York, NY 10003</div>
+          <div class="store-dist">0.3 mi</div>
+          <div class="store-meta">
+            <span class="store-tag open">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+              Open until 9 PM
+            </span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg> Mobile Order</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Wi-Fi</span>
+          </div>
+          <div class="store-actions">
+            <a href="#" class="btn btn-green" style="padding:8px 18px;font-size:13px;">Order</a>
+            <a href="#" class="btn btn-outline" style="padding:8px 18px;font-size:13px;">Directions</a>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-name">GreenBean — Broadway &amp; 22nd</div>
+          <div class="store-address">200 Broadway, New York, NY 10012</div>
+          <div class="store-dist">0.7 mi</div>
+          <div class="store-meta">
+            <span class="store-tag open"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Open until 10 PM</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg> Mobile Order</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2.5 11 2.5s2 .5 3 .5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z"/></svg> Drive-thru</span>
+          </div>
+          <div class="store-actions">
+            <a href="#" class="btn btn-green" style="padding:8px 18px;font-size:13px;">Order</a>
+            <a href="#" class="btn btn-outline" style="padding:8px 18px;font-size:13px;">Directions</a>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-name">GreenBean — Chelsea Market</div>
+          <div class="store-address">75 9th Ave, New York, NY 10011</div>
+          <div class="store-dist">1.1 mi</div>
+          <div class="store-meta">
+            <span class="store-tag open"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Open until 8 PM</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg> Mobile Order</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Wi-Fi</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg> Nitro Cold Brew</span>
+          </div>
+          <div class="store-actions">
+            <a href="#" class="btn btn-green" style="padding:8px 18px;font-size:13px;">Order</a>
+            <a href="#" class="btn btn-outline" style="padding:8px 18px;font-size:13px;">Directions</a>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-name">GreenBean — Penn Station</div>
+          <div class="store-address">2 Penn Plaza, New York, NY 10121</div>
+          <div class="store-dist">1.4 mi</div>
+          <div class="store-meta">
+            <span class="store-tag open"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Open until 11 PM</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg> Mobile Order</span>
+          </div>
+          <div class="store-actions">
+            <a href="#" class="btn btn-green" style="padding:8px 18px;font-size:13px;">Order</a>
+            <a href="#" class="btn btn-outline" style="padding:8px 18px;font-size:13px;">Directions</a>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-name">GreenBean Reserve — SoHo</div>
+          <div class="store-address">396 Broadway, New York, NY 10013</div>
+          <div class="store-dist">1.8 mi</div>
+          <div class="store-meta">
+            <span class="store-tag open"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg> Open until 9 PM</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/></svg> Mobile Order</span>
+            <span class="store-tag"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .963L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg> Reserve Bar</span>
+          </div>
+          <div class="store-actions">
+            <a href="#" class="btn btn-green" style="padding:8px 18px;font-size:13px;">Order</a>
+            <a href="#" class="btn btn-outline" style="padding:8px 18px;font-size:13px;">Directions</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map Area -->
+    <div class="locator-map">
+      <div class="map-placeholder">
+        <div class="map-grid"></div>
+        <div class="map-road h1"></div>
+        <div class="map-road h2"></div>
+        <div class="map-road h3"></div>
+        <div class="map-road v1"></div>
+        <div class="map-road v2"></div>
+        <div class="map-road v3"></div>
+
+        <!-- Map pins -->
+        <div class="map-pin" style="top:25%;left:22%;" title="GreenBean — Union Square">
+          <svg viewBox="0 0 36 48"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#00824A"/><circle cx="18" cy="18" r="8" fill="white"/><path d="M18 13v10M14 16l4-3 4 3" fill="none" stroke="#00824A" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="map-label" style="top:48%;left:15%;">Union Square</div>
+
+        <div class="map-pin" style="top:18%;left:48%;" title="GreenBean — Broadway & 22nd">
+          <svg viewBox="0 0 36 48"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#00824A"/><circle cx="18" cy="18" r="8" fill="white"/><path d="M18 13v10M14 16l4-3 4 3" fill="none" stroke="#00824A" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="map-label" style="top:41%;left:41%;">Broadway</div>
+
+        <div class="map-pin" style="top:52%;left:36%;" title="GreenBean — Chelsea Market">
+          <svg viewBox="0 0 36 48"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#00824A"/><circle cx="18" cy="18" r="8" fill="white"/><path d="M18 13v10M14 16l4-3 4 3" fill="none" stroke="#00824A" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="map-label" style="top:75%;left:30%;">Chelsea</div>
+
+        <div class="map-pin" style="top:35%;left:70%;" title="GreenBean — Penn Station">
+          <svg viewBox="0 0 36 48"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#00824A"/><circle cx="18" cy="18" r="8" fill="white"/><path d="M18 13v10M14 16l4-3 4 3" fill="none" stroke="#00824A" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="map-label" style="top:58%;left:64%;">Penn Station</div>
+
+        <div class="map-pin" style="top:65%;left:60%;" title="GreenBean Reserve — SoHo">
+          <svg viewBox="0 0 36 48"><path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#32462F"/><circle cx="18" cy="18" r="8" fill="#D4A24C"/><path d="M18 13v10M14 16l4-3 4 3" fill="none" stroke="#32462F" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="map-label" style="top:88%;left:55%;">SoHo Reserve</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="gb-footer" style="margin-top:0;">
+    <div class="container-wide">
+      <div class="gb-footer-grid">
+        <div class="gb-footer-col"><h4>About Us <span class="chev">&#9662;</span></h4><ul><li><a href="#">Our Company</a></li><li><a href="#">Our Coffee</a></li><li><a href="#">About GreenBean</a></li><li><a href="#">GreenBean Archive</a></li><li><a href="#">Investor Relations</a></li><li><a href="#">Customer Service</a></li><li><a href="#">Contact Us</a></li></ul></div>
+        <div class="gb-footer-col"><h4>Careers <span class="chev">&#9662;</span></h4><ul><li><a href="#">Culture and Values</a></li><li><a href="#">Belonging at GreenBean</a></li><li><a href="#">College Achievement Plan</a></li><li><a href="#">Alumni Community</a></li><li><a href="#">U.S. Careers</a></li><li><a href="#">International Careers</a></li></ul></div>
+        <div class="gb-footer-col"><h4>Social Impact <span class="chev">&#9662;</span></h4><ul><li><a href="#">Communities</a></li><li><a href="#">GreenBean Foundation</a></li><li><a href="#">Sustainability</a></li><li><a href="#">Environmental and Social Impact Reporting</a></li></ul></div>
+        <div class="gb-footer-col"><h4>For Business Partners <span class="chev">&#9662;</span></h4><ul><li><a href="#">Landlord Support Center</a></li><li><a href="#">Suppliers</a></li><li><a href="#">Corporate Gift Card Sales</a></li><li><a href="#">Office and Foodservice Coffee</a></li></ul></div>
+        <div class="gb-footer-col"><h4>Order and Pick Up <span class="chev">&#9662;</span></h4><ul><li><a href="#">Order on the App</a></li><li><a href="#">Order on the Web</a></li><li><a href="#">Delivery</a></li><li><a href="#">Order and Pick Up Options</a></li><li><a href="#">Explore and Find Coffee for Home</a></li></ul></div>
+      </div>
+      <div class="gb-footer-bottom"><div class="gb-fb-links"><a href="#">Privacy Notice</a><a href="#">Consumer Health Privacy</a><a href="#">Terms of Use</a><a href="#">Do Not Share My Personal Information</a></div><span>&copy; 2026 GreenBean Coffee Company. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleMobileNav() { const m = document.getElementById('mobileMenu'); m.style.display = m.style.display === 'none' ? 'block' : 'none'; }
+    document.querySelectorAll('.gb-footer-col h4').forEach(h => { h.addEventListener('click', () => { if (window.innerWidth <= 860) h.parentElement.classList.toggle('open'); }); });
+
+    // Search suggestions
+    const searchInput = document.getElementById('storeSearch');
+    const suggestionsEl = document.getElementById('suggestions');
+    searchInput.addEventListener('input', function() {
+      if (this.value.length > 0) {
+        suggestionsEl.classList.add('show');
+      } else {
+        suggestionsEl.classList.remove('show');
+      }
+    });
+    searchInput.addEventListener('focus', function() {
+      if (this.value.length > 0) suggestionsEl.classList.add('show');
+    });
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.search-input-wrap')) suggestionsEl.classList.remove('show');
+    });
+    function selectSuggestion(el) {
+      searchInput.value = el.textContent.trim();
+      suggestionsEl.classList.remove('show');
+    }
+
+    // Filter toggle
+    function toggleFilter() {
+      const panel = document.getElementById('filterPanel');
+      const btn = document.getElementById('filterBtn');
+      panel.classList.toggle('open');
+      btn.classList.toggle('active');
+    }
+
+    // Order type toggle
+    function switchOrderType(btn) {
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // Store card selection
+    document.querySelectorAll('.store-card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        if (e.target.closest('.btn')) return;
+        document.querySelectorAll('.store-card').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+  </script>
+</body>
+</html>

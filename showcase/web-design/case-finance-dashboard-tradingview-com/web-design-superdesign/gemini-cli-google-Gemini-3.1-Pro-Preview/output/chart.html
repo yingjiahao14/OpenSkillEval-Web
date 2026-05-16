@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChartPulse — Track All Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cp: {
+                            bg: '#0F0F0F',
+                            panel: '#1a1a2e',
+                            border: '#2A2E39',
+                            blue: '#2962FF',
+                            red: '#F7525F',
+                            green: '#22AB94',
+                            text: '#D1D4DC',
+                            muted: '#787B86'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        body { background-color: #0F0F0F; color: #D1D4DC; font-family: 'Inter', sans-serif; }
+        .text-green { color: #22AB94; }
+        .text-red { color: #F7525F; }
+        .bg-green { background-color: #22AB94; }
+        .bg-red { background-color: #F7525F; }
+        .border-green { border-color: #22AB94; }
+        .border-red { border-color: #F7525F; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0F0F0F; }
+        ::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #434651; }
+
+        .sparkline {
+            display: inline-block;
+            width: 60px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 15 L10 12 L20 18 L30 10 L40 14 L50 5 L60 8' stroke='%23787B86' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .sparkline-up {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 18 L10 15 L20 16 L30 10 L40 12 L50 2 L60 5' stroke='%2322AB94' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .sparkline-down {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5 L10 2 L20 12 L30 10 L40 16 L50 15 L60 18' stroke='%23F7525F' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        
+        /* Utility styles for active tabs */
+        .tab-active { color: #fff; border-bottom: 2px solid #2962FF; }
+        
+        /* Tab panel transition */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+<nav class="bg-[#0F0F0F] border-b border-gray-800 sticky top-0 z-50">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+                <a href="index.html" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+                    <i data-lucide="activity" class="text-cp-blue"></i>
+                    ChartPulse
+                </a>
+                <div class="hidden md:block ml-10">
+                    <div class="flex items-baseline space-x-4 text-sm font-medium text-gray-300">
+                        <a href="chart.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Products</a>
+                        <a href="ideas.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Community</a>
+                        <a href="markets.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Markets</a>
+                        <a href="brokers.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Brokers</a>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
+                    </div>
+                    <input type="text" class="bg-[#1C1F26] border border-gray-800 text-white text-sm rounded-lg focus:ring-cp-blue focus:border-cp-blue block w-full pl-10 p-2" placeholder="Search markets...">
+                </div>
+                <button class="text-white hover:text-gray-300 px-4 py-2 text-sm font-medium transition-colors">Log in</button>
+                <button class="text-white bg-cp-blue hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Sign up</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="flex-grow flex flex-col md:flex-row overflow-hidden max-h-[calc(100vh-64px)] h-full">
+    <!-- Chart Area -->
+    <div class="flex-grow flex flex-col min-w-0 border-r border-cp-border">
+        <!-- Toolbar -->
+        <div class="h-12 border-b border-cp-border flex items-center justify-between px-4 bg-cp-bg flex-shrink-0">
+            <div class="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                <div class="flex items-center gap-2 border-r border-cp-border pr-4">
+                    <div class="font-bold text-white text-lg">AAPL</div>
+                    <div class="text-sm text-cp-muted">Apple Inc.</div>
+                </div>
+                <div class="flex items-center gap-1 text-sm font-medium text-gray-300" data-tabs>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-1d" data-container="tf-container">1D</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-5d" data-container="tf-container">5D</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-1m" data-container="tf-container">1M</button>
+                    <button class="px-2 py-1 bg-gray-800 text-white rounded transition-colors" data-target="tf-3m" data-container="tf-container">3M</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-6m" data-container="tf-container">6M</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-ytd" data-container="tf-container">YTD</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-1y" data-container="tf-container">1Y</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-5y" data-container="tf-container">5Y</button>
+                    <button class="px-2 py-1 hover:bg-gray-800 rounded transition-colors" data-target="tf-all" data-container="tf-container">All</button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-cp-muted">
+                <button class="p-1.5 hover:text-white hover:bg-gray-800 rounded transition-colors"><i data-lucide="bar-chart-2" class="w-4 h-4"></i></button>
+                <button class="p-1.5 hover:text-white hover:bg-gray-800 rounded transition-colors"><i data-lucide="settings" class="w-4 h-4"></i></button>
+                <button class="p-1.5 hover:text-white hover:bg-gray-800 rounded transition-colors"><i data-lucide="maximize" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+        
+        <!-- Candlestick Chart Placeholder -->
+        <div class="flex-grow bg-[#13151A] relative flex items-center justify-center">
+            <!-- Simulated Candlestick Chart SVG -->
+            <div class="absolute inset-4 border border-gray-800/50 rounded flex flex-col justify-between p-4">
+                 <!-- Grid Lines -->
+                 <div class="w-full h-px bg-gray-800/30"></div>
+                 <div class="w-full h-px bg-gray-800/30"></div>
+                 <div class="w-full h-px bg-gray-800/30"></div>
+                 <div class="w-full h-px bg-gray-800/30"></div>
+                 <div class="w-full h-px bg-gray-800/30"></div>
+                 <div class="w-full h-px bg-gray-800/30"></div>
+            </div>
+            
+            <div class="relative w-full h-full px-8 py-10" id="tf-container">
+                 <!-- Just a mockup visualization -->
+                 <div class="absolute bottom-20 left-10 right-20 h-40 flex items-end justify-between px-4">
+                     <div class="w-2 bg-red h-20 rounded-sm"></div>
+                     <div class="w-2 bg-green h-32 rounded-sm mb-4"></div>
+                     <div class="w-2 bg-green h-24 rounded-sm mb-12"></div>
+                     <div class="w-2 bg-red h-16 rounded-sm mb-16"></div>
+                     <div class="w-2 bg-green h-40 rounded-sm mb-10"></div>
+                     <div class="w-2 bg-green h-32 rounded-sm mb-20"></div>
+                     <div class="w-2 bg-red h-24 rounded-sm mb-24"></div>
+                     <div class="w-2 bg-red h-10 rounded-sm mb-16"></div>
+                     <div class="w-2 bg-green h-20 rounded-sm mb-12"></div>
+                     <div class="w-2 bg-green h-32 rounded-sm mb-16"></div>
+                     <div class="w-2 bg-red h-16 rounded-sm mb-24"></div>
+                     <div class="w-2 bg-green h-40 rounded-sm mb-20"></div>
+                     <div class="w-2 bg-green h-32 rounded-sm mb-32"></div>
+                     <div class="w-2 bg-red h-24 rounded-sm mb-40"></div>
+                 </div>
+                 
+                 <!-- Price Axis -->
+                 <div class="absolute right-0 top-0 bottom-0 w-16 border-l border-gray-800/50 flex flex-col justify-between py-4 text-xs text-cp-muted text-right pr-2 font-mono">
+                     <span>280.00</span>
+                     <span>275.00</span>
+                     <span>270.00</span>
+                     <span class="text-white bg-blue-600 px-1 rounded">263.40</span>
+                     <span>260.00</span>
+                     <span>255.00</span>
+                 </div>
+                 
+                 <!-- Time Axis -->
+                 <div class="absolute left-0 right-16 bottom-0 h-8 border-t border-gray-800/50 flex justify-between items-center px-8 text-xs text-cp-muted font-mono">
+                     <span>10:00</span>
+                     <span>11:00</span>
+                     <span>12:00</span>
+                     <span>13:00</span>
+                     <span>14:00</span>
+                     <span>15:00</span>
+                 </div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="w-full md:w-80 flex flex-col bg-cp-panel flex-shrink-0 overflow-y-auto border-l border-cp-border custom-scrollbar">
+        
+        <!-- Watchlist -->
+        <div class="flex-grow">
+            <div class="p-3 border-b border-cp-border flex justify-between items-center sticky top-0 bg-cp-panel z-10">
+                <h3 class="font-bold text-white text-sm uppercase tracking-wider">Watchlist</h3>
+                <button class="text-cp-muted hover:text-white"><i data-lucide="plus" class="w-4 h-4"></i></button>
+            </div>
+            
+            <div class="text-xs">
+                <!-- Indices -->
+                <div class="watchlist-category-btn flex items-center justify-between p-2 px-3 bg-gray-800/30 text-gray-300 font-semibold cursor-pointer hover:bg-gray-800/50 transition-colors" data-target="wl-indices">
+                    <span>Indices</span>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 transition-transform duration-200"></i>
+                </div>
+                <div id="wl-indices" class="bg-[#1C1F26]">
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">SPX</div>
+                        <div class="text-right">
+                            <div class="text-white">7,041.29</div>
+                            <div class="text-green text-[10px]">+0.26%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">NDQ</div>
+                        <div class="text-right">
+                            <div class="text-white">26,333.00</div>
+                            <div class="text-green text-[10px]">+0.49%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">DJI</div>
+                        <div class="text-right">
+                            <div class="text-white">48,578.72</div>
+                            <div class="text-green text-[10px]">+0.24%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer">
+                        <div class="font-medium text-white">VIX</div>
+                        <div class="text-right">
+                            <div class="text-white">17.86</div>
+                            <div class="text-red text-[10px]">−0.45%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stocks -->
+                <div class="watchlist-category-btn flex items-center justify-between p-2 px-3 bg-gray-800/30 text-gray-300 font-semibold cursor-pointer hover:bg-gray-800/50 transition-colors border-t border-cp-border" data-target="wl-stocks">
+                    <span>Stocks</span>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 transition-transform duration-200"></i>
+                </div>
+                <div id="wl-stocks" class="bg-[#1C1F26]">
+                    <div class="flex justify-between items-center p-2 px-3 bg-gray-800 border-l-2 border-cp-blue cursor-pointer">
+                        <div class="font-medium text-white">AAPL</div>
+                        <div class="text-right">
+                            <div class="text-white">263.40</div>
+                            <div class="text-red text-[10px]">−1.14%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">TSLA</div>
+                        <div class="text-right">
+                            <div class="text-white">388.90</div>
+                            <div class="text-red text-[10px]">−0.78%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer">
+                        <div class="font-medium text-white">NFLX</div>
+                        <div class="text-right">
+                            <div class="text-white">107.79</div>
+                            <div class="text-green text-[10px]">+0.07%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Futures -->
+                <div class="watchlist-category-btn flex items-center justify-between p-2 px-3 bg-gray-800/30 text-gray-300 font-semibold cursor-pointer hover:bg-gray-800/50 transition-colors border-t border-cp-border" data-target="wl-futures">
+                    <span>Futures</span>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 transition-transform duration-200"></i>
+                </div>
+                <div id="wl-futures" class="bg-[#1C1F26]">
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">USOIL</div>
+                        <div class="text-right">
+                            <div class="text-white">87.53</div>
+                            <div class="text-red text-[10px]">−6.06%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer">
+                        <div class="font-medium text-white">GOLD</div>
+                        <div class="text-right">
+                            <div class="text-white">4,801.92</div>
+                            <div class="text-green text-[10px]">+0.30%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Forex -->
+                <div class="watchlist-category-btn flex items-center justify-between p-2 px-3 bg-gray-800/30 text-gray-300 font-semibold cursor-pointer hover:bg-gray-800/50 transition-colors border-t border-cp-border" data-target="wl-forex">
+                    <span>Forex</span>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 transition-transform duration-200"></i>
+                </div>
+                <div id="wl-forex" class="bg-[#1C1F26]">
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">EURUSD</div>
+                        <div class="text-right">
+                            <div class="text-white">1.17949</div>
+                            <div class="text-green text-[10px]">+0.12%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer">
+                        <div class="font-medium text-white">GBPUSD</div>
+                        <div class="text-right">
+                            <div class="text-white">1.35335</div>
+                            <div class="text-green text-[10px]">+0.06%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crypto -->
+                <div class="watchlist-category-btn flex items-center justify-between p-2 px-3 bg-gray-800/30 text-gray-300 font-semibold cursor-pointer hover:bg-gray-800/50 transition-colors border-t border-cp-border" data-target="wl-crypto">
+                    <span>Crypto</span>
+                    <i data-lucide="chevron-down" class="chevron w-4 h-4 transition-transform duration-200"></i>
+                </div>
+                <div id="wl-crypto" class="bg-[#1C1F26]">
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50">
+                        <div class="font-medium text-white">BTCUSD</div>
+                        <div class="text-right">
+                            <div class="text-white">75,585</div>
+                            <div class="text-green text-[10px]">+0.54%</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center p-2 px-3 hover:bg-gray-800 cursor-pointer">
+                        <div class="font-medium text-white">ETHUSD</div>
+                        <div class="text-right">
+                            <div class="text-white">2,355.1</div>
+                            <div class="text-green text-[10px]">+0.25%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stock Detail Panel -->
+        <div class="border-t border-cp-border p-4 bg-cp-bg sticky bottom-0">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">AAPL <span class="text-xs font-normal bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded">NASDAQ</span></h3>
+                    <p class="text-xs text-cp-muted">Apple Inc.</p>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center text-black font-bold"></div>
+            </div>
+            
+            <div class="flex items-end gap-2 mb-4">
+                <div class="text-2xl font-bold text-white">263.40 <span class="text-sm font-normal text-cp-muted">USD</span></div>
+                <div class="text-sm font-medium text-red mb-1">−3.03 (−1.14%)</div>
+            </div>
+            
+            <p class="text-xs text-gray-400 border-l-2 border-cp-blue pl-2 mb-4">Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</p>
+            
+            <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-xs">
+                <div>
+                    <div class="text-cp-muted">Volume <span class="text-white font-medium ml-1">43.32 M</span></div>
+                </div>
+                <div>
+                    <div class="text-cp-muted">Avg Vol (30D)</div>
+                    <div class="text-white font-medium">40.70 M</div>
+                </div>
+                <div>
+                    <div class="text-cp-muted">Market capitalization <span class="text-white font-medium ml-1">3.87 T</span></div>
+                </div>
+                <div>
+                    <div class="text-cp-muted">Next earnings report <span class="text-white font-medium ml-1">In 14 days</span></div>
+                </div>
+                <div class="col-span-2">
+                    <div class="text-cp-muted">Pre-market</div>
+                    <div class="text-white font-medium">267.14 USD <span class="text-green">+1.42%</span></div>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-800">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-sm font-bold text-white">Income statement</h4>
+                    <div class="flex bg-[#14161C] rounded p-0.5" data-tabs>
+                        <button class="tab-btn px-2 py-0.5 text-[10px] font-medium rounded bg-gray-800 text-white" data-target="fin-annual" data-container="fin-container">Annual</button>
+                        <button class="tab-btn px-2 py-0.5 text-[10px] font-medium rounded text-gray-400" data-target="fin-quarterly" data-container="fin-container">Quarterly</button>
+                    </div>
+                </div>
+                
+                <div id="fin-container">
+                    <div id="fin-annual" class="tab-content active space-y-2 text-xs">
+                        <div class="flex justify-between"><span class="text-cp-muted">Dividend yield TTM</span><span class="text-white font-medium">0.39%</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">Payout ratio</span><span class="text-white font-medium">13.03%</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">Analyst rating</span><span class="text-blue-400 font-medium">Neutral</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">1 year price target</span><span class="text-white font-medium">300.40</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">1Y Performance</span><span class="text-green font-medium">+32.79%</span></div>
+                    </div>
+                    <div id="fin-quarterly" class="tab-content space-y-2 text-xs">
+                        <div class="flex justify-between"><span class="text-cp-muted">Revenue Growth (YoY)</span><span class="text-green font-medium">+5.4%</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">EPS Diluted</span><span class="text-white font-medium">1.53</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">Analyst rating</span><span class="text-blue-400 font-medium">Neutral</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">1 year price target</span><span class="text-white font-medium">300.40</span></div>
+                        <div class="flex justify-between"><span class="text-cp-muted">1W Performance</span><span class="text-green font-medium">+1.70%</span></div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+    <script>
+        lucide.createIcons();
+        
+        // Setup Tab System
+        document.querySelectorAll('[data-tabs]').forEach(tabGroup => {
+            const tabs = tabGroup.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('tab-active', 'text-white'));
+                    tabs.forEach(t => t.classList.add('text-gray-400'));
+                    
+                    tab.classList.remove('text-gray-400');
+                    tab.classList.add('tab-active', 'text-white');
+                    
+                    const targetId = tab.getAttribute('data-target');
+                    const targetContainer = document.getElementById(tab.getAttribute('data-container'));
+                    if (targetContainer) {
+                        const contents = targetContainer.querySelectorAll('.tab-content');
+                        contents.forEach(c => c.classList.remove('active'));
+                        const t = document.getElementById(targetId);
+                        if(t) t.classList.add('active');
+                    }
+                });
+            });
+        });
+        
+        // Watchlist Accordion toggle
+        document.querySelectorAll('.watchlist-category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.getAttribute('data-target'));
+                const icon = btn.querySelector('.chevron');
+                if (target.style.display === 'none') {
+                    target.style.display = 'block';
+                    if(icon) icon.style.transform = 'rotate(0deg)';
+                } else {
+                    target.style.display = 'none';
+                    if(icon) icon.style.transform = 'rotate(-90deg)';
+                }
+            });
+        });
+        
+        // Toggle Buttons (like Ideas Video only)
+        document.querySelectorAll('[data-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('bg-cp-blue');
+                btn.classList.toggle('text-white');
+                btn.classList.toggle('bg-gray-800');
+                btn.classList.toggle('text-gray-400');
+            });
+        });
+
+    </script>
+</body>
+</html>

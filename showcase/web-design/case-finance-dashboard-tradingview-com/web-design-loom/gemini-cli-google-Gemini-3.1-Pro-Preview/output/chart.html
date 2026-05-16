@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChartPulse — Chart</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      height: 100vh;
+      overflow: hidden;
+    }
+    .site-header {
+      border-bottom: 1px solid var(--border-color);
+    }
+    .chart-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      height: calc(100vh - 64px);
+      background-color: var(--bg-base);
+    }
+    /* Watchlist Sidebar */
+    .watchlist-sidebar {
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-surface);
+    }
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+    .watchlist-content {
+      overflow-y: auto;
+      flex: 1;
+    }
+    .watchlist-category {
+      border-bottom: 1px solid var(--border-color);
+    }
+    .category-header {
+      padding: 8px 16px;
+      background-color: var(--bg-elevated);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .category-header:hover {
+      color: var(--text-primary);
+    }
+    .category-list {
+      display: block;
+    }
+    .category-list.collapsed {
+      display: none;
+    }
+    .watchlist-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .watchlist-item:hover {
+      background-color: var(--bg-hover);
+    }
+    .wl-symbol { font-weight: 600; }
+    .wl-price { text-align: right; }
+    .wl-change { text-align: right; width: 60px; }
+    
+    /* Main Chart Area */
+    .chart-area {
+      display: flex;
+      flex-direction: column;
+      background-color: #131722; /* TradingView dark chart background */
+    }
+    .chart-toolbar {
+      height: 48px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      background-color: var(--bg-surface);
+    }
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-right: 1px solid var(--border-color);
+      padding-right: 16px;
+    }
+    .toolbar-group:last-child {
+      border-right: none;
+    }
+    .toolbar-btn {
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+    .toolbar-btn:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-primary);
+    }
+    .toolbar-btn.active {
+      background-color: var(--bg-hover);
+      color: var(--accent-blue);
+      font-weight: 500;
+    }
+    .chart-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    .chart-placeholder {
+      width: 80%;
+      height: 60%;
+      border: 1px solid var(--border-light);
+      background-color: rgba(30, 30, 46, 0.5);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-size: 1.25rem;
+    }
+
+    /* Stock Detail Sidebar */
+    .detail-sidebar {
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-surface);
+      overflow-y: auto;
+    }
+    .detail-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .detail-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .detail-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+    .detail-price-lg {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-top: 12px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+    .detail-change-lg {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    .detail-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .detail-section h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+    .stat-label {
+      color: var(--text-secondary);
+    }
+    .stat-value {
+      font-weight: 500;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container" style="max-width: 100%; padding: 0 16px;">
+      <a href="index.html" class="logo">
+        <div class="logo-icon"></div>
+        ChartPulse
+      </a>
+      <nav class="main-nav">
+        <a href="chart.html" class="active">Products</a>
+        <a href="ideas.html">Community</a>
+        <a href="markets.html">Markets</a>
+        <a href="brokers.html">Brokers</a>
+      </nav>
+      <div class="header-actions">
+        <button class="btn btn-primary" style="padding: 6px 12px;">Login</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="chart-layout">
+    <!-- Watchlist Sidebar -->
+    <aside class="watchlist-sidebar">
+      <div class="sidebar-header">Watchlist</div>
+      <div class="watchlist-content">
+        <!-- Category: Indices -->
+        <div class="watchlist-category">
+          <div class="category-header" data-toggle="cat-indices">
+            Indices <span>▼</span>
+          </div>
+          <div class="category-list" id="cat-indices">
+            <div class="watchlist-item">
+              <span class="wl-symbol">SPX</span>
+              <span class="wl-price">7,041.29</span>
+              <span class="wl-change badge-positive">+0.26%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">NDQ</span>
+              <span class="wl-price">26,333.00</span>
+              <span class="wl-change badge-positive">+0.49%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">DJI</span>
+              <span class="wl-price">48,578.72</span>
+              <span class="wl-change badge-positive">+0.24%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">VIX</span>
+              <span class="wl-price">17.86</span>
+              <span class="wl-change badge-negative">−0.45%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category: Stocks -->
+        <div class="watchlist-category">
+          <div class="category-header" data-toggle="cat-stocks">
+            Stocks <span>▼</span>
+          </div>
+          <div class="category-list" id="cat-stocks">
+            <div class="watchlist-item bg-hover">
+              <span class="wl-symbol">AAPL</span>
+              <span class="wl-price">263.40</span>
+              <span class="wl-change badge-negative">−1.14%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">TSLA</span>
+              <span class="wl-price">388.90</span>
+              <span class="wl-change badge-negative">−0.78%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">NFLX</span>
+              <span class="wl-price">107.79</span>
+              <span class="wl-change badge-positive">+0.07%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category: Futures -->
+        <div class="watchlist-category">
+          <div class="category-header" data-toggle="cat-futures">
+            Futures <span>▼</span>
+          </div>
+          <div class="category-list" id="cat-futures">
+            <div class="watchlist-item">
+              <span class="wl-symbol">USOIL</span>
+              <span class="wl-price">87.53</span>
+              <span class="wl-change badge-negative">−6.06%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">GOLD</span>
+              <span class="wl-price">4,801.92</span>
+              <span class="wl-change badge-positive">+0.30%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category: Forex -->
+        <div class="watchlist-category">
+          <div class="category-header" data-toggle="cat-forex">
+            Forex <span>▼</span>
+          </div>
+          <div class="category-list" id="cat-forex">
+            <div class="watchlist-item">
+              <span class="wl-symbol">EURUSD</span>
+              <span class="wl-price">1.17949</span>
+              <span class="wl-change badge-positive">+0.12%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">GBPUSD</span>
+              <span class="wl-price">1.35335</span>
+              <span class="wl-change badge-positive">+0.06%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category: Crypto -->
+        <div class="watchlist-category">
+          <div class="category-header" data-toggle="cat-crypto">
+            Crypto <span>▼</span>
+          </div>
+          <div class="category-list" id="cat-crypto">
+            <div class="watchlist-item">
+              <span class="wl-symbol">BTCUSD</span>
+              <span class="wl-price">75,585</span>
+              <span class="wl-change badge-positive">+0.54%</span>
+            </div>
+            <div class="watchlist-item">
+              <span class="wl-symbol">ETHUSD</span>
+              <span class="wl-price">2,355.1</span>
+              <span class="wl-change badge-positive">+0.25%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- Main Chart Area -->
+    <main class="chart-area">
+      <div class="chart-toolbar">
+        <div class="toolbar-group">
+          <span style="font-weight:600; font-size:1.125rem;">AAPL</span>
+        </div>
+        <div class="toolbar-group timeframe-toggles">
+          <button class="toolbar-btn">1D</button>
+          <button class="toolbar-btn">5D</button>
+          <button class="toolbar-btn">1M</button>
+          <button class="toolbar-btn">3M</button>
+          <button class="toolbar-btn active">6M</button>
+          <button class="toolbar-btn">YTD</button>
+          <button class="toolbar-btn">1Y</button>
+          <button class="toolbar-btn">5Y</button>
+          <button class="toolbar-btn">All</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="toolbar-btn">Candles</button>
+          <button class="toolbar-btn">Indicators</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <!-- Placeholder for Interactive Chart -->
+        <div class="chart-placeholder">
+          Interactive Candlestick Chart Workspace
+        </div>
+      </div>
+    </main>
+
+    <!-- Stock Detail Sidebar -->
+    <aside class="detail-sidebar">
+      <div class="detail-header">
+        <div class="detail-title">AAPL</div>
+        <div class="detail-subtitle">Apple Inc — NASDAQ</div>
+        <div class="detail-price-lg">
+          263.40 <span class="text-sm">USD</span>
+        </div>
+        <div class="detail-change-lg text-negative">
+          −3.03 (−1.14%)
+        </div>
+        <div class="text-xs text-secondary mt-4">
+          Pre-market: 267.14 USD (+1.42%)
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Key Stats</h3>
+        <div class="stat-row">
+          <span class="stat-label">Volume</span>
+          <span class="stat-value">43.32 M</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Avg Volume (30D)</span>
+          <span class="stat-value">40.70 M</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Market capitalization</span>
+          <span class="stat-value">3.87 T</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Next earnings report</span>
+          <span class="stat-value">In 14 days</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="flex justify-between items-center mb-4">
+          <h3 style="margin:0">Financials</h3>
+          <div class="tabs mb-0" style="border:none; gap:8px;">
+            <button class="tab active" data-fin-tab="annual">Annual</button>
+            <button class="tab" data-fin-tab="quarterly">Quarterly</button>
+          </div>
+        </div>
+        
+        <div class="stat-row">
+          <span class="stat-label">Dividend yield TTM</span>
+          <span class="stat-value">0.39%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Payout ratio (TTM)</span>
+          <span class="stat-value">13.03%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Last dividend payment</span>
+          <span class="stat-value">0.26</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Last ex-dividend date</span>
+          <span class="stat-value">Feb 9, 2026</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Analyst rating</span>
+          <span class="stat-value badge badge-neutral">Neutral</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">1 year price target</span>
+          <span class="stat-value text-positive">300.40 (+14.05%)</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>Performance</h3>
+        <div class="stat-row">
+          <span class="stat-label">1W</span>
+          <span class="stat-value text-positive">+1.70%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">1M</span>
+          <span class="stat-value text-positive">+4.13%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">1Y</span>
+          <span class="stat-value text-positive">+32.79%</span>
+        </div>
+      </div>
+      
+      <div class="detail-section">
+        <h3 class="text-sm text-secondary">LATEST NEWS</h3>
+        <p class="text-sm">Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</p>
+      </div>
+
+    </aside>
+  </div>
+
+  <script>
+    // Watchlist Accordion
+    document.querySelectorAll('.category-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const targetId = header.getAttribute('data-toggle');
+        const targetList = document.getElementById(targetId);
+        targetList.classList.toggle('collapsed');
+        const icon = header.querySelector('span');
+        icon.textContent = targetList.classList.contains('collapsed') ? '▶' : '▼';
+      });
+    });
+
+    // Timeframe Toggles
+    document.querySelectorAll('.timeframe-toggles .toolbar-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.timeframe-toggles .toolbar-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Financials Tabs
+    document.querySelectorAll('[data-fin-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-fin-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

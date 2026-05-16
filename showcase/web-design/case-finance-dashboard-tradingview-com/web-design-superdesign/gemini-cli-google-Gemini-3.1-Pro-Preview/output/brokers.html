@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChartPulse — Track All Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cp: {
+                            bg: '#0F0F0F',
+                            panel: '#1a1a2e',
+                            border: '#2A2E39',
+                            blue: '#2962FF',
+                            red: '#F7525F',
+                            green: '#22AB94',
+                            text: '#D1D4DC',
+                            muted: '#787B86'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        body { background-color: #0F0F0F; color: #D1D4DC; font-family: 'Inter', sans-serif; }
+        .text-green { color: #22AB94; }
+        .text-red { color: #F7525F; }
+        .bg-green { background-color: #22AB94; }
+        .bg-red { background-color: #F7525F; }
+        .border-green { border-color: #22AB94; }
+        .border-red { border-color: #F7525F; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0F0F0F; }
+        ::-webkit-scrollbar-thumb { background: #2A2E39; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #434651; }
+
+        .sparkline {
+            display: inline-block;
+            width: 60px;
+            height: 20px;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 15 L10 12 L20 18 L30 10 L40 14 L50 5 L60 8' stroke='%23787B86' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .sparkline-up {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 18 L10 15 L20 16 L30 10 L40 12 L50 2 L60 5' stroke='%2322AB94' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .sparkline-down {
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 5 L10 2 L20 12 L30 10 L40 16 L50 15 L60 18' stroke='%23F7525F' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        
+        /* Utility styles for active tabs */
+        .tab-active { color: #fff; border-bottom: 2px solid #2962FF; }
+        
+        /* Tab panel transition */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<nav class="bg-[#0F0F0F] border-b border-gray-800 sticky top-0 z-50">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center">
+                <a href="index.html" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight">
+                    <i data-lucide="activity" class="text-cp-blue"></i>
+                    ChartPulse
+                </a>
+                <div class="hidden md:block ml-10">
+                    <div class="flex items-baseline space-x-4 text-sm font-medium text-gray-300">
+                        <a href="chart.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Products</a>
+                        <a href="ideas.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Community</a>
+                        <a href="markets.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Markets</a>
+                        <a href="brokers.html" class="hover:text-white px-3 py-2 rounded-md transition-colors">Brokers</a>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500"></i>
+                    </div>
+                    <input type="text" class="bg-[#1C1F26] border border-gray-800 text-white text-sm rounded-lg focus:ring-cp-blue focus:border-cp-blue block w-full pl-10 p-2" placeholder="Search markets...">
+                </div>
+                <button class="text-white hover:text-gray-300 px-4 py-2 text-sm font-medium transition-colors">Log in</button>
+                <button class="text-white bg-cp-blue hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Sign up</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="flex-grow max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+    <!-- Hero Section -->
+    <section class="text-center max-w-4xl mx-auto mb-16">
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-6">Find the right broker for you</h1>
+        <p class="text-lg text-gray-400 mb-8 leading-relaxed">Compare verified brokers based on real user reviews, account minimums, and special promotions. Start trading with confidence.</p>
+        
+        <!-- Stats Banner -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border border-cp-border rounded-xl p-6 bg-cp-panel">
+            <div>
+                <div class="text-3xl font-bold text-white mb-1">100M+</div>
+                <div class="text-sm text-cp-muted">Traders connected through us</div>
+            </div>
+            <div class="hidden md:block w-px bg-cp-border mx-auto h-full"></div>
+            <div>
+                <div class="text-3xl font-bold text-white mb-1">Millions</div>
+                <div class="text-sm text-cp-muted">Successfully executed live orders daily</div>
+            </div>
+            <div class="hidden md:block w-px bg-cp-border mx-auto h-full"></div>
+            <div>
+                <div class="text-3xl font-bold text-white mb-1">100%</div>
+                <div class="text-sm text-cp-muted">Verified real reviews</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Filters -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-gray-800 pb-6">
+        <div class="flex space-x-2 overflow-x-auto no-scrollbar" data-tabs>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full bg-gray-800 text-white whitespace-nowrap" data-target="broker-all" data-container="broker-container">All brokers</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-stocks" data-container="broker-container">Stocks</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-crypto" data-container="broker-container">Crypto</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-forex" data-container="broker-container">Forex</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-futures" data-container="broker-container">Futures</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-etfs" data-container="broker-container">ETFs</button>
+            <button class="tab-btn px-4 py-2 text-sm font-medium rounded-full text-gray-400 hover:text-white transition-colors whitespace-nowrap" data-target="broker-options" data-container="broker-container">Options</button>
+        </div>
+        
+        <div class="flex items-center gap-4 shrink-0" data-tabs>
+            <span class="text-sm text-cp-muted">Sort by:</span>
+            <div class="flex bg-[#14161C] rounded-lg p-1 border border-cp-border">
+                <button class="tab-btn px-3 py-1.5 text-sm font-medium rounded-md bg-gray-800 text-white shadow-sm" data-target="sort-best" data-container="sort-container">Best rated</button>
+                <button class="tab-btn px-3 py-1.5 text-sm font-medium rounded-md text-gray-400 hover:text-white transition-colors" data-target="sort-all" data-container="sort-container">All brokers</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Broker Listings -->
+    <div id="broker-container" class="space-y-6">
+        <div id="broker-all" class="tab-content active space-y-6">
+            
+            <!-- OKX -->
+            <div class="bg-cp-panel border border-cp-border rounded-xl p-6 flex flex-col md:flex-row items-center gap-8 hover:border-gray-600 transition-colors">
+                <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-48 border-b md:border-b-0 md:border-r border-cp-border pb-6 md:pb-0 md:pr-8">
+                    <div class="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-black font-bold text-xl mb-3 shadow-lg">OKX</div>
+                    <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Platinum</span>
+                </div>
+                
+                <div class="flex-grow w-full">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2">OKX</h2>
+                            <div class="flex items-center gap-3 text-sm">
+                                <div class="flex items-center text-yellow-500">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                </div>
+                                <span class="font-bold text-white">4.9 Excellent</span>
+                                <span class="text-cp-muted">22.5K Reviews</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start md:items-end">
+                            <span class="text-xs text-cp-muted mb-1">Active Accounts</span>
+                            <span class="text-lg font-bold text-white">239.9K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-[#13151A] rounded-lg p-4 border border-cp-border flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-green/10 flex items-center justify-center text-green"><i data-lucide="gift" class="w-4 h-4"></i></div>
+                            <div>
+                                <div class="text-xs text-cp-muted">Special Offer</div>
+                                <div class="text-sm font-bold text-white">Unlock ChartPulse Plus!</div>
+                            </div>
+                        </div>
+                        <button class="bg-cp-blue hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors text-sm">Open Account</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- moomoo -->
+            <div class="bg-cp-panel border border-cp-border rounded-xl p-6 flex flex-col md:flex-row items-center gap-8 hover:border-gray-600 transition-colors">
+                <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-48 border-b md:border-b-0 md:border-r border-cp-border pb-6 md:pb-0 md:pr-8">
+                    <div class="w-16 h-16 bg-orange-500 rounded-xl flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg">moo</div>
+                    <span class="bg-yellow-900/40 text-yellow-500 border border-yellow-700/50 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Gold</span>
+                </div>
+                
+                <div class="flex-grow w-full">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2">moomoo</h2>
+                            <div class="flex items-center gap-3 text-sm">
+                                <div class="flex items-center text-yellow-500">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star-half" class="w-4 h-4 fill-current text-gray-600"></i>
+                                </div>
+                                <span class="font-bold text-white">4.6 Excellent</span>
+                                <span class="text-cp-muted">4K Reviews</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start md:items-end">
+                            <span class="text-xs text-cp-muted mb-1">Active Accounts</span>
+                            <span class="text-lg font-bold text-white">81.7K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-[#13151A] rounded-lg p-4 border border-cp-border flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-green/10 flex items-center justify-center text-green"><i data-lucide="gift" class="w-4 h-4"></i></div>
+                            <div>
+                                <div class="text-xs text-cp-muted">Special Offer</div>
+                                <div class="text-sm font-bold text-white">8.1% APY + Free Premium</div>
+                            </div>
+                        </div>
+                        <button class="bg-cp-blue hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors text-sm">Open Account</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOREX.com -->
+            <div class="bg-cp-panel border border-cp-border rounded-xl p-6 flex flex-col md:flex-row items-center gap-8 hover:border-gray-600 transition-colors">
+                <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-48 border-b md:border-b-0 md:border-r border-cp-border pb-6 md:pb-0 md:pr-8">
+                    <div class="w-16 h-16 bg-[#00A38D] rounded-xl flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg">FX</div>
+                    <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Platinum</span>
+                </div>
+                
+                <div class="flex-grow w-full">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2">FOREX.com</h2>
+                            <div class="flex items-center gap-3 text-sm">
+                                <div class="flex items-center text-yellow-500">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star-half" class="w-4 h-4 fill-current text-gray-600"></i>
+                                </div>
+                                <span class="font-bold text-white">4.5 Great</span>
+                                <span class="text-cp-muted">13.7K Reviews</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start md:items-end">
+                            <span class="text-xs text-cp-muted mb-1">Active Accounts</span>
+                            <span class="text-lg font-bold text-white">175.7K</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button class="bg-transparent border border-cp-border hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-lg transition-colors text-sm">Visit Website</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TradeStation -->
+            <div class="bg-cp-panel border border-cp-border rounded-xl p-6 flex flex-col md:flex-row items-center gap-8 hover:border-gray-600 transition-colors">
+                <div class="flex flex-col items-center justify-center shrink-0 w-full md:w-48 border-b md:border-b-0 md:border-r border-cp-border pb-6 md:pb-0 md:pr-8">
+                    <div class="w-16 h-16 bg-[#162D50] rounded-xl flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg">TS</div>
+                    <span class="bg-gray-800 text-gray-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Platinum</span>
+                </div>
+                
+                <div class="flex-grow w-full">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white mb-2">TradeStation</h2>
+                            <div class="flex items-center gap-3 text-sm">
+                                <div class="flex items-center text-yellow-500">
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+                                    <i data-lucide="star" class="w-4 h-4 text-gray-600"></i>
+                                </div>
+                                <span class="font-bold text-white">4.3 Good</span>
+                                <span class="text-cp-muted">16.6K Reviews</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-start md:items-end">
+                            <span class="text-xs text-cp-muted mb-1">Active Accounts</span>
+                            <span class="text-lg font-bold text-white">131.4K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-[#13151A] rounded-lg p-4 border border-cp-border flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-green/10 flex items-center justify-center text-green"><i data-lucide="gift" class="w-4 h-4"></i></div>
+                            <div>
+                                <div class="text-xs text-cp-muted">Special Offer</div>
+                                <div class="text-sm font-bold text-white">$150 + $0 Options Fees</div>
+                            </div>
+                        </div>
+                        <button class="bg-cp-blue hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors text-sm">Open Account</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<footer class="bg-[#0F0F0F] border-t border-gray-800 pt-16 pb-8 mt-auto">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 mb-12">
+            <div class="col-span-2 lg:col-span-2">
+                <a href="index.html" class="flex items-center gap-2 text-white font-bold text-xl tracking-tight mb-4">
+                    <i data-lucide="activity" class="text-cp-blue"></i>
+                    ChartPulse
+                </a>
+                <p class="text-gray-400 text-sm mb-4">Every trade a #ChartPulse trade</p>
+                <p class="text-gray-500 text-xs leading-relaxed">A supercharged charting platform and social network for traders and investors to analyze, discuss, and trade global markets.</p>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Products</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="chart.html" class="hover:text-white transition-colors">Supercharts</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Screeners</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Pine Script</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Heatmaps</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Calendars</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Community</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="#" class="hover:text-white transition-colors">Social Network</a></li>
+                    <li><a href="ideas.html" class="hover:text-white transition-colors">Ideas</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Indicators & Strategies</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Editors' Picks</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Markets</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="markets.html" class="hover:text-white transition-colors">Stocks</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">ETFs</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Crypto</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Forex</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Futures</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Bonds</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Economy</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Brokers</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li><a href="brokers.html" class="hover:text-white transition-colors">Top Brokers</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Broker Comparison</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Special Offers</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="text-gray-500 text-sm">© 2026 ChartPulse. All rights reserved.</div>
+            <div class="flex flex-wrap gap-4 md:gap-6 text-sm text-gray-500 justify-center">
+                <a href="#" class="hover:text-white transition-colors">Terms of Use</a>
+                <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="#" class="hover:text-white transition-colors">Cookies Policy</a>
+                <a href="#" class="hover:text-white transition-colors">Disclaimer</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+    <script>
+        lucide.createIcons();
+        
+        // Setup Tab System
+        document.querySelectorAll('[data-tabs]').forEach(tabGroup => {
+            const tabs = tabGroup.querySelectorAll('.tab-btn');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('tab-active', 'text-white'));
+                    tabs.forEach(t => t.classList.add('text-gray-400'));
+                    
+                    tab.classList.remove('text-gray-400');
+                    tab.classList.add('tab-active', 'text-white');
+                    
+                    const targetId = tab.getAttribute('data-target');
+                    const targetContainer = document.getElementById(tab.getAttribute('data-container'));
+                    if (targetContainer) {
+                        const contents = targetContainer.querySelectorAll('.tab-content');
+                        contents.forEach(c => c.classList.remove('active'));
+                        const t = document.getElementById(targetId);
+                        if(t) t.classList.add('active');
+                    }
+                });
+            });
+        });
+        
+        // Watchlist Accordion toggle
+        document.querySelectorAll('.watchlist-category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.getAttribute('data-target'));
+                const icon = btn.querySelector('.chevron');
+                if (target.style.display === 'none') {
+                    target.style.display = 'block';
+                    if(icon) icon.style.transform = 'rotate(0deg)';
+                } else {
+                    target.style.display = 'none';
+                    if(icon) icon.style.transform = 'rotate(-90deg)';
+                }
+            });
+        });
+        
+        // Toggle Buttons (like Ideas Video only)
+        document.querySelectorAll('[data-toggle]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('bg-cp-blue');
+                btn.classList.toggle('text-white');
+                btn.classList.toggle('bg-gray-800');
+                btn.classList.toggle('text-gray-400');
+            });
+        });
+
+    </script>
+</body>
+</html>

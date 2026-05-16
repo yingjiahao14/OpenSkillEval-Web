@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChartPulse — Markets</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        'cp-bg': '#0F0F0F',
+        'cp-panel': '#131722',
+        'cp-card': '#1e222d',
+        'cp-border': '#2a2e39',
+        'cp-blue': '#2962FF',
+        'cp-green': '#26a69a',
+        'cp-red': '#F7525F',
+        'cp-text': '#d1d4dc',
+        'cp-muted': '#787b86',
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { background: #0F0F0F; color: #d1d4dc; font-family: 'Inter', -apple-system, sans-serif; }
+  .nav-link { color: #d1d4dc; transition: color 0.15s; text-decoration: none; }
+  .nav-link:hover { color: #fff; }
+  .badge-green { background: rgba(38,166,154,0.15); color: #26a69a; }
+  .badge-red { background: rgba(247,82,95,0.15); color: #F7525F; }
+  .badge-neutral { background: rgba(120,123,134,0.15); color: #787b86; }
+  .section-card { background: #131722; border: 1px solid #2a2e39; border-radius: 8px; }
+  .data-row:hover { background: rgba(42,46,57,0.5); }
+  ::-webkit-scrollbar { width: 6px; height: 4px; } ::-webkit-scrollbar-track { background: #1e222d; } ::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 3px; }
+  .asset-tab { padding: 10px 18px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; border-bottom: 2px solid transparent; white-space: nowrap; color: #787b86; }
+  .asset-tab.active { border-bottom-color: #2962FF; color: #d1d4dc; }
+  .asset-tab:hover:not(.active) { color: #d1d4dc; }
+  .session-tab { padding: 5px 14px; font-size: 12px; font-weight: 500; cursor: pointer; border-radius: 4px; color: #787b86; transition: all 0.15s; border: 1px solid transparent; }
+  .session-tab.active { background: rgba(41,98,255,0.15); border-color: rgba(41,98,255,0.3); color: #2962FF; }
+  .session-tab:hover:not(.active) { color: #d1d4dc; }
+  .tf-btn { padding: 3px 10px; border-radius: 3px; font-size: 11px; font-weight: 500; cursor: pointer; color: #787b86; transition: all 0.15s; border: none; background: none; }
+  .tf-btn:hover { color: #d1d4dc; background: #2a2e39; }
+  .tf-btn.active { color: #2962FF; background: rgba(41,98,255,0.1); }
+  .sparkline-up { stroke: #26a69a; }
+  .sparkline-dn { stroke: #F7525F; }
+  section.market-section { scroll-margin-top: 100px; }
+</style>
+</head>
+<body class="bg-cp-bg text-cp-text">
+
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 bg-cp-panel border-b border-cp-border">
+  <div class="max-w-screen-2xl mx-auto px-4 flex items-center h-14 gap-6">
+    <a href="index.html" class="flex items-center gap-2 mr-4">
+      <div class="w-7 h-7 bg-cp-blue rounded flex items-center justify-center">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 10 L5 6 L8 8 L11 4 L14 7" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="font-bold text-base text-white tracking-tight">ChartPulse</span>
+    </a>
+    <div class="hidden md:flex items-center gap-1">
+      <a href="chart.html" class="nav-link px-3 py-1.5 rounded text-sm font-medium">Products</a>
+      <a href="ideas.html" class="nav-link px-3 py-1.5 rounded text-sm font-medium">Community</a>
+      <a href="markets.html" class="nav-link px-3 py-1.5 rounded text-sm font-medium" style="color:#2962FF;">Markets</a>
+      <a href="brokers.html" class="nav-link px-3 py-1.5 rounded text-sm font-medium">Brokers</a>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <button class="text-sm text-cp-text hover:text-white transition-colors">Sign In</button>
+      <button class="bg-cp-blue hover:bg-blue-600 text-white text-sm font-semibold px-4 py-1.5 rounded transition-colors">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Sticky Asset Tabs -->
+<div class="sticky z-40 bg-cp-panel border-b border-cp-border" style="top:56px;">
+  <div class="max-w-screen-2xl mx-auto px-4">
+    <div class="flex overflow-x-auto gap-0 scrollbar-hide">
+      <button class="asset-tab active" onclick="scrollToSection('indices-section', this)">Indices</button>
+      <button class="asset-tab" onclick="scrollToSection('stocks-section', this)">US Stocks</button>
+      <button class="asset-tab" onclick="scrollToSection('crypto-section', this)">Crypto</button>
+      <button class="asset-tab" onclick="scrollToSection('futures-section', this)">Futures</button>
+      <button class="asset-tab" onclick="scrollToSection('forex-section', this)">Forex</button>
+      <button class="asset-tab" onclick="scrollToSection('bonds-section', this)">Bonds</button>
+      <button class="asset-tab" onclick="scrollToSection('economy-section', this)">Economy</button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-screen-2xl mx-auto px-4 py-6 space-y-8">
+
+  <!-- Chart Type / Timeframe Controls -->
+  <div class="flex items-center gap-3 py-2 border-b border-cp-border">
+    <div class="flex items-center gap-1">
+      <button class="tf-btn" onclick="setTF(this,'1D')">1D</button>
+      <button class="tf-btn active" onclick="setTF(this,'1M')">1M</button>
+      <button class="tf-btn" onclick="setTF(this,'3M')">3M</button>
+      <button class="tf-btn" onclick="setTF(this,'1Y')">1Y</button>
+      <button class="tf-btn" onclick="setTF(this,'5Y')">5Y</button>
+      <button class="tf-btn" onclick="setTF(this,'All')">All</button>
+    </div>
+    <div style="width:1px; height:16px; background:#2a2e39;"></div>
+    <div class="flex items-center gap-1">
+      <button class="tf-btn active" onclick="setChartDisplay(this,'area')">Area</button>
+      <button class="tf-btn" onclick="setChartDisplay(this,'candles')">Candles</button>
+    </div>
+  </div>
+
+  <!-- ======= INDICES SECTION ======= -->
+  <section id="indices-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-cp-blue rounded-full inline-block"></span>
+      US Market Indices
+    </h2>
+    <div class="section-card overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-3">Index</th><th class="text-left px-4 py-3 hidden md:table-cell">Ticker</th><th class="text-right px-4 py-3">Price</th><th class="text-right px-4 py-3 hidden sm:table-cell">Currency</th><th class="text-right px-4 py-3">Change</th><th class="text-right px-4 py-3 hidden lg:table-cell">Sparkline</th></tr></thead>
+        <tbody>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer" onclick="window.location='chart.html'"><td class="px-4 py-3 font-semibold text-white">S&P 500</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">SPX</td><td class="px-4 py-3 text-right tabular-nums">7,041.29</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.26%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,20 12,18 24,15 36,17 48,12 60,9 72,7" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Nasdaq 100</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">NDX</td><td class="px-4 py-3 text-right tabular-nums">26,333.00</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.49%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,22 12,20 24,16 36,18 48,12 60,8 72,5" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Dow 30</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">DJI</td><td class="px-4 py-3 text-right tabular-nums">48,578.73</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.24%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,18 12,17 24,14 36,16 48,13 60,11 72,9" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">US 2000 Small Cap</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">RUT</td><td class="px-4 py-3 text-right tabular-nums">2,735.734</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.41%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,20 12,19 24,21 36,16 48,14 60,10 72,8" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">VIX</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">VIX</td><td class="px-4 py-3 text-right tabular-nums">17.87</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">POINT</td><td class="px-4 py-3 text-right"><span class="badge-red px-2 py-0.5 rounded text-xs">−0.39%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,8 12,10 24,9 36,12 48,15 60,18 72,20" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row cursor-pointer"><td class="px-4 py-3 font-semibold text-white">NYSE Composite</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">NYA</td><td class="px-4 py-3 text-right tabular-nums">22,955.59</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-neutral px-2 py-0.5 rounded text-xs">0.00%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,14 12,13 24,15 36,14 48,14 60,13 72,14" fill="none" stroke="#787b86" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row cursor-pointer"><td class="px-4 py-3 font-semibold text-white">S&P 100</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">OEX</td><td class="px-4 py-3 text-right tabular-nums">3,462.23</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.18%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="72" height="28" viewBox="0 0 72 28"><polyline points="0,18 24,15 48,12 72,10" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======= STOCKS SECTION ======= -->
+  <section id="stocks-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-cp-blue rounded-full inline-block"></span>
+      World Stocks
+    </h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Stocks Table -->
+      <div class="section-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-cp-border text-sm font-semibold">Top Stocks</div>
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-2">Company</th><th class="text-right px-4 py-2">Price</th><th class="text-right px-4 py-2">Change</th><th class="text-right px-4 py-2 hidden md:table-cell">Chart</th></tr></thead>
+          <tbody>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">NVIDIA</div><div class="text-xs text-cp-muted">NVDA</div></td><td class="px-4 py-3 text-right tabular-nums">198.35</td><td class="px-4 py-3 text-right"><span class="badge-red px-1.5 py-0.5 rounded text-xs">−0.26%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,12 15,14 30,11 45,13 60,15" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">Apple</div><div class="text-xs text-cp-muted">AAPL</div></td><td class="px-4 py-3 text-right tabular-nums">263.40</td><td class="px-4 py-3 text-right"><span class="badge-red px-1.5 py-0.5 rounded text-xs">−1.14%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,8 15,10 30,9 45,14 60,16" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">Microsoft</div><div class="text-xs text-cp-muted">MSFT</div></td><td class="px-4 py-3 text-right tabular-nums">420.26</td><td class="px-4 py-3 text-right"><span class="badge-green px-1.5 py-0.5 rounded text-xs">+2.20%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,18 15,14 30,12 45,9 60,6" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">Tesla</div><div class="text-xs text-cp-muted">TSLA</div></td><td class="px-4 py-3 text-right tabular-nums">388.90</td><td class="px-4 py-3 text-right"><span class="badge-red px-1.5 py-0.5 rounded text-xs">−0.78%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,10 15,11 30,13 45,15 60,16" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">Amazon</div><div class="text-xs text-cp-muted">AMZN</div></td><td class="px-4 py-3 text-right tabular-nums">249.70</td><td class="px-4 py-3 text-right"><span class="badge-green px-1.5 py-0.5 rounded text-xs">+0.48%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,16 15,14 30,13 45,11 60,10" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+            <tr class="data-row cursor-pointer"><td class="px-4 py-3"><div class="font-semibold text-white">Alphabet</div><div class="text-xs text-cp-muted">GOOG</div></td><td class="px-4 py-3 text-right tabular-nums">332.77</td><td class="px-4 py-3 text-right"><span class="badge-red px-1.5 py-0.5 rounded text-xs">−0.51%</span></td><td class="px-4 py-3 text-right hidden md:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,9 15,11 30,12 45,14 60,15" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Gainers / Losers -->
+      <div class="section-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-cp-border flex items-center gap-2">
+          <span class="text-sm font-semibold">Stock Movers</span>
+          <div class="flex gap-1 ml-auto">
+            <button class="session-tab active" onclick="switchSession(this,'regular')">Regular hours</button>
+            <button class="session-tab" onclick="switchSession(this,'premarket')">Pre-market</button>
+            <button class="session-tab" onclick="switchSession(this,'afterhours')">After-hours</button>
+          </div>
+        </div>
+        <div id="session-regular">
+          <div class="px-4 py-2 border-b border-cp-border/50 text-xs font-semibold text-cp-green uppercase tracking-wider">Top Gainers</div>
+          <div class="divide-y divide-cp-border/40">
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Myseum, Inc.</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+129.17%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Psyence Biomedical Ltd.</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+103.82%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Mega Fortune Company</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+53.96%</span></div>
+          </div>
+          <div class="px-4 py-2 border-b border-cp-border/50 border-t border-cp-border text-xs font-semibold text-cp-red uppercase tracking-wider mt-1">Top Losers</div>
+          <div class="divide-y divide-cp-border/40">
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Texxon Holding Limited</div><span class="badge-red px-2 py-0.5 rounded text-xs font-semibold">−44.96%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Allbirds, Inc.</div><span class="badge-red px-2 py-0.5 rounded text-xs font-semibold">−35.79%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">MMTec, Inc.</div><span class="badge-red px-2 py-0.5 rounded text-xs font-semibold">−33.66%</span></div>
+          </div>
+        </div>
+        <div id="session-premarket" style="display:none;">
+          <div class="px-4 py-2 border-b border-cp-border/50 text-xs font-semibold text-cp-green uppercase tracking-wider">Pre-Market Gainers</div>
+          <div class="divide-y divide-cp-border/40">
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Apple Inc.</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+1.42%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">MARA Holdings</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+3.21%</span></div>
+          </div>
+        </div>
+        <div id="session-afterhours" style="display:none;">
+          <div class="px-4 py-2 border-b border-cp-border/50 text-xs font-semibold text-cp-green uppercase tracking-wider">After-Hours Gainers</div>
+          <div class="divide-y divide-cp-border/40">
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">Netflix, Inc.</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+2.15%</span></div>
+            <div class="data-row flex items-center justify-between px-4 py-2.5 cursor-pointer"><div class="text-sm font-medium text-white">AMD</div><span class="badge-green px-2 py-0.5 rounded text-xs font-semibold">+1.84%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======= CRYPTO SECTION ======= -->
+  <section id="crypto-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-yellow-500 rounded-full inline-block"></span>
+      Cryptocurrency
+    </h2>
+    <!-- Crypto overview bar -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div class="section-card p-4"><div class="text-xs text-cp-muted mb-1">Total Market Cap</div><div class="font-bold text-lg text-white">2.54 T</div><div class="badge-green inline-block px-1.5 py-0.5 rounded text-xs mt-1">+1.37%</div></div>
+      <div class="section-card p-4"><div class="text-xs text-cp-muted mb-1">BTC Dominance</div><div class="font-bold text-lg text-white">59.61%</div><div class="text-cp-muted text-xs mt-1">—</div></div>
+      <div class="section-card p-4"><div class="text-xs text-cp-muted mb-1">Bitcoin (BTC)</div><div class="font-bold text-lg text-white">75,593</div><div class="badge-green inline-block px-1.5 py-0.5 rounded text-xs mt-1">+0.55%</div></div>
+      <div class="section-card p-4"><div class="text-xs text-cp-muted mb-1">Ethereum (ETH)</div><div class="font-bold text-lg text-white">2,355.7</div><div class="badge-green inline-block px-1.5 py-0.5 rounded text-xs mt-1">+0.28%</div></div>
+    </div>
+  </section>
+
+  <!-- ======= FUTURES SECTION ======= -->
+  <section id="futures-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-orange-500 rounded-full inline-block"></span>
+      Futures & Commodities
+    </h2>
+    <div class="section-card overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-3">Commodity</th><th class="text-left px-4 py-3 hidden md:table-cell">Ticker</th><th class="text-right px-4 py-3">Price</th><th class="text-right px-4 py-3 hidden sm:table-cell">Unit</th><th class="text-right px-4 py-3">Change</th><th class="text-right px-4 py-3 hidden lg:table-cell">Chart</th></tr></thead>
+        <tbody>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Light Crude Oil</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">CL1!</td><td class="px-4 py-3 text-right tabular-nums">87.72</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD/barrel</td><td class="px-4 py-3 text-right"><span class="badge-red px-2 py-0.5 rounded text-xs">−7.36%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,6 15,8 30,10 45,16 60,22" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Natural Gas</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">NG1!</td><td class="px-4 py-3 text-right tabular-nums">2.692</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD/mmBTU</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+1.70%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,16 15,14 30,12 45,10 60,8" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Gold</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">GC1!</td><td class="px-4 py-3 text-right tabular-nums">4,818.6</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD/troy oz</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.21%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,18 15,15 30,14 45,11 60,9" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Copper</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">HG1!</td><td class="px-4 py-3 text-right tabular-nums">6.0430</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD/lb</td><td class="px-4 py-3 text-right"><span class="badge-red px-2 py-0.5 rounded text-xs">−0.55%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,10 15,11 30,13 45,14 60,15" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row cursor-pointer"><td class="px-4 py-3 font-semibold text-white">Silver</td><td class="px-4 py-3 text-cp-muted hidden md:table-cell">SI1!</td><td class="px-4 py-3 text-right tabular-nums">79.645</td><td class="px-4 py-3 text-right text-cp-muted text-xs hidden sm:table-cell">USD/troy oz</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+1.19%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,18 15,14 30,12 45,9 60,7" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======= FOREX SECTION ======= -->
+  <section id="forex-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-green-500 rounded-full inline-block"></span>
+      Forex
+    </h2>
+    <div class="section-card overflow-hidden">
+      <table class="w-full text-sm">
+        <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-3">Pair</th><th class="text-right px-4 py-3">Rate</th><th class="text-right px-4 py-3">Change</th><th class="text-right px-4 py-3 hidden lg:table-cell">Chart</th></tr></thead>
+        <tbody>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">EUR / USD <span class="text-cp-muted font-normal text-xs ml-1">Euro / US Dollar</span></td><td class="px-4 py-3 text-right tabular-nums font-mono">1.17932</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.13%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,16 20,13 40,11 60,9" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">GBP / USD <span class="text-cp-muted font-normal text-xs ml-1">British Pound</span></td><td class="px-4 py-3 text-right tabular-nums font-mono">1.3529</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.06%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,15 20,14 40,12 60,11" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">USD / JPY <span class="text-cp-muted font-normal text-xs ml-1">Japanese Yen</span></td><td class="px-4 py-3 text-right tabular-nums font-mono">159.210</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.06%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,14 20,13 40,12 60,11" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-3 font-semibold text-white">USD / CHF <span class="text-cp-muted font-normal text-xs ml-1">Swiss Franc</span></td><td class="px-4 py-3 text-right tabular-nums font-mono">0.78260</td><td class="px-4 py-3 text-right"><span class="badge-red px-2 py-0.5 rounded text-xs">−0.05%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,12 20,13 40,14 60,15" fill="none" class="sparkline-dn" stroke-width="1.5"/></svg></td></tr>
+          <tr class="data-row cursor-pointer"><td class="px-4 py-3 font-semibold text-white">AUD / USD <span class="text-cp-muted font-normal text-xs ml-1">Australian Dollar</span></td><td class="px-4 py-3 text-right tabular-nums font-mono">0.71718</td><td class="px-4 py-3 text-right"><span class="badge-green px-2 py-0.5 rounded text-xs">+0.19%</span></td><td class="px-4 py-3 text-right hidden lg:table-cell"><svg width="60" height="24" viewBox="0 0 60 24"><polyline points="0,17 20,14 40,12 60,9" fill="none" class="sparkline-up" stroke-width="1.5"/></svg></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ======= BONDS SECTION ======= -->
+  <section id="bonds-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-purple-500 rounded-full inline-block"></span>
+      Bonds
+    </h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Government Bonds -->
+      <div class="section-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-cp-border text-sm font-semibold">US Government Bonds</div>
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-2">Bond</th><th class="text-right px-4 py-2">Price</th><th class="text-right px-4 py-2">Yield</th></tr></thead>
+          <tbody>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium">US 1Y <span class="text-cp-muted text-xs ml-1">US01Y</span></td><td class="px-4 py-2.5 text-right text-cp-muted">—</td><td class="px-4 py-2.5 text-right font-semibold">3.682%</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium">US 2Y <span class="text-cp-muted text-xs ml-1">US02Y</span></td><td class="px-4 py-2.5 text-right tabular-nums">100.199%</td><td class="px-4 py-2.5 text-right font-semibold">3.767%</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium">US 5Y <span class="text-cp-muted text-xs ml-1">US05Y</span></td><td class="px-4 py-2.5 text-right tabular-nums">99.875%</td><td class="px-4 py-2.5 text-right font-semibold">3.903%</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium">US 10Y <span class="text-cp-muted text-xs ml-1">US10Y</span></td><td class="px-4 py-2.5 text-right tabular-nums">98.645%</td><td class="px-4 py-2.5 text-right font-semibold text-white">4.295%</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium">US 20Y <span class="text-cp-muted text-xs ml-1">US20Y</span></td><td class="px-4 py-2.5 text-right tabular-nums">96.531%</td><td class="px-4 py-2.5 text-right font-semibold">4.900%</td></tr>
+            <tr class="data-row cursor-pointer"><td class="px-4 py-2.5 font-medium">US 30Y <span class="text-cp-muted text-xs ml-1">US30Y</span></td><td class="px-4 py-2.5 text-right tabular-nums">97.363%</td><td class="px-4 py-2.5 text-right font-semibold">4.919%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Corporate Bonds -->
+      <div class="section-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-cp-border text-sm font-semibold">Corporate Bonds (High Yield)</div>
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-2">Issuer</th><th class="text-right px-4 py-2">Coupon</th><th class="text-right px-4 py-2">YTM</th><th class="text-right px-4 py-2 hidden md:table-cell">Maturity</th></tr></thead>
+          <tbody>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium text-white" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Petroleos Mexicanos</td><td class="px-4 py-2.5 text-right">7.69%</td><td class="px-4 py-2.5 text-right font-semibold">8.60%</td><td class="px-4 py-2.5 text-right text-cp-muted text-xs hidden md:table-cell">Jan 23, 2050</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium text-white" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Grupo Televisa</td><td class="px-4 py-2.5 text-right">6.125%</td><td class="px-4 py-2.5 text-right font-semibold">8.59%</td><td class="px-4 py-2.5 text-right text-cp-muted text-xs hidden md:table-cell">Jan 31, 2046</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium text-white" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Petroleos Mexicanos</td><td class="px-4 py-2.5 text-right">6.95%</td><td class="px-4 py-2.5 text-right font-semibold">8.48%</td><td class="px-4 py-2.5 text-right text-cp-muted text-xs hidden md:table-cell">Jan 28, 2060</td></tr>
+            <tr class="data-row border-b border-cp-border/50 cursor-pointer"><td class="px-4 py-2.5 font-medium text-white" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Grupo Televisa</td><td class="px-4 py-2.5 text-right">5.0%</td><td class="px-4 py-2.5 text-right font-semibold">8.43%</td><td class="px-4 py-2.5 text-right text-cp-muted text-xs hidden md:table-cell">May 13, 2045</td></tr>
+            <tr class="data-row cursor-pointer"><td class="px-4 py-2.5 font-medium text-white" style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">SBL Holdings</td><td class="px-4 py-2.5 text-right">7.2%</td><td class="px-4 py-2.5 text-right font-semibold">8.38%</td><td class="px-4 py-2.5 text-right text-cp-muted text-xs hidden md:table-cell">Oct 30, 2034</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======= ECONOMY SECTION ======= -->
+  <section id="economy-section" class="market-section">
+    <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+      <span class="w-1 h-5 bg-teal-500 rounded-full inline-block"></span>
+      Economy
+    </h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Earnings Calendar -->
+      <div class="section-card overflow-hidden">
+        <div class="px-4 py-3 border-b border-cp-border text-sm font-semibold">Earnings Calendar — Today</div>
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-cp-border text-cp-muted text-xs uppercase tracking-wide"><th class="text-left px-4 py-2">Company</th><th class="text-right px-4 py-2">Actual EPS</th><th class="text-right px-4 py-2">Estimate EPS</th></tr></thead>
+          <tbody>
+            <tr class="data-row border-b border-cp-border/50"><td class="px-4 py-3 font-medium text-white">Autoliv, Inc.</td><td class="px-4 py-3 text-right font-semibold text-cp-green">2.05 USD</td><td class="px-4 py-3 text-right text-cp-muted">1.83 USD</td></tr>
+            <tr class="data-row border-b border-cp-border/50"><td class="px-4 py-3 font-medium text-white">Regions Financial</td><td class="px-4 py-3 text-right font-semibold text-cp-green">0.62 USD</td><td class="px-4 py-3 text-right text-cp-muted">0.60 USD</td></tr>
+            <tr class="data-row border-b border-cp-border/50"><td class="px-4 py-3 font-medium text-white">Fifth Third Bancorp</td><td class="px-4 py-3 text-right font-semibold text-cp-green">0.15 USD</td><td class="px-4 py-3 text-right text-cp-muted">−0.10 USD</td></tr>
+            <tr class="data-row border-b border-cp-border/50"><td class="px-4 py-3 font-medium text-white">Ally Financial</td><td class="px-4 py-3 text-right text-cp-muted">—</td><td class="px-4 py-3 text-right text-cp-muted">0.93 USD</td></tr>
+            <tr class="data-row"><td class="px-4 py-3 font-medium text-white">State Street Corp</td><td class="px-4 py-3 text-right text-cp-muted">—</td><td class="px-4 py-3 text-right text-cp-muted">2.64 USD</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Yield Curve Visualization -->
+      <div class="section-card p-4">
+        <div class="text-sm font-semibold mb-4">US Treasury Yield Curve</div>
+        <div class="flex items-end gap-2 h-32 mb-2">
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">3.68%</span>
+            <div class="w-10 bg-cp-blue/30 border border-cp-blue/50 rounded-t-sm" style="height:48px;"></div>
+            <span class="text-xs text-cp-muted">1Y</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">3.77%</span>
+            <div class="w-10 bg-cp-blue/40 border border-cp-blue/60 rounded-t-sm" style="height:52px;"></div>
+            <span class="text-xs text-cp-muted">2Y</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">3.90%</span>
+            <div class="w-10 bg-cp-blue/50 border border-cp-blue/70 rounded-t-sm" style="height:58px;"></div>
+            <span class="text-xs text-cp-muted">5Y</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">4.30%</span>
+            <div class="w-10 bg-cp-blue/70 border border-cp-blue rounded-t-sm" style="height:76px;"></div>
+            <span class="text-xs text-cp-muted">10Y</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">4.90%</span>
+            <div class="w-10 bg-cp-blue/80 border border-cp-blue rounded-t-sm" style="height:96px;"></div>
+            <span class="text-xs text-cp-muted">20Y</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <span class="text-xs text-cp-muted">4.92%</span>
+            <div class="w-10 bg-cp-blue border border-blue-400 rounded-t-sm" style="height:100px;"></div>
+            <span class="text-xs text-cp-muted">30Y</span>
+          </div>
+        </div>
+        <p class="text-xs text-cp-muted">Normal yield curve — longer maturities carry higher yields, indicating market expectation of economic growth.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Footer -->
+<footer class="border-t border-cp-border bg-cp-panel mt-8">
+  <div class="max-w-screen-2xl mx-auto px-6 py-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 bg-cp-blue rounded flex items-center justify-center"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 10 L5 6 L8 8 L11 4 L14 7" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="font-bold text-sm text-white">ChartPulse</span>
+      </div>
+      <div class="flex gap-6 text-sm text-cp-muted">
+        <a href="index.html" class="hover:text-white transition-colors">Home</a>
+        <a href="ideas.html" class="hover:text-white transition-colors">Community</a>
+        <a href="brokers.html" class="hover:text-white transition-colors">Brokers</a>
+        <a href="chart.html" class="hover:text-white transition-colors">Charts</a>
+      </div>
+      <div class="text-xs text-cp-muted">© 2026 ChartPulse. Track All Markets.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+function scrollToSection(id, btn) {
+  document.querySelectorAll('.asset-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+}
+
+function setTF(btn, tf) {
+  btn.closest('.flex').querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setChartDisplay(btn, type) {
+  btn.parentElement.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function switchSession(btn, session) {
+  btn.parentElement.querySelectorAll('.session-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  ['regular','premarket','afterhours'].forEach(id => {
+    const el = document.getElementById('session-' + id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('session-' + session).style.display = 'block';
+}
+</script>
+</body>
+</html>

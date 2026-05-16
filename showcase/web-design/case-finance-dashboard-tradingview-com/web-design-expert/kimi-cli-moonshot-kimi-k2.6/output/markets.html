@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markets — ChartPulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .markets-hero { padding: var(--space-10) 0; background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%); }
+  .markets-hero h1 { font-size: var(--text-3xl); font-weight: 700; margin-bottom: var(--space-3); }
+  .markets-hero p { color: var(--color-text-secondary); max-width: 600px; }
+
+  .asset-tabs { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); position: sticky; top: 56px; z-index: 40; }
+  .asset-tabs-inner { display: flex; gap: var(--space-1); overflow-x: auto; padding: var(--space-2) 0; }
+  .asset-tab {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm); font-weight: 500;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+  }
+  .asset-tab:hover { color: var(--color-text-secondary); background: var(--color-bg-tertiary); }
+  .asset-tab.active { color: var(--color-text-primary); background: var(--color-bg-elevated); border-color: var(--color-border); }
+
+  .market-section { padding: var(--space-10) 0; }
+  .market-section-alt { background: var(--color-bg-secondary); }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-4); }
+  .section-title { font-size: var(--text-xl); font-weight: 600; }
+
+  .mini-chart-tabs { display: flex; gap: var(--space-1); }
+  .mini-chart-tabs .tab { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+
+  .market-table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+  .market-table { width: 100%; }
+  .market-table th, .market-table td { padding: var(--space-3) var(--space-4); text-align: left; font-size: var(--text-sm); border-bottom: 1px solid var(--color-border); }
+  .market-table th { font-weight: 600; color: var(--color-text-muted); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; background: var(--color-bg-tertiary); }
+  .market-table tbody tr:hover td { background: var(--color-bg-tertiary); }
+  .market-table .name { font-weight: 600; }
+  .market-table .ticker { color: var(--color-text-muted); font-size: var(--text-xs); }
+  .market-table .num { font-family: var(--font-mono); text-align: right; }
+  .market-table .change { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  .market-table .spark { width: 100px; }
+
+  .movers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-4); }
+  .movers-card { padding: var(--space-5); }
+  .movers-card h3 { font-size: var(--text-base); font-weight: 600; margin-bottom: var(--space-4); }
+  .mover-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+  .mover-row:last-child { border-bottom: none; }
+  .mover-name { font-weight: 500; font-size: var(--text-sm); }
+  .mover-change { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
+
+  .gainers-tabs { display: flex; gap: var(--space-1); margin-bottom: var(--space-4); }
+  .gainers-tabs .tab { padding: var(--space-1) var(--space-3); font-size: var(--text-xs); }
+
+  .earnings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
+  .earnings-card { padding: var(--space-4); }
+  .earnings-card .co-name { font-weight: 600; margin-bottom: var(--space-1); }
+  .earnings-card .co-date { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-3); }
+  .earnings-card .eps-row { display: flex; align-items: center; justify-content: space-between; font-size: var(--text-sm); }
+  .earnings-card .eps-label { color: var(--color-text-muted); }
+  .earnings-card .eps-val { font-family: var(--font-mono); font-weight: 600; }
+  .earnings-card .eps-bar { height: 6px; border-radius: 3px; background: var(--color-bg-tertiary); margin-top: var(--space-3); overflow: hidden; }
+  .earnings-card .eps-bar-fill { height: 100%; border-radius: 3px; background: var(--color-accent); }
+  .earnings-card .eps-surprise { font-size: var(--text-xs); color: var(--color-positive); margin-top: var(--space-2); font-weight: 600; }
+
+  .bonds-yield-curve { height: 160px; background: var(--color-bg-tertiary); border-radius: var(--radius-lg); margin-bottom: var(--space-6); position: relative; }
+  .bonds-yield-curve svg { width: 100%; height: 100%; }
+
+  .footer { background: var(--color-bg-secondary); border-top: 1px solid var(--color-border); padding: var(--space-12) 0 var(--space-8); }
+  .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-8); }
+  .footer-col h4 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-4); color: var(--color-text-primary); }
+  .footer-col a { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); transition: color var(--transition-fast); }
+  .footer-col a:hover { color: var(--color-text-primary); }
+  .footer-bottom { margin-top: var(--space-10); padding-top: var(--space-6); border-top: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+  .footer-brand { font-weight: 700; font-size: var(--text-lg); }
+  .footer-copy { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .top-nav { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; z-index: 50; }
+  .top-nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .top-nav .logo { font-weight: 700; font-size: var(--text-lg); display: flex; align-items: center; gap: var(--space-2); }
+  .top-nav .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); }
+  .top-nav-links { display: flex; gap: var(--space-1); }
+  .top-nav-links a { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); font-weight: 500; color: var(--color-text-muted); border-radius: var(--radius-sm); transition: all var(--transition-fast); }
+  .top-nav-links a:hover, .top-nav-links a.active { color: var(--color-text-primary); background: var(--color-bg-elevated); }
+  .top-nav-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+  .mini-spark { width: 100px; height: 32px; }
+</style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="top-nav">
+  <div class="container top-nav-inner">
+    <a href="index.html" class="logo"><span class="logo-dot"></span>ChartPulse</a>
+    <div class="top-nav-links hide-md">
+      <a href="index.html">Home</a>
+      <a href="chart.html">Products</a>
+      <a href="ideas.html">Community</a>
+      <a href="markets.html" class="active">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="top-nav-actions">
+      <button class="btn btn-ghost hide-sm">Sign in</button>
+      <button class="btn btn-primary">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Asset Tabs -->
+<div class="asset-tabs">
+  <div class="container asset-tabs-inner">
+    <button class="asset-tab active" data-asset="indices">Indices</button>
+    <button class="asset-tab" data-asset="stocks">US Stocks</button>
+    <button class="asset-tab" data-asset="crypto">Crypto</button>
+    <button class="asset-tab" data-asset="futures">Futures</button>
+    <button class="asset-tab" data-asset="forex">Forex</button>
+    <button class="asset-tab" data-asset="bonds">Bonds</button>
+    <button class="asset-tab" data-asset="etfs">ETFs</button>
+    <button class="asset-tab" data-asset="economy">Economy</button>
+  </div>
+</div>
+
+<!-- Hero -->
+<section class="markets-hero">
+  <div class="container">
+    <h1>Global Markets</h1>
+    <p>Real-time data across all asset classes. Track indices, stocks, crypto, forex, futures, bonds, and economic indicators.</p>
+  </div>
+</section>
+
+<!-- Indices -->
+<section class="market-section" id="indices">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">US Market Indices</h2>
+      <div class="mini-chart-tabs tabs">
+        <button class="tab active" data-tf="1D">1D</button>
+        <button class="tab" data-tf="1M">1M</button>
+        <button class="tab" data-tf="1Y">1Y</button>
+      </div>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>Ticker</th>
+            <th class="num">Price</th>
+            <th class="num">Currency</th>
+            <th class="change">Change</th>
+            <th class="spark">Chart</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="name">S&amp;P 500</span></td>
+            <td><span class="ticker">SPX</span></td>
+            <td class="num">7,041.29</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.26%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,24 10,22 20,23 30,18 40,19 50,14 60,15 70,10 80,11 90,6 100,7" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Nasdaq 100</span></td>
+            <td><span class="ticker">NDX</span></td>
+            <td class="num">26,333.00</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.49%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,26 10,24 20,25 30,20 40,21 50,16 60,17 70,12 80,13 90,8 100,9" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Dow 30</span></td>
+            <td><span class="ticker">DJI</span></td>
+            <td class="num">48,578.73</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.24%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,25 10,23 20,24 30,20 40,21 50,17 60,18 70,14 80,15 90,11 100,12" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">US 2000 Small Cap</span></td>
+            <td><span class="ticker">RUT</span></td>
+            <td class="num">2,735.734</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.41%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,23 10,21 20,22 30,18 40,19 50,15 60,16 70,12 80,13 90,9 100,10" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">VIX</span></td>
+            <td><span class="ticker">VIX</span></td>
+            <td class="num">17.87</td>
+            <td class="num">POINT</td>
+            <td class="change text-negative">−0.39%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,8 10,10 20,9 30,13 40,12 50,16 60,15 70,19 80,18 90,22 100,21" fill="none" stroke="#ef4444" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">NYSE Composite</span></td>
+            <td><span class="ticker">NYA</span></td>
+            <td class="num">22,955.59</td>
+            <td class="num">USD</td>
+            <td class="change">0.00%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,16 10,15 20,16 30,15 40,16 50,15 60,16 70,15 80,16 90,15 100,16" fill="none" stroke="#888" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">S&amp;P 100</span></td>
+            <td><span class="ticker">OEX</span></td>
+            <td class="num">3,462.23</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.18%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,24 10,22 20,23 30,19 40,20 50,16 60,17 70,13 80,14 90,10 100,11" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- World Stocks -->
+<section class="market-section market-section-alt" id="stocks">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">World Stocks</h2>
+      <div class="mini-chart-tabs tabs">
+        <button class="tab active" data-tf="1D">1D</button>
+        <button class="tab" data-tf="1M">1M</button>
+        <button class="tab" data-tf="1Y">1Y</button>
+      </div>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Ticker</th>
+            <th class="num">Price</th>
+            <th class="num">Currency</th>
+            <th class="change">Change</th>
+            <th class="spark">Chart</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="name">NVIDIA</span></td>
+            <td><span class="ticker">NVDA</span></td>
+            <td class="num">198.35</td>
+            <td class="num">USD</td>
+            <td class="change text-negative">−0.26%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,10 10,12 20,11 30,15 40,14 50,18 60,17 70,21 80,20 90,24 100,23" fill="none" stroke="#ef4444" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Apple</span></td>
+            <td><span class="ticker">AAPL</span></td>
+            <td class="num">263.40</td>
+            <td class="num">USD</td>
+            <td class="change text-negative">−1.14%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,8 10,10 20,9 30,14 40,13 50,18 60,17 70,22 80,21 90,26 100,25" fill="none" stroke="#ef4444" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Microsoft</span></td>
+            <td><span class="ticker">MSFT</span></td>
+            <td class="num">420.26</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+2.20%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,26 10,24 20,25 30,20 40,21 50,16 60,17 70,12 80,13 90,8 100,9" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Tesla</span></td>
+            <td><span class="ticker">TSLA</span></td>
+            <td class="num">388.90</td>
+            <td class="num">USD</td>
+            <td class="change text-negative">−0.78%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,12 10,14 20,13 30,17 40,16 50,20 60,19 70,23 80,22 90,26 100,25" fill="none" stroke="#ef4444" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Amazon</span></td>
+            <td><span class="ticker">AMZN</span></td>
+            <td class="num">249.70</td>
+            <td class="num">USD</td>
+            <td class="change text-positive">+0.48%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,24 10,22 20,23 30,19 40,20 50,16 60,17 70,13 80,14 90,10 100,11" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></td>
+          </tr>
+          <tr>
+            <td><span class="name">Alphabet</span></td>
+            <td><span class="ticker">GOOG</span></td>
+            <td class="num">332.77</td>
+            <td class="num">USD</td>
+            <td class="change text-negative">−0.51%</td>
+            <td class="spark"><svg class="mini-spark" viewBox="0 0 100 32"><polyline points="0,11 10,13 20,12 30,16 40,15 50,19 60,18 70,22 80,21 90,25 100,24" fill="none" stroke="#ef4444" stroke-width="1.5"/></svg></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Stock Movers -->
+<section class="market-section" id="movers">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Stock Movers</h2>
+      <div class="gainers-tabs tabs" id="moversTabs">
+        <button class="tab active" data-session="regular">Regular Hours</button>
+        <button class="tab" data-session="pre">Pre-market</button>
+        <button class="tab" data-session="after">After-hours</button>
+      </div>
+    </div>
+    <div class="movers-grid">
+      <div class="card movers-card">
+        <h3>🔥 Top Gainers</h3>
+        <div class="mover-row"><span class="mover-name">Myseum, Inc.</span><span class="mover-change text-positive">+129.17%</span></div>
+        <div class="mover-row"><span class="mover-name">Psyence Biomedical Ltd.</span><span class="mover-change text-positive">+103.82%</span></div>
+        <div class="mover-row"><span class="mover-name">Mega Fortune Company</span><span class="mover-change text-positive">+53.96%</span></div>
+      </div>
+      <div class="card movers-card">
+        <h3>❄️ Top Losers</h3>
+        <div class="mover-row"><span class="mover-name">Texxon Holding Limited</span><span class="mover-change text-negative">−44.96%</span></div>
+        <div class="mover-row"><span class="mover-name">Allbirds, Inc.</span><span class="mover-change text-negative">−35.79%</span></div>
+        <div class="mover-row"><span class="mover-name">MMTec, Inc.</span><span class="mover-change text-negative">−33.66%</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Crypto -->
+<section class="market-section market-section-alt" id="crypto">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Cryptocurrency</h2>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr><th>Metric</th><th class="num">Value</th><th class="change">Change</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="name">Crypto market cap</span></td><td class="num">2.54 T USD</td><td class="change text-positive">+1.37%</td></tr>
+          <tr><td><span class="name">Bitcoin dominance</span></td><td class="num">59.61%</td><td class="change">—</td></tr>
+          <tr><td><span class="name">Ethereum share</span></td><td class="num">11.20%</td><td class="change">—</td></tr>
+          <tr><td><span class="name">Bitcoin (BTCUSD)</span></td><td class="num">75,593 USD</td><td class="change text-positive">+0.55%</td></tr>
+          <tr><td><span class="name">Ethereum (ETHUSD)</span></td><td class="num">2,355.7 USD</td><td class="change text-positive">+0.28%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Futures / Commodities -->
+<section class="market-section" id="futures">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Futures &amp; Commodities</h2>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr><th>Commodity</th><th>Ticker</th><th class="num">Price</th><th class="num">Unit</th><th class="change">Change</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="name">Light crude oil</span></td><td><span class="ticker">CL1!</span></td><td class="num">87.72</td><td class="num">USD/barrel</td><td class="change text-negative">−7.36%</td></tr>
+          <tr><td><span class="name">Natural gas</span></td><td><span class="ticker">NG1!</span></td><td class="num">2.692</td><td class="num">USD/mmBTU</td><td class="change text-positive">+1.70%</td></tr>
+          <tr><td><span class="name">Gold</span></td><td><span class="ticker">GC1!</span></td><td class="num">4,818.6</td><td class="num">USD/troy oz</td><td class="change text-positive">+0.21%</td></tr>
+          <tr><td><span class="name">Copper</span></td><td><span class="ticker">HG1!</span></td><td class="num">6.0430</td><td class="num">USD/lb</td><td class="change text-negative">−0.55%</td></tr>
+          <tr><td><span class="name">Silver</span></td><td><span class="ticker">SI1!</span></td><td class="num">79.645</td><td class="num">USD/troy oz</td><td class="change text-positive">+1.19%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Forex -->
+<section class="market-section market-section-alt" id="forex">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Forex</h2>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr><th>Pair</th><th class="num">Rate</th><th class="change">Change</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="name">EUR to USD</span></td><td class="num">1.17932</td><td class="change text-positive">+0.13%</td></tr>
+          <tr><td><span class="name">GBP to USD</span></td><td class="num">1.3529</td><td class="change text-positive">+0.06%</td></tr>
+          <tr><td><span class="name">USD to JPY</span></td><td class="num">159.210</td><td class="change text-positive">+0.06%</td></tr>
+          <tr><td><span class="name">USD to CHF</span></td><td class="num">0.78260</td><td class="change text-negative">−0.05%</td></tr>
+          <tr><td><span class="name">AUD to USD</span></td><td class="num">0.71718</td><td class="change text-positive">+0.19%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Bonds -->
+<section class="market-section" id="bonds">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Government Bonds</h2>
+    </div>
+    <div class="bonds-yield-curve">
+      <svg viewBox="0 0 800 160" preserveAspectRatio="none">
+        <rect width="800" height="160" fill="#1a1a2e"/>
+        <text x="40" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">1Y</text>
+        <text x="170" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">2Y</text>
+        <text x="300" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">5Y</text>
+        <text x="430" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">10Y</text>
+        <text x="560" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">20Y</text>
+        <text x="690" y="145" fill="#888" font-size="11" font-family="JetBrains Mono">30Y</text>
+        <polyline points="40,110 170,105 300,95 430,75 560,45 690,40" fill="none" stroke="#2962FF" stroke-width="2"/>
+        <circle cx="40" cy="110" r="4" fill="#2962FF"/>
+        <circle cx="170" cy="105" r="4" fill="#2962FF"/>
+        <circle cx="300" cy="95" r="4" fill="#2962FF"/>
+        <circle cx="430" cy="75" r="4" fill="#2962FF"/>
+        <circle cx="560" cy="45" r="4" fill="#2962FF"/>
+        <circle cx="690" cy="40" r="4" fill="#2962FF"/>
+        <text x="40" y="100" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">3.682%</text>
+        <text x="170" y="95" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">3.767%</text>
+        <text x="300" y="85" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">3.903%</text>
+        <text x="430" y="65" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">4.295%</text>
+        <text x="560" y="35" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">4.900%</text>
+        <text x="690" y="30" fill="#fff" font-size="11" font-family="JetBrains Mono" text-anchor="middle">4.919%</text>
+      </svg>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr><th>Bond</th><th>Ticker</th><th class="num">Price</th><th class="change">Yield</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="name">US 1Y</span></td><td><span class="ticker">US01Y</span></td><td class="num">—</td><td class="change">3.682%</td></tr>
+          <tr><td><span class="name">US 2Y</span></td><td><span class="ticker">US02Y</span></td><td class="num">100.199%</td><td class="change">3.767%</td></tr>
+          <tr><td><span class="name">US 5Y</span></td><td><span class="ticker">US05Y</span></td><td class="num">99.875%</td><td class="change">3.903%</td></tr>
+          <tr><td><span class="name">US 10Y</span></td><td><span class="ticker">US10Y</span></td><td class="num">98.645%</td><td class="change">4.295%</td></tr>
+          <tr><td><span class="name">US 20Y</span></td><td><span class="ticker">US20Y</span></td><td class="num">96.531%</td><td class="change">4.900%</td></tr>
+          <tr><td><span class="name">US 30Y</span></td><td><span class="ticker">US30Y</span></td><td class="num">97.363%</td><td class="change">4.919%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-header" style="margin-top:var(--space-10)">
+      <h2 class="section-title">Corporate Bonds</h2>
+    </div>
+    <div class="market-table-wrap">
+      <table class="market-table">
+        <thead>
+          <tr><th>Issuer</th><th class="num">Coupon</th><th class="change">YTM</th><th>Maturity</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="name">Petroleos Mexicanos</span></td><td class="num">7.69%</td><td class="change">8.60%</td><td>Jan 23, 2050</td></tr>
+          <tr><td><span class="name">Grupo Televisa</span></td><td class="num">6.125%</td><td class="change">8.59%</td><td>Jan 31, 2046</td></tr>
+          <tr><td><span class="name">Petroleos Mexicanos</span></td><td class="num">6.95%</td><td class="change">8.48%</td><td>Jan 28, 2060</td></tr>
+          <tr><td><span class="name">Grupo Televisa</span></td><td class="num">5.0%</td><td class="change">8.43%</td><td>May 13, 2045</td></tr>
+          <tr><td><span class="name">SBL Holdings</span></td><td class="num">7.2%</td><td class="change">8.38%</td><td>Oct 30, 2034</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Economy / Earnings -->
+<section class="market-section market-section-alt" id="economy">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Earnings Calendar</h2>
+    </div>
+    <div class="earnings-grid">
+      <div class="card earnings-card">
+        <div class="co-name">Autoliv, Inc.</div>
+        <div class="co-date">Today</div>
+        <div class="eps-row"><span class="eps-label">Actual EPS</span><span class="eps-val">2.05 USD</span></div>
+        <div class="eps-row"><span class="eps-label">Estimate</span><span class="eps-val">1.83 USD</span></div>
+        <div class="eps-bar"><div class="eps-bar-fill" style="width:100%"></div></div>
+        <div class="eps-surprise">+12.0% surprise</div>
+      </div>
+      <div class="card earnings-card">
+        <div class="co-name">Regions Financial</div>
+        <div class="co-date">Today</div>
+        <div class="eps-row"><span class="eps-label">Actual EPS</span><span class="eps-val">0.62 USD</span></div>
+        <div class="eps-row"><span class="eps-label">Estimate</span><span class="eps-val">0.60 USD</span></div>
+        <div class="eps-bar"><div class="eps-bar-fill" style="width:100%"></div></div>
+        <div class="eps-surprise">+3.3% surprise</div>
+      </div>
+      <div class="card earnings-card">
+        <div class="co-name">Fifth Third Bancorp</div>
+        <div class="co-date">Today</div>
+        <div class="eps-row"><span class="eps-label">Actual EPS</span><span class="eps-val">0.15 USD</span></div>
+        <div class="eps-row"><span class="eps-label">Estimate</span><span class="eps-val">−0.10 USD</span></div>
+        <div class="eps-bar"><div class="eps-bar-fill" style="width:100%"></div></div>
+        <div class="eps-surprise">Beat estimate</div>
+      </div>
+      <div class="card earnings-card">
+        <div class="co-name">Ally Financial</div>
+        <div class="co-date">Today</div>
+        <div class="eps-row"><span class="eps-label">Actual EPS</span><span class="eps-val">—</span></div>
+        <div class="eps-row"><span class="eps-label">Estimate</span><span class="eps-val">0.93 USD</span></div>
+        <div class="eps-bar"><div class="eps-bar-fill" style="width:0%"></div></div>
+      </div>
+      <div class="card earnings-card">
+        <div class="co-name">State Street Corp</div>
+        <div class="co-date">Today</div>
+        <div class="eps-row"><span class="eps-label">Actual EPS</span><span class="eps-val">—</span></div>
+        <div class="eps-row"><span class="eps-label">Estimate</span><span class="eps-val">2.64 USD</span></div>
+        <div class="eps-bar"><div class="eps-bar-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="chart.html">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="ideas.html">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="markets.html">Stocks</a>
+        <a href="markets.html">ETFs</a>
+        <a href="markets.html">Crypto</a>
+        <a href="markets.html">Forex</a>
+        <a href="markets.html">Futures</a>
+        <a href="markets.html">Bonds</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="brokers.html">Top Brokers</a>
+        <a href="brokers.html">Broker Comparison</a>
+        <a href="brokers.html">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-brand">ChartPulse</div>
+      <div class="footer-copy">© 2026 ChartPulse. Every trade a #ChartPulse trade.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Asset tab scroll-to
+  document.querySelectorAll('.asset-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.asset-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.asset;
+      const el = document.getElementById(target);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // Movers session tabs
+  document.getElementById('moversTabs').addEventListener('click', e => {
+    if (e.target.classList.contains('tab')) {
+      document.querySelectorAll('#moversTabs .tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+    }
+  });
+
+  // Mini chart timeframe tabs (visual only)
+  document.querySelectorAll('.mini-chart-tabs').forEach(container => {
+    container.addEventListener('click', e => {
+      if (e.target.classList.contains('tab')) {
+        container.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+      }
+    });
+  });
+</script>
+</body>
+</html>

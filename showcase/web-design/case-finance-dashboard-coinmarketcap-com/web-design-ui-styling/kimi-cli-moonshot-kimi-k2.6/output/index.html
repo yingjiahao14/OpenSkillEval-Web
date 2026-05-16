@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoinTracker Pro — Crypto Prices, Charts &amp; Market Caps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#3861FB',
+              dark: '#0D1421',
+              gray: '#808A9D',
+              light: '#F8FAFD',
+              border: '#E5E7EB',
+              green: '#16c784',
+              red: '#ea3943',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --brand-primary: #3861FB;
+      --brand-dark: #0D1421;
+      --brand-gray: #808A9D;
+      --brand-light: #F8FAFD;
+      --brand-border: #EFF2F5;
+      --brand-green: #16c784;
+      --brand-red: #ea3943;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--brand-dark);
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+
+    /* Sparkline */
+    .sparkline { display: flex; align-items: flex-end; gap: 1px; height: 32px; }
+    .sparkline-bar { width: 3px; border-radius: 1px; }
+
+    /* Tabs */
+    .tab-active {
+      color: var(--brand-dark);
+      border-bottom: 2px solid var(--brand-primary);
+      font-weight: 600;
+    }
+    .tab-inactive {
+      color: var(--brand-gray);
+      border-bottom: 2px solid transparent;
+    }
+    .tab-inactive:hover { color: var(--brand-dark); }
+
+    /* Network pills */
+    .pill-active {
+      background: var(--brand-dark);
+      color: #fff;
+    }
+    .pill-inactive {
+      background: var(--brand-light);
+      color: var(--brand-gray);
+      border: 1px solid var(--brand-border);
+    }
+    .pill-inactive:hover { border-color: var(--brand-gray); color: var(--brand-dark); }
+
+    /* Table */
+    .crypto-table th {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--brand-gray);
+      padding: 10px 12px;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .crypto-table th:hover { color: var(--brand-dark); }
+    .crypto-table td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--brand-border);
+      font-size: 13.5px;
+      white-space: nowrap;
+    }
+    .crypto-table tr:hover td { background: #FAFBFC; }
+
+    /* Pagination */
+    .page-btn {
+      min-width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .page-btn.active {
+      background: var(--brand-primary);
+      color: #fff;
+    }
+    .page-btn:not(.active):hover {
+      background: var(--brand-light);
+      color: var(--brand-dark);
+    }
+
+    /* Promo banner carousel */
+    .promo-slide {
+      transition: opacity 0.4s ease;
+    }
+
+    /* Dropdown panels */
+    .panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #fff;
+      border: 1px solid var(--brand-border);
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      z-index: 50;
+      min-width: 220px;
+      padding: 12px;
+      display: none;
+    }
+    .panel.open { display: block; }
+
+    /* Accordion */
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease;
+    }
+    .accordion-content.open {
+      max-height: 400px;
+    }
+
+    /* Sort indicator */
+    .sort-indicator::after {
+      content: '';
+      display: inline-block;
+      margin-left: 4px;
+      width: 0;
+      height: 0;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      vertical-align: middle;
+      opacity: 0.5;
+    }
+    .sort-indicator.asc::after {
+      border-top: none;
+      border-bottom: 4px solid currentColor;
+      opacity: 1;
+    }
+    .sort-indicator.desc::after { opacity: 1; }
+
+    /* Nav link hover */
+    .nav-link { position: relative; }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--brand-primary);
+      transition: width 0.2s;
+    }
+    .nav-link:hover::after { width: 100%; }
+
+    /* Star watchlist */
+    .star-btn {
+      color: #D1D5DB;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .star-btn:hover, .star-btn.active { color: #F59E0B; }
+
+    /* Progress bar for fear & greed */
+    .fg-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #ea3943 0%, #F59E0B 50%, #16c784 100%);
+      position: relative;
+    }
+    .fg-marker {
+      position: absolute;
+      top: -3px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border: 2px solid var(--brand-dark);
+      border-radius: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Smooth number transition */
+    .num { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="min-h-screen bg-white">
+
+  <!-- ==================== TOP BAR METRICS ==================== -->
+  <div class="border-b border-[#EFF2F5] bg-white">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-11 text-xs">
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2">
+            <span class="text-brand-gray">Market Cap:</span>
+            <span class="font-semibold text-brand-dark num">$2.56T</span>
+            <span class="text-brand-green font-medium num">↑ 1.46%</span>
+          </div>
+          <div class="hidden md:flex items-center gap-2">
+            <span class="text-brand-gray">CTP20:</span>
+            <span class="font-semibold text-brand-dark num">$155.36</span>
+            <span class="text-brand-green font-medium num">↑ 1.5%</span>
+          </div>
+          <div class="hidden lg:flex items-center gap-2">
+            <span class="text-brand-gray">Fear &amp; Greed:</span>
+            <span class="font-semibold text-brand-dark">57</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700">Neutral</span>
+          </div>
+          <div class="hidden xl:flex items-center gap-2">
+            <span class="text-brand-gray">Altcoin Season:</span>
+            <span class="font-semibold text-brand-dark">37/100</span>
+            <span class="text-brand-gray">Bitcoin season</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="text-brand-gray hidden sm:inline">USD</span>
+          <span class="text-brand-gray hidden sm:inline">English</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="border-b border-[#EFF2F5] bg-white sticky top-0 z-40">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <div class="flex items-center gap-8">
+          <a href="index.html" class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-brand-primary flex items-center justify-center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <span class="text-lg font-bold text-brand-dark tracking-tight">CoinTracker Pro</span>
+          </a>
+          <div class="hidden lg:flex items-center gap-6 text-sm font-medium">
+            <a href="index.html" class="nav-link text-brand-dark">Cryptocurrencies</a>
+            <a href="index.html" class="nav-link text-brand-gray hover:text-brand-dark transition-colors">Dashboards</a>
+            <a href="index.html" class="nav-link text-brand-gray hover:text-brand-dark transition-colors">Exchanges</a>
+            <a href="index.html" class="nav-link text-brand-gray hover:text-brand-dark transition-colors">DexScan</a>
+            <a href="index.html" class="nav-link text-brand-gray hover:text-brand-dark transition-colors">More</a>
+          </div>
+        </div>
+        <!-- CTAs -->
+        <div class="flex items-center gap-3">
+          <button type="button" class="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-brand-dark hover:bg-gray-50 rounded-lg transition-colors">Log In</button>
+          <button type="button" class="px-4 py-2 text-sm font-medium text-white bg-brand-primary hover:bg-blue-600 rounded-lg transition-colors">Sign Up</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== PROMOTIONAL BANNER ==================== -->
+  <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white relative overflow-hidden">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+      <div class="flex items-center justify-center gap-2 text-sm font-medium" id="promo-banner">
+        <span class="px-2 py-0.5 bg-white/20 rounded text-[11px] font-bold uppercase tracking-wide">New</span>
+        <span id="promo-text">CTP Launch: Secure $GENIUS Airdrop — Join Now</span>
+        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== AI ALERTS BAR ==================== -->
+  <div class="border-b border-[#EFF2F5] bg-brand-light">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 shrink-0">
+          <svg class="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span class="text-xs font-semibold text-brand-primary uppercase tracking-wide">AI Alerts</span>
+        </div>
+        <div class="flex-1 overflow-hidden">
+          <div class="flex items-center gap-1 text-sm text-brand-dark">
+            <span class="truncate">Stablecoin issuer eyes Solana DeFi expansion</span>
+            <span class="text-brand-gray shrink-0" aria-hidden="true">&#128064;</span>
+          </div>
+        </div>
+        <div class="hidden md:flex items-center gap-2 shrink-0">
+          <button type="button" class="px-3 py-1.5 text-xs font-medium text-brand-gray bg-white border border-[#EFF2F5] rounded-full hover:border-brand-gray transition-colors">Why is the market up today?</button>
+          <button type="button" class="px-3 py-1.5 text-xs font-medium text-brand-gray bg-white border border-[#EFF2F5] rounded-full hover:border-brand-gray transition-colors">Are altcoins outperforming Bitcoin?</button>
+          <button type="button" class="px-3 py-1.5 text-xs font-medium text-brand-gray bg-white border border-[#EFF2F5] rounded-full hover:border-brand-gray transition-colors">What is the market sentiment?</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Category Tabs -->
+    <div class="flex items-center gap-1 mb-4 border-b border-[#EFF2F5] overflow-x-auto">
+      <button type="button" class="tab-btn tab-active px-4 py-3 text-sm whitespace-nowrap" data-category="top">Top</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="trending">Trending</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="watchlist">Watchlist</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="prediction">Prediction Markets</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="visited">Most Visited</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="new">New</button>
+      <button type="button" class="tab-btn tab-inactive px-4 py-3 text-sm whitespace-nowrap" data-category="more">More</button>
+    </div>
+
+    <!-- Network Filter Tabs -->
+    <div class="flex items-center gap-2 mb-5 flex-wrap">
+      <button type="button" class="network-btn pill-active px-4 py-1.5 rounded-full text-xs font-semibold" data-network="all">All Networks</button>
+      <button type="button" class="network-btn pill-inactive px-4 py-1.5 rounded-full text-xs font-semibold" data-network="bsc">BSC</button>
+      <button type="button" class="network-btn pill-inactive px-4 py-1.5 rounded-full text-xs font-semibold" data-network="solana">Solana</button>
+      <button type="button" class="network-btn pill-inactive px-4 py-1.5 rounded-full text-xs font-semibold" data-network="base">Base</button>
+      <button type="button" class="network-btn pill-inactive px-4 py-1.5 rounded-full text-xs font-semibold" data-network="ethereum">Ethereum</button>
+      <button type="button" class="network-btn pill-inactive px-4 py-1.5 rounded-full text-xs font-semibold" data-network="more">More</button>
+    </div>
+
+    <!-- Index Tracker -->
+    <div class="bg-brand-light border border-[#EFF2F5] rounded-xl px-5 py-3.5 mb-5 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center">
+          <svg class="w-4 h-4 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div>
+          <div class="text-sm font-semibold text-brand-dark">CoinTracker 20 Index <span class="text-brand-gray font-normal">(DTFCTP20)</span></div>
+        </div>
+      </div>
+      <div class="flex items-center gap-5 sm:gap-8 text-sm">
+        <div><span class="text-brand-gray text-xs">Price</span> <span class="font-semibold text-brand-dark num ml-1">$154.29</span></div>
+        <div><span class="text-brand-gray text-xs">1h</span> <span class="font-medium text-brand-green num ml-1">+0.21%</span></div>
+        <div><span class="text-brand-gray text-xs">24h</span> <span class="font-medium text-brand-green num ml-1">+1.15%</span></div>
+        <div><span class="text-brand-gray text-xs">7d</span> <span class="font-medium text-brand-green num ml-1">+4.97%</span></div>
+      </div>
+    </div>
+
+    <!-- Table Controls -->
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+      <div class="flex items-center gap-2">
+        <button type="button" id="sort-mcap" class="sort-indicator desc px-3 py-1.5 text-xs font-semibold text-brand-dark bg-brand-light rounded-lg border border-[#EFF2F5]">Market Cap</button>
+        <button type="button" id="sort-vol" class="sort-indicator px-3 py-1.5 text-xs font-semibold text-brand-gray bg-white rounded-lg border border-[#EFF2F5] hover:border-brand-gray transition-colors">Volume (24h)</button>
+      </div>
+      <div class="flex items-center gap-2 relative">
+        <button type="button" id="btn-filters" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-gray bg-white rounded-lg border border-[#EFF2F5] hover:border-brand-gray transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+          Filters
+        </button>
+        <div id="panel-filters" class="panel">
+          <div class="text-xs font-semibold text-brand-dark mb-2">Price Range</div>
+          <div class="flex items-center gap-2 mb-3">
+            <input type="number" placeholder="Min" class="w-20 px-2 py-1 text-xs border border-[#EFF2F5] rounded focus:outline-none focus:border-brand-primary">
+            <span class="text-brand-gray">-</span>
+            <input type="number" placeholder="Max" class="w-20 px-2 py-1 text-xs border border-[#EFF2F5] rounded focus:outline-none focus:border-brand-primary">
+          </div>
+          <div class="text-xs font-semibold text-brand-dark mb-2">Market Cap</div>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Large Cap (&gt; $10B)</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Mid Cap ($1B - $10B)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary">
+            <span class="text-xs text-brand-gray">Small Cap (&lt; $1B)</span>
+          </label>
+        </div>
+
+        <button type="button" id="btn-columns" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-gray bg-white rounded-lg border border-[#EFF2F5] hover:border-brand-gray transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Columns
+        </button>
+        <div id="panel-columns" class="panel">
+          <div class="text-xs font-semibold text-brand-dark mb-2">Toggle Columns</div>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="price">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Price</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="change1h">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">1h %</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="change24h">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">24h %</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="change7d">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">7d %</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="mcap">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Market Cap</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="volume">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Volume (24h)</span>
+          </label>
+          <label class="flex items-center gap-2 mb-1.5 cursor-pointer column-toggle" data-col="supply">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Circulating Supply</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer column-toggle" data-col="sparkline">
+            <input type="checkbox" class="w-3.5 h-3.5 rounded border-brand-gray accent-brand-primary" checked>
+            <span class="text-xs text-brand-gray">Last 7 Days</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rankings Table -->
+    <div class="overflow-x-auto -mx-4 px-4">
+      <table class="crypto-table w-full min-w-[1000px]">
+        <thead>
+          <tr class="border-b border-[#EFF2F5]">
+            <th class="text-left w-10">#</th>
+            <th class="text-left">Name</th>
+            <th class="text-right" data-sort="price">Price</th>
+            <th class="text-right" data-sort="change1h">1h %</th>
+            <th class="text-right" data-sort="change24h">24h %</th>
+            <th class="text-right" data-sort="change7d">7d %</th>
+            <th class="text-right" data-sort="mcap">Market Cap</th>
+            <th class="text-right" data-sort="volume">Volume (24h)</th>
+            <th class="text-right" data-sort="supply">Circulating Supply</th>
+            <th class="text-right">Last 7 Days</th>
+          </tr>
+        </thead>
+        <tbody id="crypto-tbody">
+          <!-- Rows generated by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between mt-5 flex-wrap gap-3">
+      <div class="text-xs text-brand-gray">Showing <span class="font-semibold text-brand-dark">1–100</span> of <span class="font-semibold text-brand-dark">8,364</span> assets</div>
+      <div class="flex items-center gap-1" id="pagination">
+        <button type="button" class="page-btn active">1</button>
+        <button type="button" class="page-btn text-brand-gray">2</button>
+        <button type="button" class="page-btn text-brand-gray">3</button>
+        <button type="button" class="page-btn text-brand-gray">4</button>
+        <span class="px-1 text-brand-gray text-sm">...</span>
+        <button type="button" class="page-btn text-brand-gray">84</button>
+      </div>
+    </div>
+
+    <!-- Market Summary -->
+    <div class="mt-10 bg-brand-light border border-[#EFF2F5] rounded-xl p-6">
+      <h2 class="text-lg font-bold text-brand-dark mb-3">Market Summary</h2>
+      <p class="text-sm text-brand-gray leading-relaxed" id="market-summary-short">
+        The global crypto market cap is <strong class="text-brand-dark">$2.56T</strong>, a <strong class="text-brand-green">1.47% increase</strong> over the last day. The total crypto market volume over the last 24 hours is <strong class="text-brand-dark">$156.9B</strong>, a <strong class="text-brand-green">14.51% increase</strong>. Bitcoin's dominance is currently <strong class="text-brand-dark">59.04%</strong>, a decrease of 0.05% over the day.
+      </p>
+      <div class="accordion-content" id="market-summary-full">
+        <p class="text-sm text-brand-gray leading-relaxed mt-3">
+          The total volume in DeFi is currently $12.2B, 7.78% of the total crypto market 24-hour volume. The volume of all stablecoins is $195.53B, representing 124.63% of total 24-hour volume. Ethereum's market dominance stands at 11.12%, while Tether (USDT) continues to be the most traded asset with $138.79B in 24h volume. The NFT market has seen $142M in trading volume over the past 24 hours across major marketplaces.
+        </p>
+      </div>
+      <button type="button" id="btn-read-more" class="mt-3 text-sm font-semibold text-brand-primary hover:text-blue-700 transition-colors flex items-center gap-1">
+        Read More
+        <svg class="w-4 h-4 transition-transform" id="read-more-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+    </div>
+
+    <!-- Info Content -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div>
+        <h3 class="text-base font-bold text-brand-dark mb-2">Today's Cryptocurrency Prices, Charts and Data</h3>
+        <p class="text-sm text-brand-gray leading-relaxed">Welcome to CoinTracker Pro! Founded to provide up-to-date cryptocurrency prices, charts, and data about the emerging cryptocurrency markets. We take our data seriously and stand for accurate, timely, and unbiased information.</p>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-brand-dark mb-2">All Your Crypto Market Data Needs in One Place</h3>
+        <p class="text-sm text-brand-gray leading-relaxed">CoinTracker Pro ensures all relevant information about cryptocurrencies, coins, and tokens can be located in one easily discoverable place.</p>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-brand-dark mb-2">Live and Historic Crypto Charts for Free</h3>
+        <p class="text-sm text-brand-gray leading-relaxed">Each coin data page features graphs showing current and historic price information. Professional traders can access our API, enabling millions of calls to track current and historic prices.</p>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-brand-dark mb-2">How Do We Calculate Cryptocurrency Prices?</h3>
+        <p class="text-sm text-brand-gray leading-relaxed">We receive updated prices directly from exchanges based on their trading pairs, then convert to USD.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="border-t border-[#EFF2F5] bg-white mt-12">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div>
+          <h4 class="text-sm font-bold text-brand-dark mb-3">Products</h4>
+          <ul class="space-y-2">
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Cryptocurrencies</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Exchanges</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">DexScan</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Portfolio</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Watchlist</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-brand-dark mb-3">Company</h4>
+          <ul class="space-y-2">
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">About</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Terms of Use</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Privacy Policy</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Methodology</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Disclaimer</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-brand-dark mb-3">Support</h4>
+          <ul class="space-y-2">
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">FAQ</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Glossary</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Crypto Learning Center</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">API Documentation</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-brand-dark mb-3">Community</h4>
+          <ul class="space-y-2">
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Twitter</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Telegram</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Discord</a></li>
+            <li><a href="index.html" class="text-sm text-brand-gray hover:text-brand-primary transition-colors">Instagram</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="mt-10 pt-6 border-t border-[#EFF2F5] flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-brand-primary flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <span class="text-sm font-bold text-brand-dark">CoinTracker Pro</span>
+        </div>
+        <p class="text-xs text-brand-gray">© 2025 CoinTracker Pro. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ==================== DATA ====================
+    const cryptoData = [
+      { rank: 1, name: "Bitcoin", symbol: "BTC", price: 75612.78, change1h: 0.45, change24h: 1.33, change7d: 4.84, mcap: 1510000000000, volume: 42820000000, supply: 20010000, sparkline: [40,45,50,55,65,80,100], color: "#F7931A" },
+      { rank: 2, name: "Ethereum", symbol: "ETH", price: 2356.00, change1h: 0.51, change24h: 0.80, change7d: 6.29, mcap: 284350000000, volume: 21360000000, supply: 120690000, sparkline: [35,42,48,55,62,75,90], color: "#627EEA" },
+      { rank: 3, name: "Tether", symbol: "USDT", price: 1.00, change1h: 0.01, change24h: 0.03, change7d: 0.01, mcap: 185840000000, volume: 138790000000, supply: 185800000000, sparkline: [98,99,100,99,100,100,100], color: "#26A17B" },
+      { rank: 4, name: "XRP", symbol: "XRP", price: 1.44, change1h: 0.71, change24h: 2.71, change7d: 7.89, mcap: 89130000000, volume: 4030000000, supply: 61560000000, sparkline: [30,38,42,48,55,70,95], color: "#23292F" },
+      { rank: 5, name: "BNB", symbol: "BNB", price: 632.59, change1h: 0.38, change24h: 1.89, change7d: 4.98, mcap: 85270000000, volume: 1950000000, supply: 134780000, sparkline: [42,48,52,58,65,72,85], color: "#F3BA2F" },
+      { rank: 6, name: "Solana", symbol: "SOL", price: 88.25, change1h: 0.67, change24h: 3.74, change7d: 5.67, mcap: 50770000000, volume: 6710000000, supply: 575260000, sparkline: [32,40,48,55,62,75,88], color: "#14F195" },
+      { rank: 7, name: "USDC", symbol: "USDC", price: 1.00, change1h: 0.00, change24h: 0.01, change7d: -0.01, mcap: 42300000000, volume: 8900000000, supply: 42300000000, sparkline: [100,100,99,100,100,100,99], color: "#2775CA" },
+      { rank: 8, name: "Cardano", symbol: "ADA", price: 0.72, change1h: 0.55, change24h: 2.12, change7d: 8.45, mcap: 25600000000, volume: 620000000, supply: 35500000000, sparkline: [28,35,42,48,55,68,82], color: "#0033AD" },
+      { rank: 9, name: "Dogecoin", symbol: "DOGE", price: 0.18, change1h: 0.92, change24h: 4.56, change7d: 12.34, mcap: 26100000000, volume: 1850000000, supply: 145000000000, sparkline: [25,32,40,48,58,72,90], color: "#C2A633" },
+      { rank: 10, name: "TRON", symbol: "TRX", price: 0.24, change1h: 0.33, change24h: 1.45, change7d: 3.21, mcap: 20700000000, volume: 420000000, supply: 86250000000, sparkline: [45,50,52,55,60,68,75], color: "#FF060A" },
+      { rank: 11, name: "Avalanche", symbol: "AVAX", price: 36.50, change1h: 0.78, change24h: 3.21, change7d: 9.87, mcap: 14900000000, volume: 580000000, supply: 408000000, sparkline: [30,38,45,52,60,72,88], color: "#E84142" },
+      { rank: 12, name: "Chainlink", symbol: "LINK", price: 18.25, change1h: 0.62, change24h: 2.89, change7d: 7.12, mcap: 11300000000, volume: 420000000, supply: 619000000, sparkline: [35,42,48,55,62,75,85], color: "#2A5ADA" },
+      { rank: 13, name: "Toncoin", symbol: "TON", price: 5.12, change1h: 0.45, change24h: 1.78, change7d: 4.56, mcap: 12800000000, volume: 280000000, supply: 2500000000, sparkline: [40,45,50,55,62,70,78], color: "#0088CC" },
+      { rank: 14, name: "Polygon", symbol: "MATIC", price: 0.52, change1h: 0.38, change24h: 2.34, change7d: 6.78, mcap: 4800000000, volume: 320000000, supply: 9230000000, sparkline: [32,38,45,52,58,68,78], color: "#8247E5" },
+      { rank: 15, name: "Polkadot", symbol: "DOT", price: 6.80, change1h: 0.55, change24h: 2.67, change7d: 8.90, mcap: 9800000000, volume: 280000000, supply: 1441000000, sparkline: [30,38,45,52,60,72,85], color: "#E6007A" },
+      { rank: 16, name: "Litecoin", symbol: "LTC", price: 82.40, change1h: 0.42, change24h: 1.56, change7d: 3.45, mcap: 6100000000, volume: 380000000, supply: 74000000, sparkline: [42,48,52,58,65,72,80], color: "#345D9D" },
+      { rank: 17, name: "Uniswap", symbol: "UNI", price: 9.15, change1h: 0.68, change24h: 3.45, change7d: 11.23, mcap: 5500000000, volume: 220000000, supply: 601000000, sparkline: [28,35,42,50,60,75,90], color: "#FF007A" },
+      { rank: 18, name: "Bitcoin Cash", symbol: "BCH", price: 385.20, change1h: 0.35, change24h: 1.23, change7d: 2.89, mcap: 7600000000, volume: 180000000, supply: 19730000, sparkline: [45,50,52,55,60,68,75], color: "#8DC351" },
+      { rank: 19, name: "NEAR Protocol", symbol: "NEAR", price: 5.35, change1h: 0.72, change24h: 3.89, change7d: 10.45, mcap: 6200000000, volume: 290000000, supply: 1159000000, sparkline: [30,38,45,52,62,75,88], color: "#00EC97" },
+      { rank: 20, name: "Aptos", symbol: "APT", price: 8.90, change1h: 0.58, change24h: 2.78, change7d: 7.34, mcap: 4300000000, volume: 150000000, supply: 483000000, sparkline: [35,42,48,55,65,75,85], color: "#1D1D1D" },
+      { rank: 21, name: "Stellar", symbol: "XLM", price: 0.31, change1h: 0.48, change24h: 2.12, change7d: 5.67, mcap: 9200000000, volume: 180000000, supply: 29680000000, sparkline: [38,45,50,55,62,72,82], color: "#0F0F0F" },
+      { rank: 22, name: "Cronos", symbol: "CRO", price: 0.12, change1h: 0.25, change24h: 1.45, change7d: 3.78, mcap: 3200000000, volume: 45000000, supply: 26670000000, sparkline: [42,48,52,55,60,68,75], color: "#002D72" },
+      { rank: 23, name: "Filecoin", symbol: "FIL", price: 4.85, change1h: 0.55, change24h: 2.34, change7d: 6.89, mcap: 2900000000, volume: 120000000, supply: 598000000, sparkline: [35,42,48,55,62,72,82], color: "#0090FF" },
+      { rank: 24, name: "Cosmos", symbol: "ATOM", price: 6.20, change1h: 0.62, change24h: 2.89, change7d: 7.45, mcap: 2400000000, volume: 98000000, supply: 387000000, sparkline: [32,40,48,55,62,75,85], color: "#2E3148" },
+      { rank: 25, name: "VeChain", symbol: "VET", price: 0.035, change1h: 0.38, change24h: 1.78, change7d: 4.56, mcap: 2800000000, volume: 52000000, supply: 80000000000, sparkline: [40,45,50,55,62,70,78], color: "#15BDFF" },
+      { rank: 26, name: "Internet Computer", symbol: "ICP", price: 10.20, change1h: 0.45, change24h: 2.12, change7d: 5.89, mcap: 4700000000, volume: 85000000, supply: 460000000, sparkline: [38,45,50,55,62,72,80], color: "#3B00B9" },
+      { rank: 27, name: "Arbitrum", symbol: "ARB", price: 0.72, change1h: 0.52, change24h: 2.45, change7d: 6.78, mcap: 2600000000, volume: 180000000, supply: 3610000000, sparkline: [35,42,48,55,62,72,82], color: "#2D374B" },
+      { rank: 28, name: "Optimism", symbol: "OP", price: 1.85, change1h: 0.48, change24h: 2.78, change7d: 8.90, mcap: 2200000000, volume: 140000000, supply: 1189000000, sparkline: [32,40,48,55,65,75,88], color: "#FF0420" },
+      { rank: 29, name: "Immutable", symbol: "IMX", price: 1.45, change1h: 0.65, change24h: 3.12, change7d: 9.45, mcap: 2100000000, volume: 95000000, supply: 1449000000, sparkline: [30,38,45,52,62,75,88], color: "#0B5D77" },
+      { rank: 30, name: "The Graph", symbol: "GRT", price: 0.22, change1h: 0.55, change24h: 2.67, change7d: 7.23, mcap: 2050000000, volume: 78000000, supply: 9320000000, sparkline: [35,42,48,55,62,75,85], color: "#6747ED" },
+      { rank: 31, name: "Injective", symbol: "INJ", price: 18.50, change1h: 0.72, change24h: 3.45, change7d: 10.12, mcap: 1750000000, volume: 120000000, supply: 94600000, sparkline: [28,35,42,50,60,75,92], color: "#00A3FF" },
+      { rank: 32, name: "Render", symbol: "RNDR", price: 6.80, change1h: 0.58, change24h: 2.89, change7d: 8.34, mcap: 2650000000, volume: 95000000, supply: 389600000, sparkline: [32,40,48,55,65,78,90], color: "#FF4D4D" },
+      { rank: 33, name: "Stacks", symbol: "STX", price: 1.95, change1h: 0.62, change24h: 3.21, change7d: 9.56, mcap: 2850000000, volume: 110000000, supply: 1462000000, sparkline: [30,38,45,52,62,75,88], color: "#5546FF" },
+      { rank: 34, name: "Algorand", symbol: "ALGO", price: 0.28, change1h: 0.42, change24h: 1.89, change7d: 4.78, mcap: 2300000000, volume: 68000000, supply: 8210000000, sparkline: [40,45,50,55,62,70,78], color: "#000000" },
+      { rank: 35, name: "Fantom", symbol: "FTM", price: 0.72, change1h: 0.55, change24h: 2.45, change7d: 6.89, mcap: 2000000000, volume: 85000000, supply: 2775000000, sparkline: [35,42,48,55,62,72,82], color: "#1969FF" },
+      { rank: 36, name: "Hedera", symbol: "HBAR", price: 0.065, change1h: 0.38, change24h: 1.67, change7d: 3.45, mcap: 2350000000, volume: 52000000, supply: 36130000000, sparkline: [42,48,52,58,65,72,80], color: "#222222" },
+      { rank: 37, name: "Maker", symbol: "MKR", price: 1520.00, change1h: 0.48, change24h: 2.34, change7d: 5.67, mcap: 1400000000, volume: 45000000, supply: 921000, sparkline: [38,45,50,55,62,72,82], color: "#1AAB9B" },
+      { rank: 38, name: "Lido DAO", symbol: "LDO", price: 1.85, change1h: 0.52, change24h: 2.12, change7d: 4.89, mcap: 1650000000, volume: 78000000, supply: 892000000, sparkline: [40,45,50,55,62,70,78], color: "#00A3FF" },
+      { rank: 39, name: "Aave", symbol: "AAVE", price: 145.00, change1h: 0.65, change24h: 3.12, change7d: 7.45, mcap: 2150000000, volume: 92000000, supply: 14820000, sparkline: [35,42,48,55,65,75,85], color: "#B6509E" },
+      { rank: 40, name: "THORChain", symbol: "RUNE", price: 4.85, change1h: 0.72, change24h: 3.78, change7d: 11.23, mcap: 1620000000, volume: 145000000, supply: 334000000, sparkline: [28,35,42,50,62,78,95], color: "#33FF99" },
+      { rank: 41, name: "Kaspa", symbol: "KAS", price: 0.12, change1h: 0.45, change24h: 2.23, change7d: 6.78, mcap: 2900000000, volume: 62000000, supply: 24170000000, sparkline: [35,42,48,55,62,72,82], color: "#4CC9F0" },
+      { rank: 42, name: "Pepe", symbol: "PEPE", price: 0.000012, change1h: 1.25, change24h: 5.67, change7d: 15.34, mcap: 5000000000, volume: 850000000, supply: 420690000000000, sparkline: [22,30,38,48,60,78,95], color: "#4CAF50" },
+      { rank: 43, name: "Shiba Inu", symbol: "SHIB", price: 0.000018, change1h: 0.85, change24h: 3.45, change7d: 8.90, mcap: 10600000000, volume: 320000000, supply: 589300000000000, sparkline: [32,40,48,55,65,78,90], color: "#FFA409" },
+      { rank: 44, name: "Mantle", symbol: "MNT", price: 0.85, change1h: 0.38, change24h: 1.89, change7d: 4.56, mcap: 2800000000, volume: 52000000, supply: 3293000000, sparkline: [40,45,50,55,62,70,78], color: "#2E5BFF" },
+      { rank: 45, name: "Sei", symbol: "SEI", price: 0.38, change1h: 0.55, change24h: 2.67, change7d: 7.89, mcap: 1350000000, volume: 68000000, supply: 3550000000, sparkline: [32,40,48,55,65,75,88], color: "#9D00FF" },
+      { rank: 46, name: "Celestia", symbol: "TIA", price: 4.20, change1h: 0.62, change24h: 2.89, change7d: 8.45, mcap: 1850000000, volume: 95000000, supply: 440000000, sparkline: [30,38,45,52,62,75,88], color: "#7B2D8E" },
+      { rank: 47, name: "Sui", symbol: "SUI", price: 1.65, change1h: 0.48, change24h: 2.34, change7d: 6.12, mcap: 1950000000, volume: 180000000, supply: 1182000000, sparkline: [35,42,48,55,62,72,82], color: "#4DA2FF" },
+      { rank: 48, name: "Bonk", symbol: "BONK", price: 0.000028, change1h: 1.45, change24h: 6.78, change7d: 18.90, mcap: 1800000000, volume: 145000000, supply: 64200000000000, sparkline: [20,28,38,48,62,80,98], color: "#F2A900" },
+      { rank: 49, name: "Jupiter", symbol: "JUP", price: 0.95, change1h: 0.72, change24h: 3.45, change7d: 9.67, mcap: 1280000000, volume: 85000000, supply: 1350000000, sparkline: [30,38,45,52,62,75,88], color: "#FBBF24" },
+      { rank: 50, name: "Ondo", symbol: "ONDO", price: 1.25, change1h: 0.55, change24h: 2.78, change7d: 7.34, mcap: 1750000000, volume: 95000000, supply: 1400000000, sparkline: [32,40,48,55,65,75,85], color: "#1A1A1A" },
+      { rank: 51, name: "Core", symbol: "CORE", price: 0.85, change1h: 0.42, change24h: 1.89, change7d: 4.56, mcap: 760000000, volume: 32000000, supply: 894000000, sparkline: [40,45,50,55,62,70,78], color: "#FF6B35" },
+      { rank: 52, name: "Beam", symbol: "BEAM", price: 0.018, change1h: 0.65, change24h: 3.12, change7d: 8.90, mcap: 820000000, volume: 28000000, supply: 45500000000, sparkline: [32,40,48,55,65,78,90], color: "#00E5FF" },
+      { rank: 53, name: "Bittensor", symbol: "TAO", price: 385.00, change1h: 0.78, change24h: 3.89, change7d: 10.45, mcap: 2600000000, volume: 42000000, supply: 6760000, sparkline: [28,35,42,50,62,75,92], color: "#1A1A1A" },
+      { rank: 54, name: "Fetch.ai", symbol: "FET", price: 1.45, change1h: 0.58, change24h: 2.67, change7d: 7.23, mcap: 1200000000, volume: 85000000, supply: 827000000, sparkline: [35,42,48,55,65,75,85], color: "#201C51" },
+      { rank: 55, name: "SingularityNET", symbol: "AGIX", price: 0.72, change1h: 0.48, change24h: 2.34, change7d: 6.78, mcap: 920000000, volume: 52000000, supply: 1278000000, sparkline: [38,45,50,55,62,72,82], color: "#5233E0" },
+      { rank: 56, name: "Worldcoin", symbol: "WLD", price: 2.35, change1h: 0.62, change24h: 2.89, change7d: 8.12, mcap: 950000000, volume: 180000000, supply: 404000000, sparkline: [32,40,48,55,65,75,88], color: "#1A1A1A" },
+      { rank: 57, name: "Arweave", symbol: "AR", price: 18.50, change1h: 0.55, change24h: 2.45, change7d: 6.34, mcap: 1200000000, volume: 42000000, supply: 64800000, sparkline: [35,42,48,55,62,72,82], color: "#222326" },
+      { rank: 58, name: "Axie Infinity", symbol: "AXS", price: 6.80, change1h: 0.38, change24h: 1.78, change7d: 4.56, mcap: 980000000, volume: 38000000, supply: 144100000, sparkline: [42,48,52,58,65,72,80], color: "#0055D5" },
+      { rank: 59, name: "The Sandbox", symbol: "SAND", price: 0.42, change1h: 0.45, change24h: 2.12, change7d: 5.89, mcap: 950000000, volume: 52000000, supply: 2263000000, sparkline: [38,45,50,55,62,72,80], color: "#00ADEF" },
+      { rank: 60, name: "Decentraland", symbol: "MANA", price: 0.38, change1h: 0.52, change24h: 2.34, change7d: 6.45, mcap: 720000000, volume: 42000000, supply: 1893000000, sparkline: [35,42,48,55,62,72,82], color: "#FF2D55" },
+      { rank: 61, name: "Gala", symbol: "GALA", price: 0.025, change1h: 0.65, change24h: 3.12, change7d: 8.78, mcap: 880000000, volume: 38000000, supply: 35200000000, sparkline: [32,40,48,55,65,78,90], color: "#002D72" },
+      { rank: 62, name: "Enjin Coin", symbol: "ENJ", price: 0.22, change1h: 0.42, change24h: 1.89, change7d: 4.23, mcap: 280000000, volume: 15000000, supply: 1274000000, sparkline: [40,45,50,55,62,70,78], color: "#624DBF" },
+      { rank: 63, name: "Chiliz", symbol: "CHZ", price: 0.075, change1h: 0.38, change24h: 1.56, change7d: 3.89, mcap: 660000000, volume: 32000000, supply: 8800000000, sparkline: [42,48,52,58,65,72,80], color: "#CD0124" },
+      { rank: 64, name: "Flow", symbol: "FLOW", price: 0.65, change1h: 0.48, change24h: 2.23, change7d: 5.67, mcap: 980000000, volume: 28000000, supply: 1508000000, sparkline: [38,45,50,55,62,72,80], color: "#00EF8B" },
+      { rank: 65, name: "Tezos", symbol: "XTZ", price: 0.85, change1h: 0.55, change24h: 2.45, change7d: 6.12, mcap: 820000000, volume: 22000000, supply: 965000000, sparkline: [35,42,48,55,62,72,82], color: "#0D61FF" },
+      { rank: 66, name: "EOS", symbol: "EOS", price: 0.72, change1h: 0.42, change24h: 1.78, change7d: 3.45, mcap: 820000000, volume: 85000000, supply: 1139000000, sparkline: [42,48,52,58,65,72,80], color: "#000000" },
+      { rank: 67, name: "IOTA", symbol: "IOTA", price: 0.28, change1h: 0.38, change24h: 1.67, change7d: 4.23, mcap: 820000000, volume: 15000000, supply: 2929000000, sparkline: [40,45,50,55,62,70,78], color: "#000000" },
+      { rank: 68, name: "Neo", symbol: "NEO", price: 12.50, change1h: 0.48, change24h: 2.12, change7d: 5.67, mcap: 880000000, volume: 22000000, supply: 70500000, sparkline: [38,45,50,55,62,72,80], color: "#58BF00" },
+      { rank: 69, name: "Zcash", symbol: "ZEC", price: 42.00, change1h: 0.35, change24h: 1.23, change7d: 2.89, mcap: 680000000, volume: 28000000, supply: 16200000, sparkline: [45,50,52,55,60,68,75], color: "#F4B728" },
+      { rank: 70, name: "Dash", symbol: "DASH", price: 28.50, change1h: 0.42, change24h: 1.56, change7d: 3.78, mcap: 340000000, volume: 22000000, supply: 11930000, sparkline: [42,48,52,58,65,72,80], color: "#008DE4" },
+      { rank: 71, name: "Monero", symbol: "XMR", price: 165.00, change1h: 0.55, change24h: 2.34, change7d: 5.12, mcap: 3040000000, volume: 52000000, supply: 18430000, sparkline: [38,45,50,55,62,72,80], color: "#FF6600" },
+      { rank: 72, name: "Compound", symbol: "COMP", price: 52.00, change1h: 0.62, change24h: 2.78, change7d: 6.45, mcap: 420000000, volume: 18000000, supply: 8080000, sparkline: [35,42,48,55,62,72,82], color: "#00D395" },
+      { rank: 73, name: "Synthetix", symbol: "SNX", price: 1.85, change1h: 0.48, change24h: 2.12, change7d: 4.89, mcap: 600000000, volume: 22000000, supply: 324000000, sparkline: [40,45,50,55,62,70,78], color: "#00D1FF" },
+      { rank: 74, name: "Curve DAO", symbol: "CRV", price: 0.42, change1h: 0.55, change24h: 2.45, change7d: 6.23, mcap: 520000000, volume: 28000000, supply: 1238000000, sparkline: [35,42,48,55,62,72,82], color: "#FF4D4D" },
+      { rank: 75, name: "Balancer", symbol: "BAL", price: 3.85, change1h: 0.38, change24h: 1.78, change7d: 3.56, mcap: 220000000, volume: 8500000, supply: 57100000, sparkline: [42,48,52,58,65,72,80], color: "#1E8FC4" },
+      { rank: 76, name: "1inch", symbol: "1INCH", price: 0.38, change1h: 0.45, change24h: 2.23, change7d: 5.67, mcap: 420000000, volume: 15000000, supply: 1105000000, sparkline: [38,45,50,55,62,72,80], color: "#2E5BFF" },
+      { rank: 77, name: "PancakeSwap", symbol: "CAKE", price: 2.45, change1h: 0.52, change24h: 2.67, change7d: 6.89, mcap: 720000000, volume: 32000000, supply: 294000000, sparkline: [35,42,48,55,62,72,82], color: "#1FC7D4" },
+      { rank: 78, name: "dYdX", symbol: "DYDX", price: 1.25, change1h: 0.48, change24h: 2.34, change7d: 5.45, mcap: 780000000, volume: 22000000, supply: 624000000, sparkline: [38,45,50,55,62,72,80], color: "#6966FF" },
+      { rank: 79, name: "GMX", symbol: "GMX", price: 28.50, change1h: 0.55, change24h: 2.78, change7d: 7.12, mcap: 280000000, volume: 8500000, supply: 9820000, sparkline: [32,40,48,55,65,75,88], color: "#2E5BFF" },
+      { rank: 80, name: "Gains Network", symbol: "GNS", price: 3.85, change1h: 0.62, change24h: 3.12, change7d: 8.34, mcap: 120000000, volume: 5200000, supply: 31200000, sparkline: [30,38,45,52,62,75,90], color: "#FF6B35" },
+      { rank: 81, name: "Rocket Pool", symbol: "RPL", price: 12.50, change1h: 0.42, change24h: 1.89, change7d: 4.23, mcap: 260000000, volume: 5200000, supply: 20800000, sparkline: [40,45,50,55,62,70,78], color: "#FFD700" },
+      { rank: 82, name: "Lido Staked ETH", symbol: "stETH", price: 2350.00, change1h: 0.51, change24h: 0.80, change7d: 6.29, mcap: 22000000000, volume: 12000000, supply: 9360000, sparkline: [35,42,48,55,62,75,90], color: "#00A3FF" },
+      { rank: 83, name: "Frax", symbol: "FRAX", price: 1.00, change1h: 0.01, change24h: 0.02, change7d: 0.01, mcap: 650000000, volume: 5200000, supply: 650000000, sparkline: [99,100,100,99,100,100,100], color: "#000000" },
+      { rank: 84, name: "Pax Dollar", symbol: "USDP", price: 1.00, change1h: 0.00, change24h: 0.01, change7d: -0.01, mcap: 110000000, volume: 2800000, supply: 110000000, sparkline: [100,100,100,100,99,100,100], color: "#00522C" },
+      { rank: 85, name: "TrueUSD", symbol: "TUSD", price: 1.00, change1h: 0.00, change24h: 0.01, change7d: 0.00, mcap: 500000000, volume: 85000000, supply: 500000000, sparkline: [100,100,100,100,100,100,100], color: "#2B65EC" },
+      { rank: 86, name: "Gemini Dollar", symbol: "GUSD", price: 1.00, change1h: 0.00, change24h: 0.00, change7d: 0.00, mcap: 80000000, volume: 1200000, supply: 80000000, sparkline: [100,100,100,100,100,100,100], color: "#00DCFA" },
+      { rank: 87, name: "Huobi Token", symbol: "HT", price: 0.65, change1h: 0.25, change24h: 1.12, change7d: 2.34, mcap: 105000000, volume: 8500000, supply: 162300000, sparkline: [45,50,52,55,60,68,75], color: "#2E5BFF" },
+      { rank: 88, name: "KuCoin Token", symbol: "KCS", price: 8.50, change1h: 0.38, change24h: 1.45, change7d: 2.78, mcap: 820000000, volume: 12000000, supply: 96500000, sparkline: [42,48,52,58,65,72,80], color: "#01BC8D" },
+      { rank: 89, name: "OKB", symbol: "OKB", price: 42.00, change1h: 0.45, change24h: 1.78, change7d: 3.12, mcap: 2520000000, volume: 8500000, supply: 60000000, sparkline: [40,45,50,55,62,70,78], color: "#2E5BFF" },
+      { rank: 90, name: "GateToken", symbol: "GT", price: 8.25, change1h: 0.32, change24h: 1.23, change7d: 2.56, mcap: 720000000, volume: 5200000, supply: 87300000, sparkline: [45,50,52,55,60,68,75], color: "#E20880" },
+      { rank: 91, name: "WhiteBIT Coin", symbol: "WBT", price: 18.50, change1h: 0.28, change24h: 0.89, change7d: 1.45, mcap: 650000000, volume: 2800000, supply: 35100000, sparkline: [48,52,55,58,62,68,72], color: "#2E5BFF" },
+      { rank: 92, name: "Bitget Token", symbol: "BGB", price: 1.15, change1h: 0.42, change24h: 1.56, change7d: 2.89, mcap: 1600000000, volume: 15000000, supply: 1400000000, sparkline: [42,48,52,58,65,72,80], color: "#00F0FF" },
+      { rank: 93, name: "MX Token", symbol: "MX", price: 3.25, change1h: 0.35, change24h: 1.23, change7d: 2.34, mcap: 320000000, volume: 5200000, supply: 98500000, sparkline: [45,50,52,55,60,68,75], color: "#2E5BFF" },
+      { rank: 94, name: "Cronos", symbol: "CRO", price: 0.12, change1h: 0.25, change24h: 1.45, change7d: 3.78, mcap: 3200000000, volume: 45000000, supply: 26670000000, sparkline: [42,48,52,55,60,68,75], color: "#002D72" },
+      { rank: 95, name: "Quant", symbol: "QNT", price: 85.00, change1h: 0.48, change24h: 2.12, change7d: 4.56, mcap: 1230000000, volume: 18000000, supply: 14450000, sparkline: [38,45,50,55,62,72,80], color: "#46DDC8" },
+      { rank: 96, name: "Theta Network", symbol: "THETA", price: 1.85, change1h: 0.55, change24h: 2.34, change7d: 5.67, mcap: 1850000000, volume: 22000000, supply: 1000000000, sparkline: [35,42,48,55,62,72,82], color: "#2AB8E6" },
+      { rank: 97, name: "Fantom", symbol: "FTM", price: 0.72, change1h: 0.55, change24h: 2.45, change7d: 6.89, mcap: 2000000000, volume: 85000000, supply: 2775000000, sparkline: [35,42,48,55,62,72,82], color: "#1969FF" },
+      { rank: 98, name: "Kava", symbol: "KAVA", price: 0.52, change1h: 0.38, change24h: 1.78, change7d: 3.45, mcap: 520000000, volume: 12000000, supply: 1000000000, sparkline: [42,48,52,58,65,72,80], color: "#FF564F" },
+      { rank: 99, name: "Osmosis", symbol: "OSMO", price: 0.42, change1h: 0.45, change24h: 2.12, change7d: 4.78, mcap: 280000000, volume: 8500000, supply: 667000000, sparkline: [40,45,50,55,62,70,78], color: "#5E12A0" },
+      { rank: 100, name: "Celo", symbol: "CELO", price: 0.58, change1h: 0.52, change24h: 2.34, change7d: 5.12, mcap: 320000000, volume: 12000000, supply: 552000000, sparkline: [38,45,50,55,62,72,80], color: "#FCFF52" },
+    ];
+
+    // ==================== UTILITIES ====================
+    function fmtPrice(n) {
+      if (n >= 1) return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (n >= 0.001) return '$' + n.toFixed(6);
+      return '$' + n.toExponential(2);
+    }
+    function fmtMcap(n) {
+      if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+      if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+      if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+      return '$' + n.toLocaleString();
+    }
+    function fmtSupply(n, sym) {
+      if (n >= 1e12) return (n / 1e12).toFixed(2) + 'T ' + sym;
+      if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B ' + sym;
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M ' + sym;
+      return n.toLocaleString() + ' ' + sym;
+    }
+    function fmtPct(n) {
+      const cls = n >= 0 ? 'text-brand-green' : 'text-brand-red';
+      const sign = n >= 0 ? '+' : '';
+      return `<span class="${cls} font-medium num">${sign}${n.toFixed(2)}%</span>`;
+    }
+    function renderSparkline(data, color) {
+      const max = Math.max(...data);
+      const min = Math.min(...data);
+      const range = max - min || 1;
+      const isUp = data[data.length - 1] >= data[0];
+      const barColor = isUp ? '#16c784' : '#ea3943';
+      return `<div class="sparkline justify-end">${data.map(v => {
+        const h = Math.max(4, ((v - min) / range) * 28);
+        return `<div class="sparkline-bar" style="height:${h}px;background:${barColor}"></div>`;
+      }).join('')}</div>`;
+    }
+    function getInitials(name) {
+      return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    }
+
+    // ==================== RENDER TABLE ====================
+    let currentData = [...cryptoData];
+    let currentCategory = 'top';
+    let currentNetwork = 'all';
+    let currentPage = 1;
+    let sortCol = 'mcap';
+    let sortAsc = false;
+    let visibleCols = { price: true, change1h: true, change24h: true, change7d: true, mcap: true, volume: true, supply: true, sparkline: true };
+
+    function renderTable() {
+      const tbody = document.getElementById('crypto-tbody');
+      tbody.innerHTML = '';
+
+      currentData.forEach(coin => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-brand-gray num">${coin.rank}</td>
+          <td>
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background:${coin.color}">${getInitials(coin.name)}</div>
+              <div>
+                <div class="font-semibold text-brand-dark">${coin.name}</div>
+                <div class="text-xs text-brand-gray">${coin.symbol}</div>
+              </div>
+            </div>
+          </td>
+          ${visibleCols.price ? `<td class="text-right font-medium num">${fmtPrice(coin.price)}</td>` : ''}
+          ${visibleCols.change1h ? `<td class="text-right">${fmtPct(coin.change1h)}</td>` : ''}
+          ${visibleCols.change24h ? `<td class="text-right">${fmtPct(coin.change24h)}</td>` : ''}
+          ${visibleCols.change7d ? `<td class="text-right">${fmtPct(coin.change7d)}</td>` : ''}
+          ${visibleCols.mcap ? `<td class="text-right font-medium num">${fmtMcap(coin.mcap)}</td>` : ''}
+          ${visibleCols.volume ? `<td class="text-right text-brand-gray num">${fmtMcap(coin.volume)}</td>` : ''}
+          ${visibleCols.supply ? `<td class="text-right text-brand-gray num">${fmtSupply(coin.supply, coin.symbol)}</td>` : ''}
+          ${visibleCols.sparkline ? `<td class="text-right">${renderSparkline(coin.sparkline, coin.color)}</td>` : ''}
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update header visibility
+      document.querySelectorAll('.crypto-table thead th').forEach(th => {
+        const sort = th.dataset.sort;
+        if (!sort) return;
+        th.style.display = visibleCols[sort] ? '' : 'none';
+      });
+    }
+
+    // ==================== SORTING ====================
+    function sortData(col) {
+      if (sortCol === col) sortAsc = !sortAsc;
+      else { sortCol = col; sortAsc = false; }
+      currentData.sort((a, b) => {
+        const av = a[col], bv = b[col];
+        return sortAsc ? (av > bv ? 1 : -1) : (av > bv ? -1 : 1);
+      });
+      renderTable();
+      updateSortIndicators();
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('.crypto-table thead th[data-sort]').forEach(th => {
+        th.classList.remove('asc', 'desc');
+        if (th.dataset.sort === sortCol) th.classList.add(sortAsc ? 'asc' : 'desc');
+      });
+    }
+
+    document.querySelectorAll('.crypto-table thead th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => sortData(th.dataset.sort));
+    });
+
+    // Control buttons
+    document.getElementById('sort-mcap').addEventListener('click', () => sortData('mcap'));
+    document.getElementById('sort-vol').addEventListener('click', () => sortData('volume'));
+
+    // ==================== CATEGORY TABS ====================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); });
+        btn.classList.remove('tab-inactive'); btn.classList.add('tab-active');
+        currentCategory = btn.dataset.category;
+        filterData();
+      });
+    });
+
+    // ==================== NETWORK TABS ====================
+    document.querySelectorAll('.network-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.network-btn').forEach(b => { b.classList.remove('pill-active'); b.classList.add('pill-inactive'); });
+        btn.classList.remove('pill-inactive'); btn.classList.add('pill-active');
+        currentNetwork = btn.dataset.network;
+        filterData();
+      });
+    });
+
+    function filterData() {
+      // Simulate filtering by shuffling/slicing based on category and network
+      let filtered = [...cryptoData];
+      if (currentCategory === 'trending') {
+        filtered.sort((a, b) => b.change24h - a.change24h);
+      } else if (currentCategory === 'new') {
+        filtered = filtered.filter((_, i) => i >= 70);
+      } else if (currentCategory === 'watchlist') {
+        filtered = filtered.filter((_, i) => [0, 1, 5, 8, 10].includes(i));
+      } else if (currentCategory === 'prediction') {
+        filtered = filtered.filter((_, i) => i >= 40 && i < 55);
+      } else if (currentCategory === 'visited') {
+        filtered.sort((a, b) => b.volume - a.volume);
+      }
+
+      if (currentNetwork === 'solana') {
+        filtered = filtered.filter(c => ['SOL', 'JUP', 'BONK', 'RAY', 'PYTH'].includes(c.symbol));
+      } else if (currentNetwork === 'ethereum') {
+        filtered = filtered.filter(c => ['ETH', 'UNI', 'AAVE', 'LINK', 'MKR', 'LDO', 'CRV'].includes(c.symbol));
+      } else if (currentNetwork === 'bsc') {
+        filtered = filtered.filter(c => ['BNB', 'CAKE', 'BGB'].includes(c.symbol));
+      } else if (currentNetwork === 'base') {
+        filtered = filtered.filter(c => ['USDC', 'DAI'].includes(c.symbol) || c.rank > 80);
+      }
+
+      currentData = filtered.length ? filtered : cryptoData.slice(0, 20);
+      sortData(sortCol);
+    }
+
+    // ==================== COLUMN TOGGLE ====================
+    document.getElementById('btn-columns').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('panel-columns').classList.toggle('open');
+      document.getElementById('panel-filters').classList.remove('open');
+    });
+    document.querySelectorAll('.column-toggle').forEach(toggle => {
+      toggle.addEventListener('change', (e) => {
+        visibleCols[toggle.dataset.col] = e.target.checked;
+        renderTable();
+      });
+    });
+
+    // ==================== FILTERS PANEL ====================
+    document.getElementById('btn-filters').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('panel-filters').classList.toggle('open');
+      document.getElementById('panel-columns').classList.remove('open');
+    });
+
+    // Close panels on outside click
+    document.addEventListener('click', () => {
+      document.getElementById('panel-columns').classList.remove('open');
+      document.getElementById('panel-filters').classList.remove('open');
+    });
+    document.querySelectorAll('.panel').forEach(p => p.addEventListener('click', e => e.stopPropagation()));
+
+    // ==================== PAGINATION ====================
+    document.querySelectorAll('#pagination .page-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#pagination .page-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPage = parseInt(btn.textContent);
+        // Simulate page change with slight data variation
+        currentData = cryptoData.map(c => ({
+          ...c,
+          price: c.price * (1 + (currentPage - 1) * 0.002 * (Math.random() - 0.5)),
+          change24h: c.change24h + (currentPage - 1) * 0.1 * (Math.random() - 0.5)
+        }));
+        renderTable();
+        window.scrollTo({ top: 400, behavior: 'smooth' });
+      });
+    });
+
+    // ==================== MARKET SUMMARY ACCORDION ====================
+    document.getElementById('btn-read-more').addEventListener('click', () => {
+      const content = document.getElementById('market-summary-full');
+      const icon = document.getElementById('read-more-icon');
+      const btn = document.getElementById('btn-read-more');
+      content.classList.toggle('open');
+      if (content.classList.contains('open')) {
+        icon.style.transform = 'rotate(180deg)';
+        btn.innerHTML = 'Read Less <svg class="w-4 h-4 transition-transform" style="transform:rotate(180deg)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+      } else {
+        icon.style.transform = 'rotate(0deg)';
+        btn.innerHTML = 'Read More <svg class="w-4 h-4 transition-transform" id="read-more-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+      }
+    });
+
+    // ==================== PROMO BANNER CAROUSEL ====================
+    const promoMessages = [
+      "CTP Launch: Secure $GENIUS Airdrop — Join Now",
+      "New Listing: Explore the latest DeFi tokens on CoinTracker Pro",
+      "Earn Rewards: Stake your crypto and earn up to 12% APY",
+      "Market Alert: Bitcoin breaks $75K — view the analysis"
+    ];
+    let promoIdx = 0;
+    setInterval(() => {
+      promoIdx = (promoIdx + 1) % promoMessages.length;
+      const el = document.getElementById('promo-text');
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = promoMessages[promoIdx];
+        el.style.opacity = '1';
+      }, 200);
+    }, 5000);
+
+    // ==================== INIT ====================
+    renderTable();
+  </script>
+</body>
+</html>

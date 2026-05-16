@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find a Store — GreenBean Coffee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .locator-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 72px);
+  }
+
+  /* ── Search Controls ── */
+  .search-controls {
+    background: var(--surface-white);
+    border-bottom: 1px solid var(--border-light);
+    padding: 20px 32px;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .controls-inner { max-width: 1400px; margin: 0 auto; }
+  .controls-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Order type toggle */
+  .order-toggle {
+    display: flex;
+    background: var(--surface-warm);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .order-toggle-btn {
+    padding: 8px 20px;
+    border-radius: var(--radius-full);
+    border: none;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.88rem;
+    background: transparent;
+    color: var(--text-muted);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .order-toggle-btn.active {
+    background: var(--surface-white);
+    color: var(--green-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Search input */
+  .search-input-wrap {
+    flex: 1;
+    min-width: 240px;
+    position: relative;
+  }
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    color: var(--text-light);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    height: 46px;
+    padding: 0 16px 0 44px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background: var(--surface-white);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-input:focus { border-color: var(--green-primary); box-shadow: 0 0 0 3px oklch(48% 0.15 148 / 0.12); }
+  .search-input::placeholder { color: var(--text-light); }
+
+  /* Suggestions */
+  .search-suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: var(--surface-white);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    display: none;
+    overflow: hidden;
+  }
+  .search-suggestions.visible { display: block; }
+  .suggestion-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    transition: background 0.12s;
+  }
+  .suggestion-item:hover { background: var(--green-light); }
+  .suggestion-icon { color: var(--text-light); flex-shrink: 0; }
+
+  /* Filter button */
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    background: var(--surface-white);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+    height: 46px;
+  }
+  .filter-btn:hover, .filter-btn.active { border-color: var(--green-primary); color: var(--green-primary); background: var(--green-light); }
+  .filter-count {
+    background: var(--green-primary);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Filter panel */
+  .filter-panel {
+    display: none;
+    margin-top: 16px;
+    padding: 20px;
+    background: var(--surface-warm);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    animation: slideDown 0.2s ease;
+  }
+  .filter-panel.open { display: block; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .filter-panel h4 { font-family: var(--font-body); font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; }
+  .filter-options { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filter-option {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    background: var(--surface-white);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .filter-option input { width: 14px; height: 14px; accent-color: var(--green-primary); }
+  .filter-option:has(input:checked) { border-color: var(--green-primary); background: var(--green-light); color: var(--green-primary); }
+
+  /* Active filters */
+  .active-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .active-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-primary);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+  }
+  .active-filter-tag button { background: none; border: none; color: #fff; font-size: 0.9rem; cursor: pointer; padding: 0; line-height: 1; opacity: 0.8; }
+  .active-filter-tag button:hover { opacity: 1; }
+
+  /* ── Map + Results Layout ── */
+  .locator-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Results panel */
+  .results-panel {
+    width: 380px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid var(--border-light);
+    background: var(--surface-white);
+  }
+  .results-header {
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--border-light);
+    position: sticky;
+    top: 0;
+    background: var(--surface-white);
+    z-index: 5;
+  }
+  .results-header h3 { font-family: var(--font-body); font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+  .results-header p { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .result-item {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background 0.12s;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .result-item:hover { background: var(--green-light); }
+  .result-item.selected { background: oklch(92% 0.05 148); border-left: 3px solid var(--green-primary); }
+  .result-number {
+    width: 28px; height: 28px;
+    background: var(--green-primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .result-info { flex: 1; min-width: 0; }
+  .result-name { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 3px; }
+  .result-address { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 8px; }
+  .result-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+  .result-tag {
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    background: var(--surface-warm);
+    color: var(--text-muted);
+    border: 1px solid var(--border-light);
+  }
+  .result-tag.open { background: oklch(90% 0.08 145); color: oklch(38% 0.12 145); border-color: oklch(80% 0.10 145); }
+  .result-tag.drive-thru { background: oklch(92% 0.06 60); color: oklch(42% 0.10 55); border-color: oklch(82% 0.08 60); }
+  .result-distance { font-size: 0.78rem; color: var(--text-light); margin-top: 6px; }
+  .result-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .result-actions a {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--green-primary);
+    text-decoration: underline;
+  }
+
+  /* No results state */
+  .no-results { padding: 48px 24px; text-align: center; }
+  .no-results-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+  .no-results h4 { font-family: var(--font-body); font-weight: 700; margin-bottom: 8px; }
+  .no-results p { font-size: 0.9rem; color: var(--text-muted); }
+
+  /* Map */
+  .map-container {
+    flex: 1;
+    background: oklch(90% 0.02 148);
+    position: relative;
+    overflow: hidden;
+  }
+  .map-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background:
+      linear-gradient(oklch(90% 0.02 148 / 0.95) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(90% 0.02 148 / 0.95) 1px, transparent 1px);
+    background-size: 60px 60px;
+    background-color: oklch(94% 0.02 148);
+  }
+  .map-notice {
+    background: var(--surface-white);
+    border-radius: var(--radius-lg);
+    padding: 28px 36px;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    max-width: 360px;
+  }
+  .map-notice h4 { font-family: var(--font-body); font-weight: 700; margin-bottom: 8px; font-size: 1rem; }
+  .map-notice p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; }
+
+  /* Map pins */
+  .map-pin {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transform: translate(-50%, -100%);
+    transition: transform 0.15s;
+  }
+  .map-pin:hover { transform: translate(-50%, -105%); }
+  .pin-bubble {
+    background: var(--green-primary);
+    color: #fff;
+    width: 36px; height: 36px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-md);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .pin-bubble span { transform: rotate(45deg); }
+  .pin-stem { width: 2px; height: 8px; background: var(--green-primary); }
+  .map-pin.selected .pin-bubble { background: var(--forest-dark); width: 44px; height: 44px; }
+
+  /* Use my location */
+  .use-location-btn {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface-white);
+    border: 1.5px solid var(--border-light);
+    border-radius: var(--radius-full);
+    padding: 10px 18px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .use-location-btn:hover { border-color: var(--green-primary); box-shadow: var(--shadow-lg); }
+
+  /* ── Status bar ── */
+  .order-status-bar {
+    background: var(--green-primary);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 8px 32px;
+    text-align: center;
+    transition: opacity 0.3s;
+  }
+  .order-status-bar.delivery { background: oklch(50% 0.14 260); }
+  .order-status-bar.hidden { display: none; }
+
+  @media (max-width: 900px) {
+    .locator-page { height: auto; }
+    .locator-body { flex-direction: column; height: auto; }
+    .results-panel { width: 100%; height: 320px; border-right: none; border-bottom: 1px solid var(--border-light); }
+    .map-container { height: 400px; }
+  }
+  @media (max-width: 600px) {
+    .search-controls { padding: 16px 20px; }
+    .controls-top { gap: 8px; }
+    .order-toggle-btn { padding: 8px 14px; font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-mark">G</div>
+      <span class="logo-text">GreenBean</span>
+    </a>
+    <nav class="main-nav">
+      <a href="menu.html" class="nav-link">Menu</a>
+      <a href="rewards.html" class="nav-link">Rewards</a>
+      <a href="gift.html" class="nav-link">Gift Cards</a>
+      <a href="store-locator.html" class="nav-link active">Find a store</a>
+    </nav>
+    <div class="header-actions">
+      <button class="btn-ghost btn-sm">Sign in</button>
+      <button class="btn-primary btn-sm">Join now</button>
+    </div>
+    <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-nav" id="mobileNav">
+    <a href="menu.html" class="mobile-nav-link">Menu</a>
+    <a href="rewards.html" class="mobile-nav-link">Rewards</a>
+    <a href="gift.html" class="mobile-nav-link">Gift Cards</a>
+    <a href="store-locator.html" class="mobile-nav-link active">Find a store</a>
+    <div class="mobile-nav-actions">
+      <button class="btn-ghost">Sign in</button>
+      <button class="btn-primary">Join now</button>
+    </div>
+  </div>
+</header>
+
+<!-- Order Status Bar -->
+<div class="order-status-bar" id="orderStatusBar">
+  📍 Showing Pickup locations near you
+</div>
+
+<div class="locator-page">
+  <!-- Search Controls -->
+  <div class="search-controls">
+    <div class="controls-inner">
+      <div class="controls-top">
+        <!-- Order type toggle -->
+        <div class="order-toggle" role="group" aria-label="Order type">
+          <button class="order-toggle-btn active" data-order="pickup" id="pickupBtn">🏪 Pickup</button>
+          <button class="order-toggle-btn" data-order="delivery" id="deliveryBtn">🚚 Delivery</button>
+        </div>
+
+        <!-- Search input -->
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            class="search-input"
+            id="locationSearch"
+            placeholder="Type a city, zip code, or address"
+            autocomplete="off"
+            aria-label="Search for a location"
+          >
+          <div class="search-suggestions" id="searchSuggestions">
+            <div class="suggestion-item" data-location="Seattle, WA">
+              <span class="suggestion-icon">📍</span> Seattle, WA
+            </div>
+            <div class="suggestion-item" data-location="98101 — Capitol Hill, Seattle">
+              <span class="suggestion-icon">🗓️</span> 98101 — Capitol Hill, Seattle
+            </div>
+            <div class="suggestion-item" data-location="Pike Place, Seattle, WA">
+              <span class="suggestion-icon">📍</span> Pike Place, Seattle, WA
+            </div>
+            <div class="suggestion-item" data-location="Bellevue, WA">
+              <span class="suggestion-icon">📍</span> Bellevue, WA
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter button -->
+        <button class="filter-btn" id="filterBtn" aria-expanded="false" aria-controls="filterPanel">
+          <span>⚙️</span> Filters <span class="filter-count" id="filterCount" style="display:none">0</span>
+        </button>
+
+        <button class="btn-primary btn-sm" id="searchBtn">Search</button>
+      </div>
+
+      <!-- Filter Panel -->
+      <div class="filter-panel" id="filterPanel">
+        <h4>Store features</h4>
+        <div class="filter-options">
+          <label class="filter-option"><input type="checkbox" data-filter="drive-thru"> Drive-Thru</label>
+          <label class="filter-option"><input type="checkbox" data-filter="mobile"> Mobile Order &amp; Pay</label>
+          <label class="filter-option"><input type="checkbox" data-filter="delivery"> Delivery</label>
+          <label class="filter-option"><input type="checkbox" data-filter="indoor"> Indoor Seating</label>
+          <label class="filter-option"><input type="checkbox" data-filter="outdoor"> Outdoor Seating</label>
+          <label class="filter-option"><input type="checkbox" data-filter="wifi"> Free Wi-Fi</label>
+          <label class="filter-option"><input type="checkbox" data-filter="parking"> Parking</label>
+          <label class="filter-option"><input type="checkbox" data-filter="curbside"> Curbside Pickup</label>
+        </div>
+        <div class="active-filters" id="activeFilters"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main body: results + map -->
+  <div class="locator-body">
+    <!-- Results List -->
+    <div class="results-panel">
+      <div class="results-header">
+        <h3 id="resultsTitle">Nearby stores</h3>
+        <p id="resultsSubtitle">Showing 6 locations</p>
+      </div>
+
+      <!-- Store results -->
+      <div id="storeResults">
+        <div class="result-item selected" data-store="1" onclick="selectStore(1)">
+          <div class="result-number">1</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — Pike Place</div>
+            <div class="result-address">1912 Pike Place, Seattle, WA 98101</div>
+            <div class="result-meta">
+              <span class="result-tag open">Open until 9 PM</span>
+              <span class="result-tag">Mobile Order</span>
+            </div>
+            <div class="result-distance">0.3 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+              <a href="#">Order here</a>
+            </div>
+          </div>
+        </div>
+        <div class="result-item" data-store="2" onclick="selectStore(2)">
+          <div class="result-number">2</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — Capitol Hill</div>
+            <div class="result-address">215 Broadway E, Seattle, WA 98102</div>
+            <div class="result-meta">
+              <span class="result-tag open">Open until 10 PM</span>
+              <span class="result-tag drive-thru">Drive-Thru</span>
+              <span class="result-tag">Mobile Order</span>
+            </div>
+            <div class="result-distance">0.9 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+              <a href="#">Order here</a>
+            </div>
+          </div>
+        </div>
+        <div class="result-item" data-store="3" onclick="selectStore(3)">
+          <div class="result-number">3</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — South Lake Union</div>
+            <div class="result-address">400 Westlake Ave N, Seattle, WA 98109</div>
+            <div class="result-meta">
+              <span class="result-tag open">Open until 8 PM</span>
+              <span class="result-tag">Indoor Seating</span>
+              <span class="result-tag">Wi-Fi</span>
+            </div>
+            <div class="result-distance">1.1 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+              <a href="#">Order here</a>
+            </div>
+          </div>
+        </div>
+        <div class="result-item" data-store="4" onclick="selectStore(4)">
+          <div class="result-number">4</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — Ballard</div>
+            <div class="result-address">5318 Ballard Ave NW, Seattle, WA 98107</div>
+            <div class="result-meta">
+              <span class="result-tag">Open until 7 PM</span>
+              <span class="result-tag">Outdoor Seating</span>
+            </div>
+            <div class="result-distance">3.2 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+            </div>
+          </div>
+        </div>
+        <div class="result-item" data-store="5" onclick="selectStore(5)">
+          <div class="result-number">5</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — University District</div>
+            <div class="result-address">4324 University Way NE, Seattle, WA 98105</div>
+            <div class="result-meta">
+              <span class="result-tag open">Open until 11 PM</span>
+              <span class="result-tag">Wi-Fi</span>
+              <span class="result-tag">Indoor Seating</span>
+            </div>
+            <div class="result-distance">3.8 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+              <a href="#">Order here</a>
+            </div>
+          </div>
+        </div>
+        <div class="result-item" data-store="6" onclick="selectStore(6)">
+          <div class="result-number">6</div>
+          <div class="result-info">
+            <div class="result-name">GreenBean — Bellevue Square</div>
+            <div class="result-address">110 Bellevue Square, Bellevue, WA 98004</div>
+            <div class="result-meta">
+              <span class="result-tag open">Open until 9 PM</span>
+              <span class="result-tag drive-thru">Drive-Thru</span>
+              <span class="result-tag">Mobile Order</span>
+              <span class="result-tag">Parking</span>
+            </div>
+            <div class="result-distance">8.4 mi · Directions</div>
+            <div class="result-actions">
+              <a href="#">Get directions</a>
+              <a href="store-locator.html">Store details</a>
+              <a href="#">Order here</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-container" id="mapContainer">
+      <div class="map-placeholder">
+        <!-- Simulated map pins -->
+        <div class="map-pin selected" id="pin1" style="left:42%;top:38%;" onclick="selectStore(1)">
+          <div class="pin-bubble"><span>1</span></div>
+          <div class="pin-stem"></div>
+        </div>
+        <div class="map-pin" id="pin2" style="left:55%;top:52%;" onclick="selectStore(2)">
+          <div class="pin-bubble"><span>2</span></div>
+          <div class="pin-stem"></div>
+        </div>
+        <div class="map-pin" id="pin3" style="left:38%;top:55%;" onclick="selectStore(3)">
+          <div class="pin-bubble"><span>3</span></div>
+          <div class="pin-stem"></div>
+        </div>
+        <div class="map-pin" id="pin4" style="left:28%;top:30%;" onclick="selectStore(4)">
+          <div class="pin-bubble"><span>4</span></div>
+          <div class="pin-stem"></div>
+        </div>
+        <div class="map-pin" id="pin5" style="left:60%;top:35%;" onclick="selectStore(5)">
+          <div class="pin-bubble"><span>5</span></div>
+          <div class="pin-stem"></div>
+        </div>
+        <div class="map-pin" id="pin6" style="left:72%;top:60%;" onclick="selectStore(6)">
+          <div class="pin-bubble"><span>6</span></div>
+          <div class="pin-stem"></div>
+        </div>
+
+        <div class="map-notice">
+          <div style="font-size:2rem;margin-bottom:8px">🗺️</div>
+          <h4>Interactive Map</h4>
+          <p>In production, this area shows a live Google Maps view with store pins. Search for a location to see results.</p>
+        </div>
+      </div>
+
+      <!-- Use my location -->
+      <button class="use-location-btn" onclick="useMyLocation()">
+        <span>📍</span> Use my location
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <div class="logo-mark logo-mark-lg">G</div>
+      <span class="logo-text">GreenBean Coffee</span>
+      <p class="footer-tagline">Your Daily Coffee Ritual</p>
+    </div>
+    <div class="footer-columns">
+      <div class="footer-col">
+        <h4 class="footer-heading" data-accordion>About Us <span class="accordion-icon">+</span></h4>
+        <ul class="footer-links">
+          <li><a href="#">Our Company</a></li>
+          <li><a href="#">Our Coffee</a></li>
+          <li><a href="#">Customer Service</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading" data-accordion>Careers <span class="accordion-icon">+</span></h4>
+        <ul class="footer-links">
+          <li><a href="#">Culture and Values</a></li>
+          <li><a href="#">U.S. Careers</a></li>
+          <li><a href="#">International Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading" data-accordion>Social Impact <span class="accordion-icon">+</span></h4>
+        <ul class="footer-links">
+          <li><a href="#">Communities</a></li>
+          <li><a href="#">GreenBean Foundation</a></li>
+          <li><a href="#">Sustainability</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading" data-accordion>For Business Partners <span class="accordion-icon">+</span></h4>
+        <ul class="footer-links">
+          <li><a href="#">Landlord Support Center</a></li>
+          <li><a href="#">Corporate Gift Card Sales</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading" data-accordion>Order and Pick Up <span class="accordion-icon">+</span></h4>
+        <ul class="footer-links">
+          <li><a href="#">Order on the App</a></li>
+          <li><a href="#">Delivery</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 GreenBean Coffee. All rights reserved.</p>
+      <div class="footer-social">
+        <a href="#" class="social-link">📸</a>
+        <a href="#" class="social-link">🐦</a>
+        <a href="#" class="social-link">👍</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="shared.js"></script>
+<script>
+  // ── Order type toggle ──
+  const pickupBtn = document.getElementById('pickupBtn');
+  const deliveryBtn = document.getElementById('deliveryBtn');
+  const statusBar = document.getElementById('orderStatusBar');
+
+  pickupBtn.addEventListener('click', () => {
+    pickupBtn.classList.add('active');
+    deliveryBtn.classList.remove('active');
+    statusBar.textContent = '📍 Showing Pickup locations near you';
+    statusBar.className = 'order-status-bar';
+  });
+  deliveryBtn.addEventListener('click', () => {
+    deliveryBtn.classList.add('active');
+    pickupBtn.classList.remove('active');
+    statusBar.textContent = '🚚 Showing Delivery locations — delivery available at select stores';
+    statusBar.className = 'order-status-bar delivery';
+  });
+
+  // ── Search suggestions ──
+  const searchInput = document.getElementById('locationSearch');
+  const suggestions = document.getElementById('searchSuggestions');
+
+  searchInput.addEventListener('input', () => {
+    if (searchInput.value.trim().length > 1) {
+      suggestions.classList.add('visible');
+    } else {
+      suggestions.classList.remove('visible');
+    }
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') suggestions.classList.remove('visible');
+  });
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !suggestions.contains(e.target)) {
+      suggestions.classList.remove('visible');
+    }
+  });
+  suggestions.querySelectorAll('.suggestion-item').forEach(item => {
+    item.addEventListener('click', () => {
+      searchInput.value = item.dataset.location;
+      suggestions.classList.remove('visible');
+    });
+  });
+
+  // ── Filter panel toggle ──
+  const filterBtn = document.getElementById('filterBtn');
+  const filterPanel = document.getElementById('filterPanel');
+  const filterCount = document.getElementById('filterCount');
+  const activeFiltersEl = document.getElementById('activeFilters');
+
+  filterBtn.addEventListener('click', () => {
+    const isOpen = filterPanel.classList.toggle('open');
+    filterBtn.classList.toggle('active', isOpen);
+    filterBtn.setAttribute('aria-expanded', isOpen);
+  });
+
+  filterPanel.querySelectorAll('input[type=checkbox]').forEach(checkbox => {
+    checkbox.addEventListener('change', updateFilters);
+  });
+
+  function updateFilters() {
+    const checked = Array.from(filterPanel.querySelectorAll('input:checked'));
+    const count = checked.length;
+    filterCount.textContent = count;
+    filterCount.style.display = count > 0 ? 'flex' : 'none';
+
+    activeFiltersEl.innerHTML = checked.map(cb => {
+      const label = cb.closest('label').textContent.trim();
+      return `<span class="active-filter-tag">${label} <button onclick="removeFilter('${cb.dataset.filter}')">×</button></span>`;
+    }).join('');
+  }
+
+  window.removeFilter = function(filterKey) {
+    const checkbox = filterPanel.querySelector(`input[data-filter="${filterKey}"]`);
+    if (checkbox) { checkbox.checked = false; updateFilters(); }
+  };
+
+  // ── Store selection ──
+  window.selectStore = function(storeId) {
+    document.querySelectorAll('.result-item').forEach(item => {
+      item.classList.toggle('selected', item.dataset.store === String(storeId));
+    });
+    document.querySelectorAll('.map-pin').forEach(pin => {
+      pin.classList.toggle('selected', pin.id === 'pin' + storeId);
+    });
+  };
+
+  // ── Use my location ──
+  window.useMyLocation = function() {
+    const btn = document.querySelector('.use-location-btn');
+    btn.textContent = '📍 Locating…';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.innerHTML = '<span>📍</span> Use my location';
+      btn.disabled = false;
+    }, 1200);
+  };
+
+  // ── Search button ──
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    const q = searchInput.value.trim();
+    if (q) {
+      document.getElementById('resultsSubtitle').textContent = `Results for "${q}"`;
+    }
+  });
+</script>
+</body>
+</html>

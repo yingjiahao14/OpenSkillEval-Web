@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAPL — Apple Inc | ChartPulse</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── Chart Page Layout ── */
+.chart-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr 300px;
+  height: calc(100vh - var(--nav-height));
+  overflow: hidden;
+}
+
+/* ── Watchlist Sidebar ── */
+.watchlist {
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.watchlist-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.watchlist-search {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  flex: 1;
+}
+.watchlist-search input {
+  background: none; border: none; outline: none;
+  color: var(--text-primary); font-size: 12px;
+  width: 100%; font-family: inherit;
+}
+.watchlist-body { flex: 1; overflow-y: auto; }
+
+/* Accordion */
+.accordion-group { border-bottom: 1px solid var(--border); }
+.accordion-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: var(--bg-card);
+  border: none; width: 100%; text-align: left;
+  font-family: inherit;
+  transition: background 0.1s;
+  user-select: none;
+}
+.accordion-header:hover { background: var(--bg-hover); }
+.accordion-chevron { margin-left: auto; font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+.accordion-header.open .accordion-chevron { transform: rotate(180deg); }
+.accordion-cat { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.accordion-body { display: none; }
+.accordion-body.open { display: block; }
+
+.watchlist-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 6px; align-items: center;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-bottom: 1px solid var(--border-light);
+}
+.watchlist-row:hover { background: var(--bg-hover); }
+.watchlist-row.active { background: var(--accent-blue-dim); border-left: 2px solid var(--accent-blue); }
+.wl-sym { font-size: 12px; font-weight: 700; }
+.wl-name { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.wl-price { font-size: 11px; font-family: 'DM Mono', monospace; text-align: right; }
+.wl-chg { font-size: 10px; font-family: 'DM Mono', monospace; text-align: right; }
+
+/* ── Chart Area ── */
+.chart-area {
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.chart-toolbar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.toolbar-group {
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 8px;
+  border-right: 1px solid var(--border);
+}
+.toolbar-group:last-child { border-right: none; }
+
+.tool-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; cursor: pointer;
+  border-radius: 5px; color: var(--text-secondary);
+  font-size: 13px;
+  transition: background 0.1s, color 0.1s;
+}
+.tool-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tool-btn.active { background: var(--bg-active); color: var(--accent-blue); }
+
+.timeframe-btn {
+  padding: 4px 8px;
+  font-size: 11px; font-weight: 600;
+  border: none; background: none; cursor: pointer;
+  border-radius: 4px; color: var(--text-secondary);
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+.timeframe-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.timeframe-btn.active { background: var(--accent-blue); color: #fff; }
+
+/* Chart Symbol Bar */
+.chart-symbol-bar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 12px;
+  display: flex; align-items: center; gap: 16px;
+  flex-shrink: 0;
+}
+.symbol-name { font-size: 15px; font-weight: 700; }
+.symbol-exchange { font-size: 11px; color: var(--text-muted); }
+.ohlc-row { display: flex; gap: 12px; }
+.ohlc-item { font-size: 11px; color: var(--text-muted); }
+.ohlc-val { color: var(--text-secondary); font-family: 'DM Mono', monospace; }
+
+/* Candlestick Chart SVG */
+.chart-canvas { flex: 1; position: relative; overflow: hidden; }
+.chart-svg { width: 100%; height: 100%; }
+
+/* Price axis */
+.price-axis { position: absolute; right: 0; top: 0; bottom: 30px; width: 65px; background: var(--bg-card); border-left: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; padding: 8px 6px; }
+.price-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-muted); text-align: right; }
+.price-label.current { color: var(--loss); font-weight: 700; background: var(--loss-dim); padding: 1px 4px; border-radius: 3px; }
+
+/* Time axis */
+.time-axis { height: 30px; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 0; flex-shrink: 0; }
+.time-label { font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; flex: 1; text-align: center; }
+
+/* ── Detail Panel ── */
+.detail-panel {
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.detail-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
+.detail-ticker { font-size: 12px; font-weight: 700; color: var(--accent-blue); }
+.detail-name { font-size: 13px; font-weight: 600; margin: 2px 0; }
+.detail-exchange { font-size: 11px; color: var(--text-muted); }
+.detail-price { font-size: 26px; font-weight: 700; font-family: 'DM Mono', monospace; margin-top: 8px; }
+.detail-change { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.detail-change-val { font-size: 14px; font-family: 'DM Mono', monospace; }
+
+.pre-market-bar {
+  background: rgba(41,98,255,0.1);
+  border: 1px solid rgba(41,98,255,0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 10px 14px;
+}
+.pre-market-label { font-size: 10px; color: var(--text-muted); margin-bottom: 3px; }
+.pre-market-val { font-size: 13px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--accent-blue); }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0 14px;
+}
+.stat-item { padding: 8px 0; border-bottom: 1px solid var(--border-light); }
+.stat-item:nth-last-child(-n+2) { border-bottom: none; }
+.stat-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+.stat-val { font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace; }
+
+.detail-section { border-top: 1px solid var(--border); padding: 10px 14px; }
+.detail-section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+
+.financials-tabs { display: flex; gap: 2px; margin-bottom: 10px; }
+
+.fin-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border-light); font-size: 12px; }
+.fin-row:last-child { border-bottom: none; }
+.fin-label { color: var(--text-secondary); }
+.fin-val { font-family: 'DM Mono', monospace; font-weight: 600; }
+
+.perf-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.perf-label { font-size: 11px; color: var(--text-muted); width: 32px; flex-shrink: 0; }
+.perf-track { flex: 1; height: 4px; background: var(--bg-base); border-radius: 2px; overflow: hidden; }
+.perf-fill { height: 100%; border-radius: 2px; }
+.perf-val { font-size: 11px; font-family: 'DM Mono', monospace; width: 50px; text-align: right; flex-shrink: 0; }
+
+/* News in panel */
+.panel-news { padding: 10px 14px; border-top: 1px solid var(--border); }
+.panel-news-item { font-size: 12px; line-height: 1.4; padding: 7px 0; border-bottom: 1px solid var(--border-light); }
+.panel-news-item:last-child { border-bottom: none; }
+
+@media (max-width: 1200px) {
+  .chart-layout { grid-template-columns: 220px 1fr; }
+  .detail-panel { display: none; }
+}
+@media (max-width: 768px) {
+  .chart-layout { grid-template-columns: 1fr; height: auto; }
+  .watchlist { display: none; }
+  .chart-area { height: 60vh; }
+}
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <a href="index.html" class="nav-logo">
+    <span class="nav-logo-icon">📈</span>
+    ChartPulse
+  </a>
+  <div class="nav-links">
+    <a href="chart.html" class="nav-link active">Products</a>
+    <a href="markets.html" class="nav-link">Markets</a>
+    <a href="ideas.html" class="nav-link">Community</a>
+    <a href="brokers.html" class="nav-link">Brokers</a>
+    <a href="#" class="nav-link">Learn</a>
+  </div>
+  <div class="nav-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input placeholder="Symbol, e.g. AAPL, BTC…" value="AAPL">
+  </div>
+  <div class="nav-actions">
+    <a href="#" class="btn btn-ghost btn-sm">Sign in</a>
+    <a href="#" class="btn btn-primary btn-sm">Get started — it's free</a>
+  </div>
+</nav>
+
+<div class="chart-layout">
+  <!-- Watchlist Sidebar -->
+  <aside class="watchlist">
+    <div class="watchlist-header">
+      <div class="watchlist-search">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input placeholder="Search…">
+      </div>
+      <button class="tool-btn" title="Add symbol">+</button>
+    </div>
+    <div class="watchlist-body">
+
+      <!-- Indices -->
+      <div class="accordion-group">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span class="accordion-cat">Indices</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">4</span>
+          <span class="accordion-chevron">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="watchlist-row" onclick="selectSymbol(this,'SPX','S&P 500','7,041.29','+18.33','+0.26%','gain')">
+            <div><div class="wl-sym">SPX</div><div class="wl-name">S&amp;P 500</div></div>
+            <div class="wl-price">7,041.29</div>
+            <div class="wl-chg gain">+0.26%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'NDQ','Nasdaq 100','26,333.00','+128.42','+0.49%','gain')">
+            <div><div class="wl-sym">NDQ</div><div class="wl-name">Nasdaq 100</div></div>
+            <div class="wl-price">26,333.00</div>
+            <div class="wl-chg gain">+0.49%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'DJI','Dow Jones','48,578.72','+115.00','+0.24%','gain')">
+            <div><div class="wl-sym">DJI</div><div class="wl-name">Dow Jones 30</div></div>
+            <div class="wl-price">48,578.72</div>
+            <div class="wl-chg gain">+0.24%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'VIX','Volatility','17.86','−0.08','−0.45%','loss')">
+            <div><div class="wl-sym">VIX</div><div class="wl-name">Volatility Index</div></div>
+            <div class="wl-price">17.86</div>
+            <div class="wl-chg loss">−0.45%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stocks -->
+      <div class="accordion-group">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span class="accordion-cat">Stocks</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">3</span>
+          <span class="accordion-chevron">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="watchlist-row active" onclick="selectSymbol(this,'AAPL','Apple Inc','263.40','−3.03','−1.14%','loss')">
+            <div><div class="wl-sym">AAPL</div><div class="wl-name">Apple Inc</div></div>
+            <div class="wl-price">263.40</div>
+            <div class="wl-chg loss">−1.14%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'TSLA','Tesla Inc','388.90','−3.05','−0.78%','loss')">
+            <div><div class="wl-sym">TSLA</div><div class="wl-name">Tesla Inc</div></div>
+            <div class="wl-price">388.90</div>
+            <div class="wl-chg loss">−0.78%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'NFLX','Netflix Inc','107.79','+0.08','+0.07%','gain')">
+            <div><div class="wl-sym">NFLX</div><div class="wl-name">Netflix Inc</div></div>
+            <div class="wl-price">107.79</div>
+            <div class="wl-chg gain">+0.07%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Futures -->
+      <div class="accordion-group">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span class="accordion-cat">Futures</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">2</span>
+          <span class="accordion-chevron">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="watchlist-row" onclick="selectSymbol(this,'USOIL','US Oil','87.53','−5.65','−6.06%','loss')">
+            <div><div class="wl-sym">USOIL</div><div class="wl-name">US Crude Oil</div></div>
+            <div class="wl-price">87.53</div>
+            <div class="wl-chg loss">−6.06%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'GOLD','Gold','4,801.92','+14.50','+0.30%','gain')">
+            <div><div class="wl-sym">GOLD</div><div class="wl-name">Gold Futures</div></div>
+            <div class="wl-price">4,801.92</div>
+            <div class="wl-chg gain">+0.30%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forex -->
+      <div class="accordion-group">
+        <button class="accordion-header" onclick="toggleAccordion(this)">
+          <span class="accordion-cat">Forex</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">2</span>
+          <span class="accordion-chevron">▼</span>
+        </button>
+        <div class="accordion-body">
+          <div class="watchlist-row" onclick="selectSymbol(this,'EURUSD','Euro/USD','1.17949','+0.00138','+0.12%','gain')">
+            <div><div class="wl-sym">EURUSD</div><div class="wl-name">Euro / US Dollar</div></div>
+            <div class="wl-price">1.17949</div>
+            <div class="wl-chg gain">+0.12%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'GBPUSD','GBP/USD','1.35335','+0.00080','+0.06%','gain')">
+            <div><div class="wl-sym">GBPUSD</div><div class="wl-name">Pound / US Dollar</div></div>
+            <div class="wl-price">1.35335</div>
+            <div class="wl-chg gain">+0.06%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crypto -->
+      <div class="accordion-group">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span class="accordion-cat">Crypto</span>
+          <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">2</span>
+          <span class="accordion-chevron">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="watchlist-row" onclick="selectSymbol(this,'BTCUSD','Bitcoin','75,585','+407','+0.54%','gain')">
+            <div><div class="wl-sym">BTCUSD</div><div class="wl-name">Bitcoin</div></div>
+            <div class="wl-price">75,585</div>
+            <div class="wl-chg gain">+0.54%</div>
+          </div>
+          <div class="watchlist-row" onclick="selectSymbol(this,'ETHUSD','Ethereum','2,355.1','+5.9','+0.25%','gain')">
+            <div><div class="wl-sym">ETHUSD</div><div class="wl-name">Ethereum</div></div>
+            <div class="wl-price">2,355.1</div>
+            <div class="wl-chg gain">+0.25%</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- Chart Area -->
+  <main class="chart-area">
+    <!-- Toolbar -->
+    <div class="chart-toolbar">
+      <!-- Timeframes -->
+      <div class="toolbar-group" style="border-right:none;padding-left:0;gap:1px;">
+        <button class="timeframe-btn" onclick="setTimeframe('1D',this)">1D</button>
+        <button class="timeframe-btn" onclick="setTimeframe('5D',this)">5D</button>
+        <button class="timeframe-btn active" onclick="setTimeframe('1M',this)">1M</button>
+        <button class="timeframe-btn" onclick="setTimeframe('3M',this)">3M</button>
+        <button class="timeframe-btn" onclick="setTimeframe('6M',this)">6M</button>
+        <button class="timeframe-btn" onclick="setTimeframe('YTD',this)">YTD</button>
+        <button class="timeframe-btn" onclick="setTimeframe('1Y',this)">1Y</button>
+        <button class="timeframe-btn" onclick="setTimeframe('5Y',this)">5Y</button>
+        <button class="timeframe-btn" onclick="setTimeframe('All',this)">All</button>
+      </div>
+      <div style="flex:1;"></div>
+      <!-- Drawing Tools -->
+      <div class="toolbar-group">
+        <button class="tool-btn active" title="Cursor">↖</button>
+        <button class="tool-btn" title="Crosshair">✛</button>
+        <button class="tool-btn" title="Trend line">╱</button>
+        <button class="tool-btn" title="Fib retracement">≋</button>
+        <button class="tool-btn" title="Rectangle">□</button>
+        <button class="tool-btn" title="Text">T</button>
+      </div>
+      <div class="toolbar-group">
+        <button class="tool-btn" title="Indicators">Indicators</button>
+        <button class="tool-btn" title="Compare">Compare</button>
+      </div>
+      <div class="toolbar-group" style="border-right:none;padding-right:0;">
+        <button class="tool-btn" title="Candles">🕯</button>
+        <button class="tool-btn" title="Area chart">◿</button>
+        <button class="tool-btn" title="Bar chart">▐</button>
+      </div>
+    </div>
+
+    <!-- Symbol Info Bar -->
+    <div class="chart-symbol-bar">
+      <div><span class="symbol-name">AAPL</span> <span class="symbol-exchange">NASDAQ</span></div>
+      <div class="ohlc-row">
+        <div class="ohlc-item">O <span class="ohlc-val">266.24</span></div>
+        <div class="ohlc-item">H <span class="ohlc-val">268.74</span></div>
+        <div class="ohlc-item">L <span class="ohlc-val">262.80</span></div>
+        <div class="ohlc-item">C <span class="ohlc-val loss" style="font-weight:700;">263.40</span></div>
+        <div class="ohlc-item">Vol <span class="ohlc-val">43.32M</span></div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span class="badge badge-loss" style="font-size:12px;padding:3px 10px;">−3.03 (−1.14%)</span>
+        <span style="font-size:11px;color:var(--text-muted);">NASDAQ · USD · Delayed 15 min</span>
+      </div>
+    </div>
+
+    <!-- Candlestick Chart -->
+    <div class="chart-canvas" id="chartCanvas">
+      <svg class="chart-svg" id="chartSvg" viewBox="0 0 900 400" preserveAspectRatio="none">
+        <!-- Grid lines -->
+        <defs>
+          <pattern id="grid" width="60" height="50" patternUnits="userSpaceOnUse">
+            <line x1="60" y1="0" x2="60" y2="50" stroke="#1e1e2e" stroke-width="1"/>
+            <line x1="0" y1="50" x2="60" y2="50" stroke="#1e1e2e" stroke-width="1"/>
+          </pattern>
+          <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2962ff" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#2962ff" stop-opacity="0.05"/>
+          </linearGradient>
+        </defs>
+        <rect width="900" height="400" fill="url(#grid)"/>
+
+        <!-- Volume bars (background) -->
+        <g id="volumeBars">
+          <rect x="30" y="350" width="12" height="20" fill="url(#volGrad)" rx="1"/>
+          <rect x="60" y="340" width="12" height="30" fill="url(#volGrad)" rx="1"/>
+          <rect x="90" y="330" width="12" height="40" fill="url(#volGrad)" rx="1"/>
+          <rect x="120" y="345" width="12" height="25" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="150" y="335" width="12" height="35" fill="url(#volGrad)" rx="1"/>
+          <rect x="180" y="325" width="12" height="45" fill="url(#volGrad)" rx="1"/>
+          <rect x="210" y="342" width="12" height="28" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="240" y="328" width="12" height="42" fill="url(#volGrad)" rx="1"/>
+          <rect x="270" y="318" width="12" height="52" fill="url(#volGrad)" rx="1"/>
+          <rect x="300" y="338" width="12" height="32" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="330" y="310" width="12" height="60" fill="url(#volGrad)" rx="1"/>
+          <rect x="360" y="300" width="12" height="70" fill="url(#volGrad)" rx="1"/>
+          <rect x="390" y="320" width="12" height="50" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="420" y="290" width="12" height="80" fill="url(#volGrad)" rx="1"/>
+          <rect x="450" y="305" width="12" height="65" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="480" y="280" width="12" height="90" fill="url(#volGrad)" rx="1"/>
+          <rect x="510" y="300" width="12" height="70" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="540" y="265" width="12" height="105" fill="url(#volGrad)" rx="1"/>
+          <rect x="570" y="285" width="12" height="85" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="600" y="250" width="12" height="120" fill="url(#volGrad)" rx="1"/>
+          <rect x="630" y="268" width="12" height="102" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="660" y="240" width="12" height="130" fill="url(#volGrad)" rx="1"/>
+          <rect x="690" y="258" width="12" height="112" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="720" y="232" width="12" height="138" fill="url(#volGrad)" rx="1"/>
+          <rect x="750" y="248" width="12" height="122" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="780" y="280" width="12" height="90" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="810" y="260" width="12" height="110" fill="rgba(239,83,80,0.3)" rx="1"/>
+          <rect x="840" y="275" width="12" height="95" fill="rgba(239,83,80,0.3)" rx="1"/>
+        </g>
+
+        <!-- Candlesticks (main chart area: y 20–310) -->
+        <g id="candles">
+          <!-- Each candle: wick line + body rect. Green=gain, Red=loss -->
+          <!-- Format: open=lower, close=higher for up candles -->
+          <line x1="36" y1="240" x2="36" y2="260" stroke="#26a69a" stroke-width="1"/>
+          <rect x="30" y="245" width="12" height="12" fill="#26a69a" rx="1"/>
+
+          <line x1="66" y1="228" x2="66" y2="252" stroke="#26a69a" stroke-width="1"/>
+          <rect x="60" y="233" width="12" height="15" fill="#26a69a" rx="1"/>
+
+          <line x1="96" y1="220" x2="96" y2="244" stroke="#ef5350" stroke-width="1"/>
+          <rect x="90" y="224" width="12" height="12" fill="#ef5350" rx="1"/>
+
+          <line x1="126" y1="215" x2="126" y2="238" stroke="#26a69a" stroke-width="1"/>
+          <rect x="120" y="218" width="12" height="14" fill="#26a69a" rx="1"/>
+
+          <line x1="156" y1="205" x2="156" y2="228" stroke="#26a69a" stroke-width="1"/>
+          <rect x="150" y="208" width="12" height="16" fill="#26a69a" rx="1"/>
+
+          <line x1="186" y1="198" x2="186" y2="222" stroke="#ef5350" stroke-width="1"/>
+          <rect x="180" y="200" width="12" height="14" fill="#ef5350" rx="1"/>
+
+          <line x1="216" y1="190" x2="216" y2="215" stroke="#26a69a" stroke-width="1"/>
+          <rect x="210" y="193" width="12" height="16" fill="#26a69a" rx="1"/>
+
+          <line x1="246" y1="182" x2="246" y2="207" stroke="#26a69a" stroke-width="1"/>
+          <rect x="240" y="185" width="12" height="17" fill="#26a69a" rx="1"/>
+
+          <line x1="276" y1="174" x2="276" y2="200" stroke="#ef5350" stroke-width="1"/>
+          <rect x="270" y="176" width="12" height="14" fill="#ef5350" rx="1"/>
+
+          <line x1="306" y1="165" x2="306" y2="190" stroke="#26a69a" stroke-width="1"/>
+          <rect x="300" y="168" width="12" height="18" fill="#26a69a" rx="1"/>
+
+          <line x1="336" y1="155" x2="336" y2="180" stroke="#26a69a" stroke-width="1"/>
+          <rect x="330" y="158" width="12" height="18" fill="#26a69a" rx="1"/>
+
+          <line x1="366" y1="145" x2="366" y2="168" stroke="#ef5350" stroke-width="1"/>
+          <rect x="360" y="148" width="12" height="12" fill="#ef5350" rx="1"/>
+
+          <line x1="396" y1="138" x2="396" y2="162" stroke="#26a69a" stroke-width="1"/>
+          <rect x="390" y="140" width="12" height="18" fill="#26a69a" rx="1"/>
+
+          <line x1="426" y1="128" x2="426" y2="152" stroke="#26a69a" stroke-width="1"/>
+          <rect x="420" y="130" width="12" height="19" fill="#26a69a" rx="1"/>
+
+          <line x1="456" y1="118" x2="456" y2="143" stroke="#ef5350" stroke-width="1"/>
+          <rect x="450" y="120" width="12" height="16" fill="#ef5350" rx="1"/>
+
+          <line x1="486" y1="108" x2="486" y2="132" stroke="#26a69a" stroke-width="1"/>
+          <rect x="480" y="111" width="12" height="18" fill="#26a69a" rx="1"/>
+
+          <line x1="516" y1="98" x2="516" y2="124" stroke="#ef5350" stroke-width="1"/>
+          <rect x="510" y="100" width="12" height="16" fill="#ef5350" rx="1"/>
+
+          <line x1="546" y1="88" x2="546" y2="112" stroke="#26a69a" stroke-width="1"/>
+          <rect x="540" y="91" width="12" height="17" fill="#26a69a" rx="1"/>
+
+          <line x1="576" y1="78" x2="576" y2="104" stroke="#ef5350" stroke-width="1"/>
+          <rect x="570" y="80" width="12" height="16" fill="#ef5350" rx="1"/>
+
+          <line x1="606" y1="68" x2="606" y2="92" stroke="#26a69a" stroke-width="1"/>
+          <rect x="600" y="70" width="12" height="19" fill="#26a69a" rx="1"/>
+
+          <line x1="636" y1="60" x2="636" y2="82" stroke="#ef5350" stroke-width="1"/>
+          <rect x="630" y="62" width="12" height="14" fill="#ef5350" rx="1"/>
+
+          <line x1="666" y1="52" x2="666" y2="74" stroke="#26a69a" stroke-width="1"/>
+          <rect x="660" y="54" width="12" height="17" fill="#26a69a" rx="1"/>
+
+          <line x1="696" y1="55" x2="696" y2="78" stroke="#ef5350" stroke-width="1"/>
+          <rect x="690" y="58" width="12" height="14" fill="#ef5350" rx="1"/>
+
+          <line x1="726" y1="42" x2="726" y2="64" stroke="#26a69a" stroke-width="1"/>
+          <rect x="720" y="44" width="12" height="18" fill="#26a69a" rx="1"/>
+
+          <!-- Last candles - bearish (AAPL down today) -->
+          <line x1="756" y1="48" x2="756" y2="72" stroke="#ef5350" stroke-width="1.5"/>
+          <rect x="750" y="50" width="12" height="16" fill="#ef5350" rx="1"/>
+
+          <line x1="786" y1="52" x2="786" y2="76" stroke="#ef5350" stroke-width="1.5"/>
+          <rect x="780" y="54" width="12" height="16" fill="#ef5350" rx="1"/>
+
+          <line x1="816" y1="58" x2="816" y2="80" stroke="#ef5350" stroke-width="1.5"/>
+          <rect x="810" y="60" width="12" height="14" fill="#ef5350" rx="1"/>
+
+          <line x1="846" y1="60" x2="846" y2="84" stroke="#ef5350" stroke-width="2"/>
+          <rect x="840" y="62" width="12" height="16" fill="#ef5350" rx="1"/>
+        </g>
+
+        <!-- Moving averages -->
+        <polyline points="30,250 90,234 150,220 210,205 270,188 330,168 390,148 450,130 510,108 570,90 630,72 690,64 750,56 810,62 846,66" fill="none" stroke="#2962ff" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.7"/>
+        <polyline points="30,258 90,244 150,232 210,215 270,200 330,182 390,162 450,142 510,122 570,102 630,82 690,70 750,60 810,66 846,70" fill="none" stroke="#f7b731" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.6"/>
+
+        <!-- Current price line -->
+        <line x1="0" y1="66" x2="835" y2="66" stroke="#ef5350" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+
+        <!-- Legend -->
+        <rect x="12" y="12" width="200" height="28" fill="rgba(13,13,20,0.7)" rx="4"/>
+        <line x1="18" y1="26" x2="32" y2="26" stroke="#2962ff" stroke-width="1.5" stroke-dasharray="3,1"/>
+        <text x="36" y="30" fill="#8888a8" font-size="10" font-family="DM Mono, monospace">MA(20) 268.42</text>
+        <line x1="100" y1="26" x2="114" y2="26" stroke="#f7b731" stroke-width="1.5" stroke-dasharray="3,1"/>
+        <text x="118" y="30" fill="#8888a8" font-size="10" font-family="DM Mono, monospace">MA(50) 256.18</text>
+      </svg>
+
+      <!-- Price Axis -->
+      <div class="price-axis">
+        <div class="price-label">290</div>
+        <div class="price-label">280</div>
+        <div class="price-label">270</div>
+        <div class="price-label current">263.40</div>
+        <div class="price-label">255</div>
+        <div class="price-label">245</div>
+        <div class="price-label">235</div>
+      </div>
+    </div>
+
+    <!-- Time Axis -->
+    <div class="time-axis">
+      <div class="time-label">Feb 24</div>
+      <div class="time-label">Mar 3</div>
+      <div class="time-label">Mar 10</div>
+      <div class="time-label">Mar 17</div>
+      <div class="time-label">Mar 24</div>
+      <div class="time-label">Mar 31</div>
+      <div class="time-label">Apr 7</div>
+      <div class="time-label">Apr 14</div>
+      <div class="time-label">Apr 21</div>
+    </div>
+  </main>
+
+  <!-- Detail Panel -->
+  <aside class="detail-panel">
+    <div class="detail-header">
+      <div class="detail-ticker">AAPL · NASDAQ</div>
+      <div class="detail-name">Apple Inc</div>
+      <div class="detail-exchange">United States · Technology · USD</div>
+      <div class="detail-price">263.40</div>
+      <div class="detail-change">
+        <span class="detail-change-val loss">−3.03 (−1.14%)</span>
+        <span style="font-size:11px;color:var(--text-muted);">Today</span>
+      </div>
+    </div>
+
+    <div class="pre-market-bar">
+      <div class="pre-market-label">Pre-market</div>
+      <div class="pre-market-val">267.14 <span class="gain" style="font-size:12px;">+1.42%</span></div>
+    </div>
+
+    <div class="stats-grid" style="padding:0 14px;">
+      <div class="stat-item"><div class="stat-label">Volume</div><div class="stat-val">43.32 M</div></div>
+      <div class="stat-item"><div class="stat-label">Avg Vol (30D)</div><div class="stat-val">40.70 M</div></div>
+      <div class="stat-item"><div class="stat-label">Market Cap</div><div class="stat-val">3.87 T</div></div>
+      <div class="stat-item"><div class="stat-label">Next Earnings</div><div class="stat-val" style="color:var(--gold);">In 14 days</div></div>
+    </div>
+
+    <!-- News headline -->
+    <div style="margin:10px 14px;padding:10px;background:var(--bg-card2);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.5;color:var(--text-secondary);">
+      📱 Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.
+    </div>
+
+    <!-- Key Financials -->
+    <div class="detail-section">
+      <div class="detail-section-title">Key Statistics</div>
+      <div class="fin-row"><span class="fin-label">Dividend Yield (TTM)</span><span class="fin-val">0.39%</span></div>
+      <div class="fin-row"><span class="fin-label">Payout Ratio (TTM)</span><span class="fin-val">13.03%</span></div>
+      <div class="fin-row"><span class="fin-label">Last Dividend</span><span class="fin-val">0.26</span></div>
+      <div class="fin-row"><span class="fin-label">Ex-Dividend Date</span><span class="fin-val">Feb 9, 2026</span></div>
+      <div class="fin-row"><span class="fin-label">Analyst Rating</span><span class="fin-val" style="color:var(--text-secondary);">Neutral</span></div>
+      <div class="fin-row"><span class="fin-label">1Y Price Target</span><span class="fin-val gain">300.40 (+14.05%)</span></div>
+      <div class="fin-row"><span class="fin-label">Technicals</span><span class="fin-val" style="color:var(--text-secondary);">Neutral</span></div>
+    </div>
+
+    <!-- Performance -->
+    <div class="detail-section">
+      <div class="detail-section-title">Performance</div>
+      <div class="perf-bar"><span class="perf-label">1W</span><div class="perf-track"><div class="perf-fill" style="width:30%;background:var(--gain);"></div></div><span class="perf-val gain">+1.70%</span></div>
+      <div class="perf-bar"><span class="perf-label">1M</span><div class="perf-track"><div class="perf-fill" style="width:45%;background:var(--gain);"></div></div><span class="perf-val gain">+4.13%</span></div>
+      <div class="perf-bar"><span class="perf-label">1Y</span><div class="perf-track"><div class="perf-fill" style="width:80%;background:var(--gain);"></div></div><span class="perf-val gain">+32.79%</span></div>
+    </div>
+
+    <!-- Financials Tabs -->
+    <div class="detail-section">
+      <div class="detail-section-title">Financials</div>
+      <div class="financials-tabs">
+        <button class="tab active" onclick="setFinTab('annual',this)">Annual</button>
+        <button class="tab" onclick="setFinTab('quarterly',this)">Quarterly</button>
+      </div>
+      <div id="fin-annual" class="tab-content active">
+        <div class="fin-row"><span class="fin-label">Revenue</span><span class="fin-val">$391.0 B</span></div>
+        <div class="fin-row"><span class="fin-label">Gross Profit</span><span class="fin-val">$184.1 B</span></div>
+        <div class="fin-row"><span class="fin-label">Operating Income</span><span class="fin-val">$116.4 B</span></div>
+        <div class="fin-row"><span class="fin-label">Net Income</span><span class="fin-val">$93.7 B</span></div>
+        <div class="fin-row"><span class="fin-label">EPS</span><span class="fin-val">6.11</span></div>
+        <div class="fin-row"><span class="fin-label">P/E Ratio</span><span class="fin-val">43.1x</span></div>
+      </div>
+      <div id="fin-quarterly" class="tab-content">
+        <div class="fin-row"><span class="fin-label">Revenue (Q1)</span><span class="fin-val">$95.4 B</span></div>
+        <div class="fin-row"><span class="fin-label">Gross Profit</span><span class="fin-val">$44.9 B</span></div>
+        <div class="fin-row"><span class="fin-label">Operating Income</span><span class="fin-val">$27.1 B</span></div>
+        <div class="fin-row"><span class="fin-label">Net Income</span><span class="fin-val">$23.2 B</span></div>
+        <div class="fin-row"><span class="fin-label">EPS</span><span class="fin-val">1.53</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+function toggleAccordion(btn) {
+  btn.classList.toggle('open');
+  const body = btn.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+function setTimeframe(tf, btn) {
+  document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Visual feedback: slight opacity change on candles
+  const candles = document.getElementById('candles');
+  candles.style.opacity = '0.5';
+  setTimeout(() => { candles.style.transition = 'opacity 0.3s'; candles.style.opacity = '1'; }, 100);
+}
+
+function setFinTab(id, btn) {
+  document.querySelectorAll('#fin-annual, #fin-quarterly').forEach(el => el.classList.remove('active'));
+  btn.closest('.detail-section').querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('fin-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function selectSymbol(row, sym, name, price, chg, chgPct, dir) {
+  document.querySelectorAll('.watchlist-row').forEach(r => r.classList.remove('active'));
+  row.classList.add('active');
+  // Update symbol bar
+  document.querySelector('.symbol-name').textContent = sym;
+  document.querySelector('.detail-ticker').textContent = sym + ' · NASDAQ';
+  document.querySelector('.detail-name').textContent = name;
+  document.querySelector('.detail-price').textContent = price;
+  const cv = document.querySelector('.detail-change-val');
+  cv.textContent = chg + ' (' + chgPct + ')';
+  cv.className = 'detail-change-val ' + dir;
+}
+</script>
+</body>
+</html>

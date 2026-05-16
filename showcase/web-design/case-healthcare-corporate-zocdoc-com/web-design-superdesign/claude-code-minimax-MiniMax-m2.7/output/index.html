@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedBook — Find and Book Top Doctors Instantly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: '#1B1464',
+            'navy-dark': '#130F38',
+            yellow: '#FFD930',
+            'yellow-light': '#FFF0B3',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+    .animate-slide-down { animation: slideDown 0.3s ease-out forwards; }
+    .animate-delay-100 { animation-delay: 100ms; }
+    .animate-delay-200 { animation-delay: 200ms; }
+    .animate-delay-300 { animation-delay: 300ms; }
+    .animate-delay-400 { animation-delay: 400ms; }
+
+    /* Search bar glow */
+    .search-bar:focus-within {
+      box-shadow: 0 0 0 4px rgba(26, 20, 100, 0.1), 0 8px 32px rgba(26, 20, 100, 0.15);
+    }
+
+    /* Card hover effects */
+    .specialty-card {
+      transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+    }
+    .specialty-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(26, 20, 100, 0.12);
+    }
+
+    /* Button press */
+    .btn-press:active { transform: scale(0.97); }
+
+    /* Mobile menu */
+    .mobile-menu {
+      transition: transform 300ms ease-out, opacity 300ms ease-out;
+    }
+    .mobile-menu.hidden { transform: translateX(100%); opacity: 0; }
+    .mobile-menu.visible { transform: translateX(0); opacity: 1; }
+
+    /* Autocomplete dropdown */
+    .autocomplete-dropdown {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    /* Scroll animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Stats counter animation */
+    .stat-number {
+      background: linear-gradient(135deg, #1B1464 0%, #3D2DC4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="bg-white text-navy antialiased">
+
+  <!-- Header -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 lg:h-20">
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-2">
+          <div class="w-9 h-9 bg-navy rounded-xl flex items-center justify-center">
+            <i data-lucide="heart-pulse" class="w-5 h-5 text-yellow"></i>
+          </div>
+          <span class="text-xl font-bold text-navy">MedBook</span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden lg:flex items-center gap-8">
+          <a href="#specialties" class="text-sm font-medium text-gray-600 hover:text-navy transition-colors">Browse</a>
+          <a href="#" class="text-sm font-medium text-gray-600 hover:text-navy transition-colors">Help</a>
+          <a href="#" class="text-sm font-medium text-gray-600 hover:text-navy transition-colors">Reviews</a>
+          <a href="#" class="text-sm font-medium text-gray-600 hover:text-navy transition-colors">Insurance</a>
+        </nav>
+
+        <!-- Desktop Auth -->
+        <div class="hidden lg:flex items-center gap-3">
+          <a href="#" class="text-sm font-medium text-navy hover:text-navy-dark transition-colors px-4 py-2 rounded-lg hover:bg-gray-50">Log In</a>
+          <a href="#" class="text-sm font-semibold bg-navy text-white px-5 py-2.5 rounded-xl hover:bg-navy-dark transition-colors btn-press">Sign Up</a>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button id="mobileMenuBtn" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Open menu">
+          <i data-lucide="menu" class="w-6 h-6 text-navy"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Menu Drawer -->
+  <div id="mobileMenu" class="mobile-menu hidden fixed inset-0 z-50 lg:hidden">
+    <div class="absolute inset-0 bg-black/40" id="mobileMenuOverlay"></div>
+    <div class="absolute right-0 top-0 bottom-0 w-72 bg-white shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-8">
+        <span class="text-xl font-bold text-navy">Menu</span>
+        <button id="mobileMenuClose" class="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Close menu">
+          <i data-lucide="x" class="w-6 h-6 text-gray-600"></i>
+        </button>
+      </div>
+      <nav class="flex flex-col gap-2">
+        <a href="#specialties" class="text-base font-medium text-gray-700 hover:text-navy hover:bg-gray-50 px-4 py-3 rounded-xl transition-colors">Browse Specialties</a>
+        <a href="#" class="text-base font-medium text-gray-700 hover:text-navy hover:bg-gray-50 px-4 py-3 rounded-xl transition-colors">Help Center</a>
+        <a href="#" class="text-base font-medium text-gray-700 hover:text-navy hover:bg-gray-50 px-4 py-3 rounded-xl transition-colors">Reviews</a>
+        <a href="#" class="text-base font-medium text-gray-700 hover:text-navy hover:bg-gray-50 px-4 py-3 rounded-xl transition-colors">Insurance Guide</a>
+      </nav>
+      <div class="mt-8 pt-8 border-t border-gray-100 flex flex-col gap-3">
+        <a href="#" class="text-base font-medium text-navy text-center px-4 py-3 rounded-xl border-2 border-navy hover:bg-navy hover:text-white transition-colors">Log In</a>
+        <a href="#" class="text-base font-semibold bg-navy text-white text-center px-4 py-3 rounded-xl hover:bg-navy-dark transition-colors btn-press">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="relative pt-24 lg:pt-32 pb-16 lg:pb-24 overflow-hidden">
+      <!-- Background decoration -->
+      <div class="absolute inset-0 -z-10">
+        <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+        <div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-navy/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4"></div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-10 lg:mb-14 animate-fade-in-up">
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-navy leading-tight mb-6">
+            Find and book the care you need
+          </h1>
+          <p class="text-lg sm:text-xl text-gray-600 leading-relaxed">
+            Search thousands of doctors, dentists, and specialists. Read verified patient reviews. Book appointments instantly — even same-day. It's that easy, and always free.
+          </p>
+        </div>
+
+        <!-- Search Bar - Hero Experience -->
+        <div class="max-w-4xl mx-auto animate-fade-in-up animate-delay-200">
+          <form id="searchForm" class="search-bar bg-white rounded-2xl shadow-xl p-3 lg:p-4 transition-all duration-200">
+            <div class="flex flex-col lg:flex-row gap-3">
+              <!-- Specialty Field -->
+              <div class="relative flex-1">
+                <div class="flex items-center gap-3 px-4 py-3 lg:py-4 bg-gray-50 rounded-xl border-2 border-transparent focus-within:border-navy/20 transition-colors">
+                  <i data-lucide="stethoscope" class="w-5 h-5 text-gray-400 flex-shrink-0"></i>
+                  <input
+                    type="text"
+                    id="specialtyInput"
+                    placeholder="Condition, specialty, or doctor name"
+                    class="flex-1 bg-transparent text-navy placeholder-gray-400 outline-none text-base"
+                    autocomplete="off"
+                  >
+                  <!-- Autocomplete Dropdown -->
+                  <div id="autocompleteDropdown" class="autocomplete-dropdown hidden absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-100 overflow-hidden z-20">
+                    <div class="p-2">
+                      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 py-2">Popular Searches</div>
+                      <button type="button" class="autocomplete-item w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 text-navy text-sm font-medium flex items-center gap-3 transition-colors">
+                        <i data-lucide="user" class="w-4 h-4 text-gray-400"></i> Primary Care
+                      </button>
+                      <button type="button" class="autocomplete-item w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 text-navy text-sm font-medium flex items-center gap-3 transition-colors">
+                        <i data-lucide="smile" class="w-4 h-4 text-gray-400"></i> Dentist
+                      </button>
+                      <button type="button" class="autocomplete-item w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 text-navy text-sm font-medium flex items-center gap-3 transition-colors">
+                        <i data-lucide="eye" class="w-4 h-4 text-gray-400"></i> Eye Doctor
+                      </button>
+                      <button type="button" class="autocomplete-item w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 text-navy text-sm font-medium flex items-center gap-3 transition-colors">
+                        <i data-lucide="brain" class="w-4 h-4 text-gray-400"></i> Psychiatrist
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Location Field -->
+              <div class="relative lg:w-56">
+                <div class="flex items-center gap-3 px-4 py-3 lg:py-4 bg-gray-50 rounded-xl border-2 border-transparent focus-within:border-navy/20 transition-colors">
+                  <i data-lucide="map-pin" class="w-5 h-5 text-gray-400 flex-shrink-0"></i>
+                  <input
+                    type="text"
+                    placeholder="City, state, or zip"
+                    class="flex-1 bg-transparent text-navy placeholder-gray-400 outline-none text-base"
+                  >
+                  <button type="button" class="p-1.5 rounded-lg hover:bg-gray-200 transition-colors" title="Use my location">
+                    <i data-lucide="navigation" class="w-4 h-4 text-gray-500"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Insurance Field -->
+              <div class="relative lg:w-52">
+                <div class="flex items-center gap-3 px-4 py-3 lg:py-4 bg-gray-50 rounded-xl border-2 border-transparent focus-within:border-navy/20 transition-colors">
+                  <i data-lucide="shield-check" class="w-5 h-5 text-gray-400 flex-shrink-0"></i>
+                  <select class="flex-1 bg-transparent text-navy outline-none text-base cursor-pointer appearance-none">
+                    <option value="">Insurance</option>
+                    <option value="aetna">Aetna</option>
+                    <option value="bcbs">Blue Cross</option>
+                    <option value="cigna">Cigna</option>
+                    <option value="united">UnitedHealthcare</option>
+                    <option value="humana">Humana</option>
+                    <option value="kaiser">Kaiser</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 flex-shrink-0"></i>
+                </div>
+              </div>
+
+              <!-- Search Button -->
+              <button type="submit" class="lg:w-auto px-8 py-4 bg-navy text-white font-semibold rounded-xl hover:bg-navy-dark transition-colors btn-press flex items-center justify-center gap-2 shadow-lg shadow-navy/25">
+                <i data-lucide="search" class="w-5 h-5"></i>
+                <span class="hidden sm:inline">Search</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="flex flex-wrap justify-center gap-3 mt-6 animate-fade-in-up animate-delay-300">
+          <span class="text-sm text-gray-500">Popular:</span>
+          <a href="#" class="text-sm font-medium text-navy hover:text-navy-dark hover:underline">Primary Care</a>
+          <span class="text-gray-300">•</span>
+          <a href="#" class="text-sm font-medium text-navy hover:text-navy-dark hover:underline">Dentist</a>
+          <span class="text-gray-300">•</span>
+          <a href="#" class="text-sm font-medium text-navy hover:text-navy-dark hover:underline">Dermatologist</a>
+          <span class="text-gray-300">•</span>
+          <a href="#" class="text-sm font-medium text-navy hover:text-navy-dark hover:underline">Eye Doctor</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Platform Stats -->
+    <section class="py-12 lg:py-16 bg-navy">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+          <div class="text-center reveal">
+            <div class="text-3xl lg:text-5xl font-extrabold text-yellow mb-2">4.8M+</div>
+            <div class="text-sm lg:text-base text-white/80">Verified patient reviews</div>
+          </div>
+          <div class="text-center reveal">
+            <div class="text-3xl lg:text-5xl font-extrabold text-yellow mb-2">12,000+</div>
+            <div class="text-sm lg:text-base text-white/80">Healthcare providers nationwide</div>
+          </div>
+          <div class="text-center reveal">
+            <div class="text-3xl lg:text-5xl font-extrabold text-yellow mb-2">Same-day</div>
+            <div class="text-sm lg:text-base text-white/80">Appointments available daily</div>
+          </div>
+          <div class="text-center reveal">
+            <div class="text-3xl lg:text-5xl font-extrabold text-yellow mb-2">100%</div>
+            <div class="text-sm lg:text-base text-white/80">Free for patients — always</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Specialties Section -->
+    <section id="specialties" class="py-16 lg:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 reveal">
+          <h2 class="text-3xl lg:text-4xl font-bold text-navy mb-4">Popular Specialties</h2>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">Find the right provider for your needs. Browse by specialty to discover trusted doctors near you.</p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          <!-- Primary Care -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="user-check" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Primary Care</h3>
+            <p class="text-sm text-gray-500">Annual checkups, sick visits, and preventive care</p>
+          </a>
+
+          <!-- Dentist -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="smile" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Dentist</h3>
+            <p class="text-sm text-gray-500">Cleanings, fillings, and oral health exams</p>
+          </a>
+
+          <!-- Dermatologist -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="sparkles" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Dermatologist</h3>
+            <p class="text-sm text-gray-500">Skin conditions, acne, and cosmetic consultations</p>
+          </a>
+
+          <!-- Psychiatrist -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="brain" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Psychiatrist</h3>
+            <p class="text-sm text-gray-500">Mental health evaluations and medication management</p>
+          </a>
+
+          <!-- Eye Doctor -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="eye" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Eye Doctor</h3>
+            <p class="text-sm text-gray-500">Vision exams, glasses prescriptions, and eye health</p>
+          </a>
+
+          <!-- Orthopedic Surgeon -->
+          <a href="#" class="specialty-card bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm hover:shadow-lg reveal">
+            <div class="w-14 h-14 bg-navy/10 rounded-2xl flex items-center justify-center mb-4">
+              <i data-lucide="activity" class="w-7 h-7 text-navy"></i>
+            </div>
+            <h3 class="text-lg font-bold text-navy mb-2">Orthopedic Surgeon</h3>
+            <p class="text-sm text-gray-500">Joint pain, fractures, and sports injuries</p>
+          </a>
+        </div>
+
+        <div class="text-center mt-10 reveal">
+          <a href="#" class="inline-flex items-center gap-2 text-navy font-semibold hover:text-navy-dark transition-colors">
+            Browse all specialties
+            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-16 lg:py-24 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16 reveal">
+          <h2 class="text-3xl lg:text-4xl font-bold text-navy mb-4">How It Works</h2>
+          <p class="text-lg text-gray-600 max-w-2xl mx-auto">Book your appointment in three easy steps</p>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-8 lg:gap-12">
+          <!-- Step 1 -->
+          <div class="relative reveal">
+            <div class="flex flex-col items-center text-center">
+              <div class="w-20 h-20 bg-yellow rounded-full flex items-center justify-center mb-6 relative">
+                <i data-lucide="search" class="w-9 h-9 text-navy"></i>
+                <span class="absolute -top-2 -right-2 w-8 h-8 bg-navy text-yellow text-sm font-bold rounded-full flex items-center justify-center">1</span>
+              </div>
+              <h3 class="text-xl font-bold text-navy mb-3">Search for a provider</h3>
+              <p class="text-gray-600 leading-relaxed">Enter your specialty, condition, or doctor name along with your location and insurance. Browse detailed provider profiles with photos, credentials, and office hours.</p>
+            </div>
+            <!-- Connector line (desktop) -->
+            <div class="hidden lg:block absolute top-10 left-[60%] right-0 h-0.5 bg-gradient-to-r from-yellow to-transparent"></div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative reveal">
+            <div class="flex flex-col items-center text-center">
+              <div class="w-20 h-20 bg-yellow rounded-full flex items-center justify-center mb-6 relative">
+                <i data-lucide="calendar" class="w-9 h-9 text-navy"></i>
+                <span class="absolute -top-2 -right-2 w-8 h-8 bg-navy text-yellow text-sm font-bold rounded-full flex items-center justify-center">2</span>
+              </div>
+              <h3 class="text-xl font-bold text-navy mb-3">Choose a time that works</h3>
+              <p class="text-gray-600 leading-relaxed">View real-time availability and pick an appointment slot that fits your schedule — including same-day and next-day options.</p>
+            </div>
+            <!-- Connector line (desktop) -->
+            <div class="hidden lg:block absolute top-10 left-[60%] right-0 h-0.5 bg-gradient-to-r from-yellow to-transparent"></div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="reveal">
+            <div class="flex flex-col items-center text-center">
+              <div class="w-20 h-20 bg-yellow rounded-full flex items-center justify-center mb-6 relative">
+                <i data-lucide="check-circle" class="w-9 h-9 text-navy"></i>
+                <span class="absolute -top-2 -right-2 w-8 h-8 bg-navy text-yellow text-sm font-bold rounded-full flex items-center justify-center">3</span>
+              </div>
+              <h3 class="text-xl font-bold text-navy mb-3">Book instantly</h3>
+              <p class="text-gray-600 leading-relaxed">Confirm your visit in just a few clicks. Receive instant confirmation and reminders so you never miss an appointment.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="py-16 lg:py-24">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 reveal">
+          <h2 class="text-3xl lg:text-4xl font-bold text-navy mb-4">What Patients Say</h2>
+          <p class="text-lg text-gray-600">Real stories from real patients who found care through MedBook</p>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-6 lg:gap-8">
+          <!-- Testimonial 1 -->
+          <div class="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm reveal">
+            <div class="flex gap-1 mb-4">
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+            </div>
+            <p class="text-gray-700 leading-relaxed mb-6">"I found a great dermatologist near my office and booked a same-day appointment during my lunch break. MedBook made it incredibly easy."</p>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 bg-navy/10 rounded-full flex items-center justify-center">
+                <span class="text-navy font-bold">PM</span>
+              </div>
+              <div>
+                <div class="font-semibold text-navy">Priya M.</div>
+                <div class="text-sm text-gray-500">New York, NY</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonial 2 -->
+          <div class="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm reveal">
+            <div class="flex gap-1 mb-4">
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+            </div>
+            <p class="text-gray-700 leading-relaxed mb-6">"As someone new to the city, MedBook helped me find a primary care doctor who accepts my insurance in under five minutes. Highly recommend!"</p>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 bg-navy/10 rounded-full flex items-center justify-center">
+                <span class="text-navy font-bold">JT</span>
+              </div>
+              <div>
+                <div class="font-semibold text-navy">James T.</div>
+                <div class="text-sm text-gray-500">Chicago, IL</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonial 3 -->
+          <div class="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm reveal">
+            <div class="flex gap-1 mb-4">
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+              <i data-lucide="star" class="w-5 h-5 text-yellow fill-yellow"></i>
+            </div>
+            <p class="text-gray-700 leading-relaxed mb-6">"I was dreading finding a new dentist, but the verified reviews on MedBook gave me confidence. My appointment was exactly what I needed."</p>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 bg-navy/10 rounded-full flex items-center justify-center">
+                <span class="text-navy font-bold">LK</span>
+              </div>
+              <div>
+                <div class="font-semibold text-navy">Laura K.</div>
+                <div class="text-sm text-gray-500">Austin, TX</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mobile App Promo -->
+    <section class="py-16 lg:py-24 bg-navy overflow-hidden relative">
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 right-0 w-96 h-96 bg-yellow rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
+        <div class="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 translate-y-1/2"></div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div class="reveal">
+            <h2 class="text-3xl lg:text-4xl font-bold text-white mb-6">Your health, in your pocket</h2>
+            <p class="text-lg text-white/80 leading-relaxed mb-8">Download the MedBook app to search for doctors, manage appointments, and get reminders — all on the go. Available on iOS and Android.</p>
+
+            <div class="space-y-4 mb-8">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow/20 rounded-lg flex items-center justify-center">
+                  <i data-lucide="calendar-check" class="w-4 h-4 text-yellow"></i>
+                </div>
+                <span class="text-white/90">Book and manage appointments anywhere</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow/20 rounded-lg flex items-center justify-center">
+                  <i data-lucide="bell" class="w-4 h-4 text-yellow"></i>
+                </div>
+                <span class="text-white/90">Get real-time appointment reminders</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow/20 rounded-lg flex items-center justify-center">
+                  <i data-lucide="file-text" class="w-4 h-4 text-yellow"></i>
+                </div>
+                <span class="text-white/90">Access your visit history and provider details</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow/20 rounded-lg flex items-center justify-center">
+                  <i data-lucide="message-square" class="w-4 h-4 text-yellow"></i>
+                </div>
+                <span class="text-white/90">Read and leave verified reviews</span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-4">
+              <a href="#" class="inline-flex items-center gap-3 bg-white text-navy px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors btn-press">
+                <i data-lucide="apple" class="w-6 h-6"></i>
+                <div class="text-left">
+                  <div class="text-xs opacity-70">Download on the</div>
+                  <div>App Store</div>
+                </div>
+              </a>
+              <a href="#" class="inline-flex items-center gap-3 bg-white text-navy px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition-colors btn-press">
+                <i data-lucide="play" class="w-6 h-6"></i>
+                <div class="text-left">
+                  <div class="text-xs opacity-70">Get it on</div>
+                  <div>Google Play</div>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <div class="hidden lg:flex justify-center reveal">
+            <div class="relative">
+              <!-- Phone mockup -->
+              <div class="w-64 h-[500px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
+                <div class="w-full h-full bg-white rounded-[2.5rem] overflow-hidden relative">
+                  <!-- Notch -->
+                  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-900 rounded-b-2xl"></div>
+                  <!-- Screen content -->
+                  <div class="h-full flex flex-col p-6 pt-10">
+                    <div class="text-center mb-6">
+                      <div class="w-12 h-12 bg-navy rounded-2xl flex items-center justify-center mx-auto mb-2">
+                        <i data-lucide="heart-pulse" class="w-6 h-6 text-yellow"></i>
+                      </div>
+                      <div class="font-bold text-navy">MedBook</div>
+                    </div>
+                    <div class="flex-1 space-y-3">
+                      <div class="bg-gray-100 rounded-xl p-3 text-sm">
+                        <div class="font-semibold text-navy">Upcoming Appointment</div>
+                        <div class="text-gray-600 text-xs mt-1">Dr. Sarah Chen — Dermatologist</div>
+                        <div class="text-gray-500 text-xs">Today at 2:30 PM</div>
+                      </div>
+                      <div class="bg-gray-100 rounded-xl p-3 text-sm">
+                        <div class="font-semibold text-navy">Past Visits</div>
+                        <div class="text-gray-600 text-xs mt-1">Dr. Michael Park — Primary Care</div>
+                        <div class="text-gray-500 text-xs">March 15, 2024</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Decorative elements -->
+              <div class="absolute -top-8 -right-8 w-20 h-20 bg-yellow/30 rounded-full blur-xl"></div>
+              <div class="absolute -bottom-8 -left-8 w-24 h-24 bg-yellow/20 rounded-full blur-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-navy-dark py-12 lg:py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 mb-12">
+        <!-- Brand -->
+        <div class="col-span-2 lg:col-span-1">
+          <a href="#" class="flex items-center gap-2 mb-4">
+            <div class="w-9 h-9 bg-navy rounded-xl flex items-center justify-center">
+              <i data-lucide="heart-pulse" class="w-5 h-5 text-yellow"></i>
+            </div>
+            <span class="text-xl font-bold text-white">MedBook</span>
+          </a>
+          <p class="text-sm text-white/60 leading-relaxed">Free for patients. Always.</p>
+        </div>
+
+        <!-- For Patients -->
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">For Patients</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Find a Doctor</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Browse Specialties</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Read Reviews</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Insurance Guide</a></li>
+          </ul>
+        </div>
+
+        <!-- For Providers -->
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">For Providers</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">List Your Practice</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Provider Resources</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Advertise with Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Company -->
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Company</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">About MedBook</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Careers</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Press</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Blog</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Legal -->
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Legal</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Terms of Service</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Privacy Policy</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Accessibility</a></li>
+            <li><a href="#" class="text-sm text-white/60 hover:text-white transition-colors">Do Not Sell My Info</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <p class="text-sm text-white/60">© 2024 MedBook, Inc. All rights reserved. MedBook is free for patients. Always.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors" aria-label="Twitter">
+            <i data-lucide="twitter" class="w-5 h-5 text-white"></i>
+          </a>
+          <a href="#" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors" aria-label="Facebook">
+            <i data-lucide="facebook" class="w-5 h-5 text-white"></i>
+          </a>
+          <a href="#" class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors" aria-label="Instagram">
+            <i data-lucide="instagram" class="w-5 h-5 text-white"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Mobile menu toggle
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const mobileMenuClose = document.getElementById('mobileMenuClose');
+    const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+
+    function openMobileMenu() {
+      mobileMenu.classList.remove('hidden');
+      requestAnimationFrame(() => {
+        mobileMenu.classList.add('visible');
+      });
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileMenu() {
+      mobileMenu.classList.remove('visible');
+      setTimeout(() => {
+        mobileMenu.classList.add('hidden');
+      }, 300);
+      document.body.style.overflow = '';
+    }
+
+    mobileMenuBtn.addEventListener('click', openMobileMenu);
+    mobileMenuClose.addEventListener('click', closeMobileMenu);
+    mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+
+    // Close mobile menu on link click
+    mobileMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', closeMobileMenu);
+    });
+
+    // Search autocomplete
+    const specialtyInput = document.getElementById('specialtyInput');
+    const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+    const autocompleteItems = document.querySelectorAll('.autocomplete-item');
+
+    specialtyInput.addEventListener('focus', () => {
+      autocompleteDropdown.classList.remove('hidden');
+    });
+
+    specialtyInput.addEventListener('blur', () => {
+      // Delay to allow click on dropdown items
+      setTimeout(() => {
+        autocompleteDropdown.classList.add('hidden');
+      }, 200);
+    });
+
+    specialtyInput.addEventListener('input', (e) => {
+      const value = e.target.value.toLowerCase();
+      autocompleteDropdown.classList.toggle('hidden', !value);
+    });
+
+    autocompleteItems.forEach(item => {
+      item.addEventListener('click', () => {
+        specialtyInput.value = item.textContent.trim();
+        autocompleteDropdown.classList.add('hidden');
+      });
+    });
+
+    // Search form submission
+    const searchForm = document.getElementById('searchForm');
+    searchForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const specialty = specialtyInput.value;
+      // In a real app, this would navigate to search results
+      if (specialty) {
+        alert(`Searching for: ${specialty}`);
+      }
+    });
+
+    // Scroll reveal animation
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.reveal').forEach(el => {
+      revealObserver.observe(el);
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href !== '#') {
+          e.preventDefault();
+          const target = document.querySelector(href);
+          if (target) {
+            target.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

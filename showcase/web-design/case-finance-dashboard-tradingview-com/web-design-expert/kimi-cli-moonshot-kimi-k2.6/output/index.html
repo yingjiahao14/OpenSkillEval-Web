@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChartPulse — Track All Markets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .hero { padding: var(--space-16) 0; text-align: center; background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%); }
+  .hero h1 { font-size: var(--text-4xl); font-weight: 700; line-height: 1.15; margin-bottom: var(--space-4); max-width: 800px; margin-inline: auto; }
+  .hero p { font-size: var(--text-lg); color: var(--color-text-secondary); max-width: 640px; margin-inline: auto; margin-bottom: var(--space-8); }
+  .hero-actions { display: flex; gap: var(--space-4); justify-content: center; flex-wrap: wrap; }
+  .hero-actions .btn { padding: var(--space-3) var(--space-6); font-size: var(--text-base); }
+
+  .market-bar { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); padding: var(--space-3) 0; overflow-x: auto; }
+  .market-bar-inner { display: flex; gap: var(--space-6); min-width: max-content; }
+  .market-item { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
+  .market-item .name { font-weight: 600; color: var(--color-text-secondary); }
+  .market-item .price { font-family: var(--font-mono); font-weight: 500; }
+  .market-item .change { font-family: var(--font-mono); font-weight: 600; }
+
+  .section { padding: var(--space-12) 0; }
+  .section-alt { background: var(--color-bg-secondary); }
+
+  .market-tabs-content { margin-top: var(--space-6); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+  .market-card { padding: var(--space-5); }
+  .market-card .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+  .market-card .card-title { font-weight: 600; font-size: var(--text-base); }
+  .market-card .card-price { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 700; margin-bottom: var(--space-2); }
+  .market-card .card-meta { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); }
+
+  .idea-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4); }
+  .idea-card { padding: var(--space-5); }
+  .idea-card .author { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .idea-card .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--color-accent); display: grid; place-items: center; font-weight: 700; font-size: var(--text-sm); color: var(--color-text-inverse); }
+  .idea-card .author-name { font-weight: 600; font-size: var(--text-sm); }
+  .idea-card .author-handle { font-size: var(--text-xs); color: var(--color-text-muted); }
+  .idea-card .idea-title { font-weight: 600; margin-bottom: var(--space-2); line-height: 1.4; }
+  .idea-card .idea-tags { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4); }
+  .idea-card .tag { padding: 2px var(--space-2); background: var(--color-bg-tertiary); border-radius: var(--radius-sm); font-size: var(--text-xs); color: var(--color-text-muted); }
+  .idea-card .idea-stats { display: flex; gap: var(--space-4); margin-top: var(--space-4); font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .indicator-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); }
+  .indicator-card { padding: var(--space-5); }
+  .indicator-card .ind-title { font-weight: 600; margin-bottom: var(--space-2); }
+  .indicator-card .ind-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-4); }
+  .indicator-card .ind-meta { display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .story-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-4); }
+  .story-card { padding: var(--space-5); }
+  .story-card .story-source { font-size: var(--text-xs); color: var(--color-accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-2); }
+  .story-card .story-title { font-weight: 600; margin-bottom: var(--space-3); line-height: 1.4; }
+  .story-card .story-excerpt { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.6; }
+  .story-card .story-time { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-3); }
+
+  .trending-table { width: 100%; }
+  .trending-table th, .trending-table td { padding: var(--space-3) var(--space-4); text-align: left; font-size: var(--text-sm); border-bottom: 1px solid var(--color-border); }
+  .trending-table th { color: var(--color-text-muted); font-weight: 600; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; background: var(--color-bg-tertiary); }
+  .trending-table .ticker { font-weight: 700; }
+  .trending-table .company { color: var(--color-text-secondary); }
+  .trending-table .price { font-family: var(--font-mono); text-align: right; }
+  .trending-table .change { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+
+  .trade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+  .trade-card { padding: var(--space-5); text-align: center; }
+  .trade-card .trade-icon { width: 48px; height: 48px; border-radius: var(--radius-lg); background: var(--color-bg-elevated); display: grid; place-items: center; margin: 0 auto var(--space-4); font-size: var(--text-xl); }
+  .trade-card .trade-title { font-weight: 600; margin-bottom: var(--space-2); }
+  .trade-card .trade-desc { font-size: var(--text-sm); color: var(--color-text-secondary); }
+
+  .footer { background: var(--color-bg-secondary); border-top: 1px solid var(--color-border); padding: var(--space-12) 0 var(--space-8); }
+  .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-8); }
+  .footer-col h4 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-4); color: var(--color-text-primary); }
+  .footer-col a { display: block; font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-2); transition: color var(--transition-fast); }
+  .footer-col a:hover { color: var(--color-text-primary); }
+  .footer-bottom { margin-top: var(--space-10); padding-top: var(--space-6); border-top: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+  .footer-brand { font-weight: 700; font-size: var(--text-lg); }
+  .footer-copy { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+  .top-nav { background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; z-index: 50; }
+  .top-nav-inner { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .top-nav .logo { font-weight: 700; font-size: var(--text-lg); display: flex; align-items: center; gap: var(--space-2); }
+  .top-nav .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); }
+  .top-nav-links { display: flex; gap: var(--space-1); }
+  .top-nav-links a { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); font-weight: 500; color: var(--color-text-muted); border-radius: var(--radius-sm); transition: all var(--transition-fast); }
+  .top-nav-links a:hover, .top-nav-links a.active { color: var(--color-text-primary); background: var(--color-bg-elevated); }
+  .top-nav-actions { display: flex; gap: var(--space-3); align-items: center; }
+
+  .sub-nav { background: var(--color-bg-tertiary); border-bottom: 1px solid var(--color-border); }
+  .sub-nav-inner { display: flex; gap: var(--space-1); height: 40px; align-items: center; overflow-x: auto; }
+  .sub-nav a { padding: var(--space-1) var(--space-3); font-size: var(--text-sm); color: var(--color-text-muted); border-radius: var(--radius-sm); white-space: nowrap; transition: all var(--transition-fast); }
+  .sub-nav a:hover, .sub-nav a.active { color: var(--color-text-primary); background: var(--color-bg-elevated); }
+</style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<nav class="top-nav">
+  <div class="container top-nav-inner">
+    <a href="index.html" class="logo"><span class="logo-dot"></span>ChartPulse</a>
+    <div class="top-nav-links hide-md">
+      <a href="index.html" class="active">Home</a>
+      <a href="chart.html">Products</a>
+      <a href="ideas.html">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="top-nav-actions">
+      <button class="btn btn-ghost hide-sm">Sign in</button>
+      <button class="btn btn-primary">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Sub Navigation -->
+<div class="sub-nav hide-md">
+  <div class="container sub-nav-inner">
+    <a href="#markets">Markets</a>
+    <a href="#community">Community</a>
+    <a href="#indicators">Indicators</a>
+    <a href="#news">News</a>
+    <a href="#trending">Trending</a>
+  </div>
+</div>
+
+<!-- Market Summary Bar -->
+<div class="market-bar">
+  <div class="container market-bar-inner">
+    <div class="market-item"><span class="name">S&amp;P 500</span><span class="price">7,041.29</span><span class="change text-positive">+0.26%</span></div>
+    <div class="market-item"><span class="name">Nasdaq 100</span><span class="price">26,333.00</span><span class="change text-positive">+0.49%</span></div>
+    <div class="market-item"><span class="name">Japan 225</span><span class="price">58,475.90</span><span class="change text-negative">−1.75%</span></div>
+    <div class="market-item"><span class="name">SSE Comp</span><span class="price">4,051.43</span><span class="change text-negative">−0.10%</span></div>
+    <div class="market-item"><span class="name">FTSE 100</span><span class="price">10,562.63</span><span class="change text-negative">−0.26%</span></div>
+    <div class="market-item"><span class="name">DAX</span><span class="price">24,269.50</span><span class="change text-positive">+0.48%</span></div>
+  </div>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1>The best trades require research, then commitment.</h1>
+    <p>Where the world charts, chats, and trades markets. A supercharged super-charting platform and social network for traders and investors.</p>
+    <div class="hero-actions">
+      <a href="chart.html" class="btn btn-primary">Get started for free</a>
+      <a href="#features" class="btn btn-secondary">Explore features</a>
+    </div>
+  </div>
+</section>
+
+<!-- Market Summary Tabs -->
+<section class="section" id="markets">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Market Summary</h2>
+      <div class="tabs" id="marketTabs">
+        <button class="tab active" data-tab="us">US Stocks</button>
+        <button class="tab" data-tab="crypto">Crypto</button>
+        <button class="tab" data-tab="futures">Futures</button>
+        <button class="tab" data-tab="forex">Forex</button>
+        <button class="tab" data-tab="economy">Economy</button>
+      </div>
+    </div>
+    <div class="market-tabs-content">
+      <!-- US Stocks -->
+      <div class="tab-panel active" id="panel-us">
+        <div class="market-grid">
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">S&amp;P 500</span><span class="badge badge-positive">+0.26%</span></div>
+            <div class="card-price">7,041.29</div>
+            <div class="card-meta"><span>USD</span><span>SPX</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Nasdaq 100</span><span class="badge badge-positive">+0.49%</span></div>
+            <div class="card-price">26,333.00</div>
+            <div class="card-meta"><span>USD</span><span>NDX</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Dow 30</span><span class="badge badge-positive">+0.24%</span></div>
+            <div class="card-price">48,578.73</div>
+            <div class="card-meta"><span>USD</span><span>DJI</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">US 2000 Small Cap</span><span class="badge badge-positive">+0.41%</span></div>
+            <div class="card-price">2,735.73</div>
+            <div class="card-meta"><span>USD</span><span>RUT</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Crypto -->
+      <div class="tab-panel" id="panel-crypto">
+        <div class="market-grid">
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Crypto Market Cap</span><span class="badge badge-positive">+1.37%</span></div>
+            <div class="card-price">2.54 T USD</div>
+            <div class="card-meta"><span>Global</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Bitcoin</span><span class="badge badge-positive">+0.55%</span></div>
+            <div class="card-price">75,593</div>
+            <div class="card-meta"><span>USD</span><span>BTCUSD</span><span>Dominance 59.61%</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Ethereum</span><span class="badge badge-positive">+0.28%</span></div>
+            <div class="card-price">2,355.7</div>
+            <div class="card-meta"><span>USD</span><span>ETHUSD</span><span>Share 11.20%</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Futures -->
+      <div class="tab-panel" id="panel-futures">
+        <div class="market-grid">
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Light Crude Oil</span><span class="badge badge-negative">−7.36%</span></div>
+            <div class="card-price">87.72</div>
+            <div class="card-meta"><span>USD/barrel</span><span>CL1!</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Natural Gas</span><span class="badge badge-positive">+1.70%</span></div>
+            <div class="card-price">2.692</div>
+            <div class="card-meta"><span>USD/mmBTU</span><span>NG1!</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Gold</span><span class="badge badge-positive">+0.21%</span></div>
+            <div class="card-price">4,818.6</div>
+            <div class="card-meta"><span>USD/troy oz</span><span>GC1!</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Silver</span><span class="badge badge-positive">+1.19%</span></div>
+            <div class="card-price">79.645</div>
+            <div class="card-meta"><span>USD/troy oz</span><span>SI1!</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">Copper</span><span class="badge badge-negative">−0.55%</span></div>
+            <div class="card-price">6.0430</div>
+            <div class="card-meta"><span>USD/lb</span><span>HG1!</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Forex -->
+      <div class="tab-panel" id="panel-forex">
+        <div class="market-grid">
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">EUR to USD</span><span class="badge badge-positive">+0.13%</span></div>
+            <div class="card-price">1.17932</div>
+            <div class="card-meta"><span>Major pair</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">GBP to USD</span><span class="badge badge-positive">+0.06%</span></div>
+            <div class="card-price">1.3529</div>
+            <div class="card-meta"><span>Major pair</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">USD to JPY</span><span class="badge badge-positive">+0.06%</span></div>
+            <div class="card-price">159.210</div>
+            <div class="card-meta"><span>Major pair</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">USD to CHF</span><span class="badge badge-negative">−0.05%</span></div>
+            <div class="card-price">0.78260</div>
+            <div class="card-meta"><span>Major pair</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">AUD to USD</span><span class="badge badge-positive">+0.19%</span></div>
+            <div class="card-price">0.71718</div>
+            <div class="card-meta"><span>Major pair</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- Economy -->
+      <div class="tab-panel" id="panel-economy">
+        <div class="market-grid">
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">US 10Y Yield</span><span class="badge badge-neutral">4.295%</span></div>
+            <div class="card-price">98.645%</div>
+            <div class="card-meta"><span>Government Bond</span><span>US10Y</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">US 2Y Yield</span><span class="badge badge-neutral">3.767%</span></div>
+            <div class="card-price">100.199%</div>
+            <div class="card-meta"><span>Government Bond</span><span>US02Y</span></div>
+          </div>
+          <div class="card market-card">
+            <div class="card-header"><span class="card-title">US 30Y Yield</span><span class="badge badge-neutral">4.919%</span></div>
+            <div class="card-price">97.363%</div>
+            <div class="card-meta"><span>Government Bond</span><span>US30Y</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Community Ideas -->
+<section class="section section-alt" id="community">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Community Ideas</h2>
+      <div class="tabs" id="ideasTabs">
+        <button class="tab active" data-tab="editors">Editor's Picks</button>
+        <button class="tab" data-tab="popular">Popular</button>
+      </div>
+    </div>
+    <div class="idea-grid" id="ideasGrid">
+      <!-- Editor's picks -->
+      <div class="card idea-card">
+        <div class="author"><div class="avatar">AK</div><div><div class="author-name">Alex K.</div><div class="author-handle">@alextrades</div></div></div>
+        <div class="idea-title">AAPL breakout setup forming on daily timeframe</div>
+        <div class="idea-tags"><span class="tag">AAPL</span><span class="tag">Breakout</span><span class="tag">Daily</span></div>
+        <div class="idea-stats"><span>👍 1.2K</span><span>💬 89</span><span>📈 Long</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="author"><div class="avatar">MR</div><div><div class="author-name">Maria R.</div><div class="author-handle">@mariafx</div></div></div>
+        <div class="idea-title">EURUSD support test at 1.1780 — potential reversal zone</div>
+        <div class="idea-tags"><span class="tag">EURUSD</span><span class="tag">Forex</span><span class="tag">Support</span></div>
+        <div class="idea-stats"><span>👍 856</span><span>💬 42</span><span>📈 Long</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="author"><div class="avatar">JD</div><div><div class="author-name">James D.</div><div class="author-handle">@jdcrypto</div></div></div>
+        <div class="idea-title">BTC ascending triangle targets 78K on confirmed breakout</div>
+        <div class="idea-tags"><span class="tag">BTC</span><span class="tag">Crypto</span><span class="tag">Triangle</span></div>
+        <div class="idea-stats"><span>👍 2.1K</span><span>💬 156</span><span>📈 Long</span></div>
+      </div>
+      <div class="card idea-card">
+        <div class="author"><div class="avatar">SL</div><div><div class="author-name">Sarah L.</div><div class="author-handle">@sarahstocks</div></div></div>
+        <div class="idea-title">NVDA pullback to 20 EMA — watching for bounce</div>
+        <div class="idea-tags"><span class="tag">NVDA</span><span class="tag">EMA</span><span class="tag">Pullback</span></div>
+        <div class="idea-stats"><span>👍 643</span><span>💬 31</span><span>📈 Long</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Indicators & Strategies -->
+<section class="section" id="indicators">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Indicators &amp; Strategies</h2>
+      <div class="tabs" id="indTabs">
+        <button class="tab active" data-tab="ind-editors">Editor's Picks</button>
+        <button class="tab" data-tab="ind-popular">Popular</button>
+      </div>
+    </div>
+    <div class="indicator-grid" id="indGrid">
+      <div class="card indicator-card">
+        <div class="ind-title">Smart Money Concepts [LuxAlgo]</div>
+        <div class="ind-desc">Premium toolkit for order blocks, fair value gaps, and liquidity sweeps.</div>
+        <div class="ind-meta"><span>by LuxAlgo</span><span>⭐ 4.9</span></div>
+      </div>
+      <div class="card indicator-card">
+        <div class="ind-title">Relative Strength Index (RSI)</div>
+        <div class="ind-desc">Classic momentum oscillator for identifying overbought and oversold conditions.</div>
+        <div class="ind-meta"><span>Built-in</span><span>⭐ 4.7</span></div>
+      </div>
+      <div class="card indicator-card">
+        <div class="ind-title">Volume Profile Visible Range</div>
+        <div class="ind-desc">Display volume distribution across price levels for the visible chart range.</div>
+        <div class="ind-meta"><span>Built-in</span><span>⭐ 4.8</span></div>
+      </div>
+      <div class="card indicator-card">
+        <div class="ind-title">Auto Fibonacci Retracement</div>
+        <div class="ind-desc">Automatically draws Fib levels based on swing highs and lows.</div>
+        <div class="ind-meta"><span>by ChartPulse</span><span>⭐ 4.6</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Top Stories -->
+<section class="section section-alt" id="news">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Top Stories</h2>
+      <a href="#" class="text-sm text-accent">View all →</a>
+    </div>
+    <div class="story-grid">
+      <div class="card story-card">
+        <div class="story-source">Market Watch</div>
+        <div class="story-title">Apple's iPhone shipments in China rose 20% in Q1</div>
+        <div class="story-excerpt">The strongest growth among major smartphone vendors signals renewed momentum in the world's largest mobile market.</div>
+        <div class="story-time">2 hours ago</div>
+      </div>
+      <div class="card story-card">
+        <div class="story-source">Reuters</div>
+        <div class="story-title">Fed signals patience on rate cuts as inflation persists</div>
+        <div class="story-excerpt">Policymakers emphasized data-dependent approach with markets pricing in fewer cuts for 2026.</div>
+        <div class="story-time">4 hours ago</div>
+      </div>
+      <div class="card story-card">
+        <div class="story-source">Bloomberg</div>
+        <div class="story-title">Oil prices slide on demand concerns, OPEC+ output debate</div>
+        <div class="story-excerpt">Crude futures dropped over 7% as traders weighed weakening global demand against supply decisions.</div>
+        <div class="story-time">5 hours ago</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trending Stocks -->
+<section class="section" id="trending">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Community Trending Stocks</h2>
+      <a href="markets.html" class="text-sm text-accent">View markets →</a>
+    </div>
+    <div class="card overflow-hidden">
+      <table class="trending-table">
+        <thead>
+          <tr><th>Ticker</th><th>Company</th><th class="price">Price</th><th class="change">Change</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="ticker">NFLX</td><td class="company">Netflix, Inc.</td><td class="price">107.79</td><td class="change text-positive">+0.07%</td></tr>
+          <tr><td class="ticker">PBM</td><td class="company">Psyence Biomedical Ltd.</td><td class="price">5.87</td><td class="change text-positive">+103.82%</td></tr>
+          <tr><td class="ticker">AMD</td><td class="company">Advanced Micro Devices</td><td class="price">278.26</td><td class="change text-positive">+7.80%</td></tr>
+          <tr><td class="ticker">ONFO</td><td class="company">Onfolio Holdings Inc.</td><td class="price">1.50</td><td class="change text-positive">+124.89%</td></tr>
+          <tr><td class="ticker">RKLB</td><td class="company">Rocket Lab Corporation</td><td class="price">82.93</td><td class="change text-positive">+12.68%</td></tr>
+          <tr><td class="ticker">AXTI</td><td class="company">AXT Inc</td><td class="price">81.78</td><td class="change text-positive">+29.95%</td></tr>
+          <tr><td class="ticker">PL</td><td class="company">Planet Labs PBC</td><td class="price">39.89</td><td class="change text-positive">+15.93%</td></tr>
+          <tr><td class="ticker">MARA</td><td class="company">MARA Holdings, Inc.</td><td class="price">11.55</td><td class="change text-positive">+10.32%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Trade Ideas / Features -->
+<section class="section section-alt" id="features">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Why traders choose ChartPulse</h2>
+    </div>
+    <div class="trade-grid">
+      <div class="card trade-card">
+        <div class="trade-icon">📊</div>
+        <div class="trade-title">Supercharts</div>
+        <div class="trade-desc">Advanced charting with 100+ indicators, multiple chart types, and real-time data.</div>
+      </div>
+      <div class="card trade-card">
+        <div class="trade-icon">🔍</div>
+        <div class="trade-title">Screeners</div>
+        <div class="trade-desc">Filter thousands of stocks, crypto, and forex pairs with custom criteria.</div>
+      </div>
+      <div class="card trade-card">
+        <div class="trade-icon">🤝</div>
+        <div class="trade-title">Social Network</div>
+        <div class="trade-desc">Share ideas, follow top traders, and learn from a community of 100M+ investors.</div>
+      </div>
+      <div class="card trade-card">
+        <div class="trade-icon">🤖</div>
+        <div class="trade-title">Pine Script</div>
+        <div class="trade-desc">Build custom indicators and strategies with our powerful scripting language.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="chart.html">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="ideas.html">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="markets.html">Stocks</a>
+        <a href="markets.html">ETFs</a>
+        <a href="markets.html">Crypto</a>
+        <a href="markets.html">Forex</a>
+        <a href="markets.html">Futures</a>
+        <a href="markets.html">Bonds</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="brokers.html">Top Brokers</a>
+        <a href="brokers.html">Broker Comparison</a>
+        <a href="brokers.html">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-brand">ChartPulse</div>
+      <div class="footer-copy">© 2026 ChartPulse. Every trade a #ChartPulse trade.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Tab switching helper
+  function setupTabs(tabContainerId, panelPrefix) {
+    const container = document.getElementById(tabContainerId);
+    if (!container) return;
+    const tabs = container.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const key = tab.dataset.tab;
+        document.querySelectorAll('[id^="' + panelPrefix + '"]').forEach(p => p.classList.remove('active'));
+        const panel = document.getElementById(panelPrefix + key);
+        if (panel) panel.classList.add('active');
+      });
+    });
+  }
+  setupTabs('marketTabs', 'panel-');
+  setupTabs('ideasTabs', 'ideas-');
+  setupTabs('indTabs', 'ind-');
+</script>
+</body>
+</html>

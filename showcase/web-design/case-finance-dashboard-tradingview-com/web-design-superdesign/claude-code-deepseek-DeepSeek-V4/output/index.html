@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChartPulse — Track All Markets</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        bg: { DEFAULT: '#0F0F0F', card: '#1A1A2E', hover: '#222240', border: '#2A2A4A' },
+        accent: { blue: '#2962FF', green: '#00C853', red: '#F7525F', yellow: '#FFB300' }
+      },
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #0F0F0F; color: #E0E0E0; }
+  .text-green { color: #00C853; } .text-red { color: #F7525F; }
+  .bg-green-soft { background: rgba(0,200,83,0.12); } .bg-red-soft { background: rgba(247,82,95,0.12); }
+  .card { background: #1A1A2E; border: 1px solid #2A2A4A; border-radius: 0.75rem; transition: all 0.2s ease; }
+  .card:hover { border-color: #3A3A5A; }
+  .tab-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.8125rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; color: #888; border: none; background: transparent; }
+  .tab-btn.active { background: #2962FF; color: #fff; }
+  .tab-btn:hover:not(.active) { color: #ccc; background: rgba(255,255,255,0.05); }
+  .sparkline-up { color: #00C853; } .sparkline-down { color: #F7525F; }
+  .badge { padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: rgba(0,200,83,0.15); color: #00C853; }
+  .badge-red { background: rgba(247,82,95,0.15); color: #F7525F; }
+  .fade-in { animation: fadeIn 0.4s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(41,98,255,0.4); } 50% { box-shadow: 0 0 0 8px rgba(41,98,255,0); } }
+  .glow-dot { width: 8px; height: 8px; border-radius: 50%; background: #00C853; animation: pulse-glow 2s infinite; display: inline-block; margin-right: 6px; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0F0F0F; } ::-webkit-scrollbar-thumb { background: #2A2A4A; border-radius: 3px; }
+  .market-row { transition: background 0.15s ease; }
+  .market-row:hover { background: rgba(255,255,255,0.03); }
+  select { background: #1A1A2E; border: 1px solid #2A2A4A; color: #E0E0E0; border-radius: 0.5rem; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.8125rem; appearance: none; cursor: pointer; }
+</style>
+</head>
+<body>
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 border-b border-[#2A2A4A] bg-[#0F0F0F]/95 backdrop-blur-sm">
+  <div class="max-w-[1400px] mx-auto px-6 h-14 flex items-center justify-between">
+    <div class="flex items-center gap-8">
+      <a href="index.html" class="flex items-center gap-2.5 text-lg font-bold tracking-tight">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="2" y="14" width="6" height="12" rx="1" fill="#2962FF"/><rect x="11" y="8" width="6" height="18" rx="1" fill="#2962FF" opacity="0.7"/><rect x="20" y="2" width="6" height="24" rx="1" fill="#00C853" opacity="0.8"/></svg>
+        <span class="text-white">Chart<span class="text-[#2962FF]">Pulse</span></span>
+      </a>
+      <div class="hidden lg:flex items-center gap-1">
+        <a href="chart.html" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">Products</a>
+        <a href="ideas.html" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">Community</a>
+        <a href="markets.html" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">Markets</a>
+        <a href="brokers.html" class="px-3 py-1.5 text-sm text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors">Brokers</a>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="text-sm text-gray-400 hover:text-white transition-colors">Sign in</button>
+      <button class="px-4 py-1.5 text-sm font-medium bg-[#2962FF] text-white rounded-lg hover:bg-[#1E4FD9] transition-colors">Get started free</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="border-b border-[#2A2A4A]">
+  <div class="max-w-[1400px] mx-auto px-6 py-16 lg:py-20">
+    <div class="max-w-3xl">
+      <div class="flex items-center gap-2 mb-6">
+        <span class="glow-dot"></span>
+        <span class="text-xs font-medium text-[#00C853] uppercase tracking-wider">Markets are open</span>
+      </div>
+      <h1 class="text-4xl lg:text-5xl font-extrabold leading-tight mb-4 text-white">The best trades require research,<br>then commitment.</h1>
+      <p class="text-lg text-gray-400 leading-relaxed mb-8 max-w-xl">Where the world charts, chats, and trades markets. A supercharged super-charting platform and social network for traders and investors.</p>
+      <div class="flex gap-3">
+        <button class="px-6 py-2.5 font-semibold text-sm bg-[#2962FF] text-white rounded-lg hover:bg-[#1E4FD9] transition-all">Get started for free</button>
+        <button class="px-6 py-2.5 font-medium text-sm border border-[#2A2A4A] text-gray-300 rounded-lg hover:border-[#3A3A5A] hover:text-white transition-all">Explore features</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Market Summary Ticker -->
+<section class="border-b border-[#2A2A4A] bg-[#111118]">
+  <div class="max-w-[1400px] mx-auto px-6 py-3">
+    <div class="flex items-center gap-2 mb-3">
+      <button class="tab-btn active" onclick="switchMarketTab('indices', this)">US Stocks</button>
+      <button class="tab-btn" onclick="switchMarketTab('crypto', this)">Crypto</button>
+      <button class="tab-btn" onclick="switchMarketTab('futures', this)">Futures</button>
+      <button class="tab-btn" onclick="switchMarketTab('forex', this)">Forex</button>
+      <button class="tab-btn" onclick="switchMarketTab('economy', this)">Economy</button>
+      <button class="tab-btn" onclick="switchMarketTab('brokers-mkt', this)">Brokers</button>
+    </div>
+    <div id="market-indices" class="market-panel flex items-center gap-6 overflow-x-auto pb-1">
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">S&P 500</span><span class="text-sm font-mono text-white">7,041.29</span><span class="badge badge-green">+0.26%</span></div>
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Nasdaq 100</span><span class="text-sm font-mono text-white">26,333.00</span><span class="badge badge-green">+0.49%</span></div>
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Japan 225</span><span class="text-sm font-mono text-white">58,475.90</span><span class="badge badge-red">−1.75%</span></div>
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">SSE Composite</span><span class="text-sm font-mono text-white">4,051.43</span><span class="badge badge-red">−0.10%</span></div>
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">FTSE 100</span><span class="text-sm font-mono text-white">10,562.63</span><span class="badge badge-red">−0.26%</span></div>
+      <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">DAX</span><span class="text-sm font-mono text-white">24,269.50</span><span class="badge badge-green">+0.48%</span></div>
+    </div>
+    <div id="market-crypto" class="market-panel hidden">
+      <div class="flex items-center gap-6 overflow-x-auto pb-1">
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Crypto Market Cap</span><span class="text-sm font-mono text-white">2.54 T</span><span class="badge badge-green">+1.37%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">BTC Dominance</span><span class="text-sm font-mono text-gray-400">59.61%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">BTCUSD</span><span class="text-sm font-mono text-white">75,593</span><span class="badge badge-green">+0.55%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">ETHUSD</span><span class="text-sm font-mono text-white">2,355.7</span><span class="badge badge-green">+0.28%</span></div>
+      </div>
+    </div>
+    <div id="market-futures" class="market-panel hidden">
+      <div class="flex items-center gap-6 overflow-x-auto pb-1">
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Crude Oil</span><span class="text-sm font-mono text-white">87.72</span><span class="badge badge-red">−7.36%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Natural Gas</span><span class="text-sm font-mono text-white">2.692</span><span class="badge badge-green">+1.70%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Gold</span><span class="text-sm font-mono text-white">4,818.6</span><span class="badge badge-green">+0.21%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Copper</span><span class="text-sm font-mono text-white">6.0430</span><span class="badge badge-red">−0.55%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">Silver</span><span class="text-sm font-mono text-white">79.645</span><span class="badge badge-green">+1.19%</span></div>
+      </div>
+    </div>
+    <div id="market-forex" class="market-panel hidden">
+      <div class="flex items-center gap-6 overflow-x-auto pb-1">
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">EUR/USD</span><span class="text-sm font-mono text-white">1.17932</span><span class="badge badge-green">+0.13%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">GBP/USD</span><span class="text-sm font-mono text-white">1.3529</span><span class="badge badge-green">+0.06%</span></div>
+        <div class="flex items-center gap-3 flex-shrink-0"><span class="text-sm font-semibold text-white">USD/JPY</span><span class="text-sm font-mono text-white">159.210</span><span class="badge badge-green">+0.06%</span></div>
+      </div>
+    </div>
+    <div id="market-economy" class="market-panel hidden">
+      <div class="flex items-center gap-6 overflow-x-auto pb-1 text-sm text-gray-400">Select the Economy tab to view government bonds, yield curves, and economic indicators.</div>
+    </div>
+    <div id="market-brokers-mkt" class="market-panel hidden">
+      <div class="flex items-center gap-6 overflow-x-auto pb-1 text-sm text-gray-400">Select the Brokers tab to view top broker listings and promotional offers.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Community Ideas + Indicators -->
+<section class="max-w-[1400px] mx-auto px-6 py-12">
+  <div class="grid lg:grid-cols-2 gap-8">
+    <!-- Community Ideas -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white">Community Ideas</h2>
+        <div class="flex gap-1">
+          <button class="tab-btn active" onclick="switchIdeasTab('editors', this)">Editors' picks</button>
+          <button class="tab-btn" onclick="switchIdeasTab('popular', this)">Popular</button>
+        </div>
+      </div>
+      <div id="ideas-editors" class="ideas-panel space-y-4">
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div><div class="text-sm font-semibold text-white">Bitcoin breakout forming cup & handle</div><div class="text-xs text-gray-500 mt-0.5">by CryptoWhale · 2h ago</div></div>
+          <span class="badge badge-green">BTCUSD</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div><div class="text-sm font-semibold text-white">S&P 500: Bearish divergence on daily RSI</div><div class="text-xs text-gray-500 mt-0.5">by MarketAnalyst · 5h ago</div></div>
+          <span class="badge badge-red">SPX</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div><div class="text-sm font-semibold text-white">NVIDIA: Accumulation zone near $195</div><div class="text-xs text-gray-500 mt-0.5">by TechTrader · 8h ago</div></div>
+          <span class="badge badge-green">NVDA</span>
+        </div>
+        <div class="flex items-center justify-between py-2">
+          <div><div class="text-sm font-semibold text-white">Gold approaching key resistance at $4,850</div><div class="text-xs text-gray-500 mt-0.5">by GoldBug · 12h ago</div></div>
+          <span class="badge badge-green">GC1!</span>
+        </div>
+      </div>
+      <div id="ideas-popular" class="ideas-panel hidden space-y-4">
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div><div class="text-sm font-semibold text-white">TSLA: Double bottom at $385 — reversal play</div><div class="text-xs text-gray-500 mt-0.5">by EVTrader · 3h ago · 🔥 2.4K</div></div>
+          <span class="badge badge-green">TSLA</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div><div class="text-sm font-semibold text-white">Ethereum merge play — accumulation phase</div><div class="text-xs text-gray-500 mt-0.5">by DeFiKing · 6h ago · 🔥 1.8K</div></div>
+          <span class="badge badge-green">ETHUSD</span>
+        </div>
+        <div class="flex items-center justify-between py-2">
+          <div><div class="text-sm font-semibold text-white">AMD: Earnings run-up — bullish pennant</div><div class="text-xs text-gray-500 mt-0.5">by ChipAnalyst · 10h ago · 🔥 1.2K</div></div>
+          <span class="badge badge-green">AMD</span>
+        </div>
+      </div>
+    </div>
+    <!-- Indicators & Strategies -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white">Indicators & Strategies</h2>
+        <div class="flex gap-1">
+          <button class="tab-btn active" onclick="switchIndicatorsTab('editors', this)">Editors' picks</button>
+          <button class="tab-btn" onclick="switchIndicatorsTab('popular', this)">Popular</button>
+        </div>
+      </div>
+      <div id="ind-editors" class="ind-panel space-y-4">
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div>
+            <div class="text-sm font-semibold text-white">RSI + MACD Combo Strategy</div>
+            <div class="text-xs text-gray-500 mt-0.5">by QuantEdge · 3,245 scripts used</div>
+          </div>
+          <span class="text-xs text-gray-500">Pine Script</span>
+        </div>
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div>
+            <div class="text-sm font-semibold text-white">Volume Profile with VWAP Bands</div>
+            <div class="text-xs text-gray-500 mt-0.5">by FlowTrader · 2,891 scripts used</div>
+          </div>
+          <span class="text-xs text-gray-500">Pine Script</span>
+        </div>
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="text-sm font-semibold text-white">EMA Cross with Supertrend Filter</div>
+            <div class="text-xs text-gray-500 mt-0.5">by TrendFollower · 1,956 scripts used</div>
+          </div>
+          <span class="text-xs text-gray-500">Pine Script</span>
+        </div>
+      </div>
+      <div id="ind-popular" class="ind-panel hidden space-y-4">
+        <div class="flex items-center justify-between py-2 border-b border-[#1F1F35]">
+          <div>
+            <div class="text-sm font-semibold text-white">ICT Silver Bullet Setup</div>
+            <div class="text-xs text-gray-500 mt-0.5">by ICTTrader · 8,421 scripts used</div>
+          </div>
+          <span class="text-xs text-gray-500">Pine Script</span>
+        </div>
+        <div class="flex items-center justify-between py-2">
+          <div>
+            <div class="text-sm font-semibold text-white">Supply & Demand Zones Detector</div>
+            <div class="text-xs text-gray-500 mt-0.5">by PriceAction · 6,732 scripts used</div>
+          </div>
+          <span class="text-xs text-gray-500">Pine Script</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Top Stories -->
+<section class="max-w-[1400px] mx-auto px-6 pb-12">
+  <div class="flex items-center justify-between mb-5">
+    <h2 class="text-lg font-bold text-white">Top Stories</h2>
+    <a href="#" class="text-xs text-[#2962FF] hover:underline">View all →</a>
+  </div>
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="card p-4">
+      <div class="text-xs text-[#2962FF] font-medium mb-2">MARKETS</div>
+      <h3 class="text-sm font-semibold text-white mb-1">Fed holds rates steady, signals one cut before year-end</h3>
+      <p class="text-xs text-gray-500">Markets react positively to forward guidance · 45 min ago</p>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-[#00C853] font-medium mb-2">CRYPTO</div>
+      <h3 class="text-sm font-semibold text-white mb-1">Bitcoin ETF inflows surpass $500M in single day</h3>
+      <p class="text-xs text-gray-500">Institutional demand driving BTC toward new highs · 2h ago</p>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-[#FFB300] font-medium mb-2">TECH</div>
+      <h3 class="text-sm font-semibold text-white mb-1">NVIDIA announces next-gen GPU architecture</h3>
+      <p class="text-xs text-gray-500">Stock up 2.8% in after-hours trading · 3h ago</p>
+    </div>
+    <div class="card p-4">
+      <div class="text-xs text-[#F7525F] font-medium mb-2">ECONOMY</div>
+      <h3 class="text-sm font-semibold text-white mb-1">Oil prices slide 7% on demand concerns</h3>
+      <p class="text-xs text-gray-500">Crude falls below $88 as OPEC+ considers output increase · 6h ago</p>
+    </div>
+  </div>
+</section>
+
+<!-- Trending Stocks + Trade Ideas -->
+<section class="max-w-[1400px] mx-auto px-6 pb-12">
+  <div class="grid lg:grid-cols-2 gap-8">
+    <!-- Trending Stocks -->
+    <div class="card p-6">
+      <h2 class="text-lg font-bold text-white mb-5">Community Trending Stocks</h2>
+      <div class="space-y-2">
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">NFLX</span><span class="text-xs text-gray-500">Netflix, Inc.</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">107.79</span><span class="badge badge-green">+0.07%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">PBM</span><span class="text-xs text-gray-500">Psyence Biomedical</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">5.87</span><span class="badge badge-green">+103.82%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">AMD</span><span class="text-xs text-gray-500">Advanced Micro Devices</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">278.26</span><span class="badge badge-green">+7.80%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">ONFO</span><span class="text-xs text-gray-500">Onfolio Holdings</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">1.50</span><span class="badge badge-green">+124.89%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">RKLB</span><span class="text-xs text-gray-500">Rocket Lab Corp.</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">82.93</span><span class="badge badge-green">+12.68%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">AXTI</span><span class="text-xs text-gray-500">AXT Inc</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">81.78</span><span class="badge badge-green">+29.95%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">PL</span><span class="text-xs text-gray-500">Planet Labs PBC</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">39.89</span><span class="badge badge-green">+15.93%</span></div>
+        </div>
+        <div class="market-row flex items-center justify-between py-2.5 px-3 rounded-lg">
+          <div class="flex items-center gap-3"><span class="text-sm font-bold text-white w-14">MARA</span><span class="text-xs text-gray-500">MARA Holdings</span></div>
+          <div class="flex items-center gap-4"><span class="text-sm font-mono text-white">11.55</span><span class="badge badge-green">+10.32%</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- Trade Ideas -->
+    <div class="card p-6">
+      <h2 class="text-lg font-bold text-white mb-5">Trade Ideas</h2>
+      <div class="space-y-4">
+        <div class="flex gap-4 p-3 rounded-lg bg-[#111118]">
+          <div class="w-10 h-10 rounded-full bg-[#2962FF]/20 flex items-center justify-center flex-shrink-0"><i data-lucide="trending-up" class="w-5 h-5 text-[#2962FF]"></i></div>
+          <div class="flex-1">
+            <div class="text-sm font-semibold text-white">Long AAPL — Bull flag on 4H chart</div>
+            <div class="text-xs text-gray-500 mt-1">Entry 263.40 | Target 275 | Stop 258</div>
+            <div class="flex items-center gap-2 mt-2"><span class="text-xs text-gray-500">by SwingMaster · 2h</span><span class="badge badge-green">AAPL</span></div>
+          </div>
+        </div>
+        <div class="flex gap-4 p-3 rounded-lg bg-[#111118]">
+          <div class="w-10 h-10 rounded-full bg-[#F7525F]/20 flex items-center justify-center flex-shrink-0"><i data-lucide="trending-down" class="w-5 h-5 text-[#F7525F]"></i></div>
+          <div class="flex-1">
+            <div class="text-sm font-semibold text-white">Short Oil — Breakdown below $88 support</div>
+            <div class="text-xs text-gray-500 mt-1">Entry 87.72 | Target 82 | Stop 90</div>
+            <div class="flex items-center gap-2 mt-2"><span class="text-xs text-gray-500">by EnergyBear · 4h</span><span class="badge badge-red">CL1!</span></div>
+          </div>
+        </div>
+        <div class="flex gap-4 p-3 rounded-lg bg-[#111118]">
+          <div class="w-10 h-10 rounded-full bg-[#00C853]/20 flex items-center justify-center flex-shrink-0"><i data-lucide="bar-chart-2" class="w-5 h-5 text-[#00C853]"></i></div>
+          <div class="flex-1">
+            <div class="text-sm font-semibold text-white">Gold long — Breakout above 4,800</div>
+            <div class="text-xs text-gray-500 mt-1">Entry 4,818.6 | Target 4,900 | Stop 4,780</div>
+            <div class="flex items-center gap-2 mt-2"><span class="text-xs text-gray-500">by MetalTrader · 6h</span><span class="badge badge-green">GC1!</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="border-t border-[#2A2A4A] bg-[#0A0A14]">
+  <div class="max-w-[1400px] mx-auto px-6 py-12">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 mb-10">
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Products</h4>
+        <div class="space-y-2"><a href="chart.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Supercharts</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Screeners</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Pine Script</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Heatmaps</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Calendars</a></div>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Community</h4>
+        <div class="space-y-2"><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Social Network</a><a href="ideas.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Ideas</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Indicators & Strategies</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Editors' Picks</a></div>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Markets</h4>
+        <div class="space-y-2"><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Stocks</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">ETFs</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Crypto</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Forex</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Futures</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Bonds</a><a href="markets.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Economy</a></div>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Brokers</h4>
+        <div class="space-y-2"><a href="brokers.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Top Brokers</a><a href="brokers.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Broker Comparison</a><a href="brokers.html" class="block text-xs text-gray-500 hover:text-white transition-colors">Special Offers</a></div>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Company</h4>
+        <div class="space-y-2"><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">About</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Blog</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Careers</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Media Kit</a></div>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-white mb-3">Legal</h4>
+        <div class="space-y-2"><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Terms of Use</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Privacy Policy</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Cookies Policy</a><a href="#" class="block text-xs text-gray-500 hover:text-white transition-colors">Disclaimer</a></div>
+      </div>
+    </div>
+    <div class="pt-6 border-t border-[#1A1A2E] flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="none"><rect x="2" y="14" width="6" height="12" rx="1" fill="#2962FF"/><rect x="11" y="8" width="6" height="18" rx="1" fill="#2962FF" opacity="0.7"/><rect x="20" y="2" width="6" height="24" rx="1" fill="#00C853" opacity="0.8"/></svg>
+        <span class="text-sm text-gray-500">ChartPulse © 2026 · $0 forever, no credit card needed</span>
+      </div>
+      <div class="flex items-center gap-6">
+        <span class="text-xs text-gray-600">100M+ traders connected</span>
+        <span class="text-xs text-gray-600">Millions of orders executed daily</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+lucide.createIcons();
+function switchMarketTab(tab, btn) {
+  document.querySelectorAll('.market-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('market-' + tab).classList.remove('hidden');
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function switchIdeasTab(tab, btn) {
+  document.getElementById('ideas-editors').classList.toggle('hidden', tab !== 'editors');
+  document.getElementById('ideas-popular').classList.toggle('hidden', tab !== 'popular');
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function switchIndicatorsTab(tab, btn) {
+  document.getElementById('ind-editors').classList.toggle('hidden', tab !== 'editors');
+  document.getElementById('ind-popular').classList.toggle('hidden', tab !== 'popular');
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

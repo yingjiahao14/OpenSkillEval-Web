@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brokers — ChartPulse</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Hero */
+    .hero {
+      position: relative;
+      padding: 80px 0 64px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 40%, rgba(41,98,255,0.10) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 80% 30%, rgba(38,166,154,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 50% 80%, rgba(255,179,0,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-geo {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .hero-geo span {
+      position: absolute;
+      border: 1px solid rgba(41,98,255,0.08);
+      border-radius: 50%;
+    }
+    .hero-geo span:nth-child(1) { width: 400px; height: 400px; top: -100px; left: -80px; }
+    .hero-geo span:nth-child(2) { width: 300px; height: 300px; bottom: -60px; right: -40px; border-color: rgba(38,166,154,0.07); }
+    .hero-geo span:nth-child(3) { width: 200px; height: 200px; top: 30%; right: 15%; border-color: rgba(255,179,0,0.06); }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      line-height: 1.15;
+    }
+    .hero-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* Broker Filters */
+    .broker-filters {
+      padding: 24px 0 8px;
+    }
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 60px;
+    }
+
+    /* Broker Listings */
+    .broker-listings {
+      padding: 16px 0 40px;
+    }
+    .broker-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 1.2fr 2fr 1.2fr;
+      align-items: center;
+      gap: 24px;
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    .broker-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .broker-card:hover {
+      border-color: var(--border);
+      background: var(--bg-card-hover);
+      box-shadow: var(--shadow);
+    }
+
+    /* Left: Broker identity */
+    .broker-identity {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .broker-name {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .tier-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      width: fit-content;
+    }
+    .tier-badge svg {
+      width: 12px;
+      height: 12px;
+    }
+    .tier-platinum {
+      background: rgba(255, 179, 0, 0.15);
+      color: var(--accent-gold);
+    }
+    .tier-gold {
+      background: rgba(255, 210, 100, 0.12);
+      color: #e0a800;
+    }
+
+    /* Center: Stats */
+    .broker-stats {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+    .stat-rating {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rating-stars {
+      display: flex;
+      gap: 2px;
+      color: var(--accent-gold);
+      font-size: 14px;
+    }
+    .star-empty {
+      color: var(--text-muted);
+    }
+    .rating-number {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .rating-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .stat-block {
+      display: flex;
+      flex-direction: column;
+    }
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* Right: Actions */
+    .broker-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+    .promo-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(38, 166, 154, 0.12);
+      color: var(--accent-green);
+      border: 1px solid rgba(38, 166, 154, 0.2);
+    }
+    .promo-tag svg {
+      width: 14px;
+      height: 14px;
+    }
+    .btn-visit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 24px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--accent-blue);
+      color: #fff;
+      white-space: nowrap;
+    }
+    .btn-visit:hover {
+      background: var(--accent-blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(41,98,255,0.3);
+    }
+    .btn-visit svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Stats Banner */
+    .stats-banner {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+      padding: 64px 0;
+      text-align: center;
+    }
+    .stats-banner-inner {
+      display: flex;
+      justify-content: center;
+      gap: 80px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .stat-banner-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-banner-number {
+      font-family: var(--font-mono);
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-banner-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .stats-tagline {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .stats-tagline span {
+      color: var(--accent-blue);
+    }
+
+    /* No results */
+    .no-results {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--text-muted);
+      font-size: 15px;
+      display: none;
+    }
+    .no-results.visible {
+      display: block;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .broker-card {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .broker-actions {
+        align-items: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .broker-stats {
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .stats-banner-inner {
+        gap: 40px;
+      }
+    }
+    @media (max-width: 768px) {
+      .hero {
+        padding: 48px 0 40px;
+      }
+      .hero-title {
+        font-size: 28px;
+      }
+      .hero-subtitle {
+        font-size: 14px;
+      }
+      .broker-card {
+        padding: 18px 16px;
+      }
+      .stat-banner-number {
+        font-size: 36px;
+      }
+      .stats-banner-inner {
+        gap: 32px;
+      }
+      .filter-row {
+        gap: 8px;
+      }
+    }
+    @media (max-width: 480px) {
+      .hero-title {
+        font-size: 24px;
+      }
+      .stat-banner-number {
+        font-size: 28px;
+      }
+      .broker-stats {
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body class="grain">
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Chart<span class="pulse-dot">Pulse</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="chart.html">Products</a></li>
+        <li><a href="ideas.html">Community</a></li>
+        <li><a href="markets.html">Markets</a></li>
+        <li><a href="brokers.html" class="active">Brokers</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="nav-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search brokers
+          <kbd>/</kbd>
+        </div>
+        <button class="btn btn-ghost btn-sm">Sign in</button>
+        <button class="btn btn-primary btn-sm">Get started</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-geo">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <div class="container hero-content">
+      <h1 class="hero-title">Find the right broker for you</h1>
+      <p class="hero-subtitle">Compare verified brokers trusted by millions of traders worldwide. Read real reviews, compare features, and start trading today.</p>
+    </div>
+  </section>
+
+  <!-- Broker Filters -->
+  <section class="broker-filters">
+    <div class="container">
+      <div class="filter-row">
+        <span class="filter-label">Category</span>
+        <div class="tabs" id="categoryTabs">
+          <button class="tab active" data-category="all">All brokers</button>
+          <button class="tab" data-category="stocks">Stocks</button>
+          <button class="tab" data-category="crypto">Crypto</button>
+          <button class="tab" data-category="forex">Forex</button>
+          <button class="tab" data-category="futures">Futures</button>
+          <button class="tab" data-category="etfs">ETFs</button>
+          <button class="tab" data-category="options">Options</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-label">Sort</span>
+        <div class="tabs" id="sortTabs">
+          <button class="tab active" data-sort="best-rated">Best rated</button>
+          <button class="tab" data-sort="default">All brokers</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Broker Listings -->
+  <section class="broker-listings">
+    <div class="container" id="brokerContainer">
+
+      <!-- FOREX.com -->
+      <div class="broker-card" data-categories="forex,stocks" data-rating="4.5" data-order="0">
+        <div class="broker-identity">
+          <div class="broker-name">FOREX.com</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.5</span>
+            <span class="rating-label">Great</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">13.7K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">175.7K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- OKX -->
+      <div class="broker-card" data-categories="crypto" data-rating="4.9" data-order="1">
+        <div class="broker-identity">
+          <div class="broker-name">OKX</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span>
+            </div>
+            <span class="rating-number">4.9</span>
+            <span class="rating-label">Excellent</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">22.5K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">239.9K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <div class="promo-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Unlock ChartPulse Plus!
+          </div>
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- AMP Futures -->
+      <div class="broker-card" data-categories="futures" data-rating="4.6" data-order="2">
+        <div class="broker-identity">
+          <div class="broker-name">AMP Futures</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.6</span>
+            <span class="rating-label">Excellent</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">8.5K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">33.9K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- moomoo -->
+      <div class="broker-card" data-categories="stocks,etfs,options" data-rating="4.6" data-order="3">
+        <div class="broker-identity">
+          <div class="broker-name">moomoo</div>
+          <div class="tier-badge tier-gold">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Gold
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.6</span>
+            <span class="rating-label">Excellent</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">4K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">81.7K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <div class="promo-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            8.1% APY + Free Premium
+          </div>
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- OANDA -->
+      <div class="broker-card" data-categories="forex" data-rating="4.5" data-order="4">
+        <div class="broker-identity">
+          <div class="broker-name">OANDA</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.5</span>
+            <span class="rating-label">Great</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">31.3K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">296.7K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <div class="promo-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Free ChartPulse plan
+          </div>
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Brokers -->
+      <div class="broker-card" data-categories="stocks,forex,futures,etfs,options,crypto" data-rating="4.2" data-order="5">
+        <div class="broker-identity">
+          <div class="broker-name">Interactive Brokers</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.2</span>
+            <span class="rating-label">Good</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">36.4K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">343.2K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- TradeStation -->
+      <div class="broker-card" data-categories="stocks,futures,options" data-rating="4.3" data-order="6">
+        <div class="broker-identity">
+          <div class="broker-name">TradeStation</div>
+          <div class="tier-badge tier-platinum">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg>
+            Platinum
+          </div>
+        </div>
+        <div class="broker-stats">
+          <div class="stat-rating">
+            <div class="rating-stars">
+              <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span class="star-empty">&#9733;</span>
+            </div>
+            <span class="rating-number">4.3</span>
+            <span class="rating-label">Good</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">16.6K</span>
+            <span class="stat-label">Reviews</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-value">131.4K</span>
+            <span class="stat-label">Accounts</span>
+          </div>
+        </div>
+        <div class="broker-actions">
+          <div class="promo-tag">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            $150 + $0 Options Fees
+          </div>
+          <button class="btn-visit" onclick="void(0)">
+            Visit broker
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="no-results" id="noResults">
+        No brokers found in this category.
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Stats Banner -->
+  <section class="stats-banner">
+    <div class="container">
+      <div class="stats-banner-inner">
+        <div class="stat-banner-item">
+          <div class="stat-banner-number">100M+</div>
+          <div class="stat-banner-desc">Traders connected through us</div>
+        </div>
+        <div class="stat-banner-item">
+          <div class="stat-banner-number">Millions daily</div>
+          <div class="stat-banner-desc">Successfully executed live orders</div>
+        </div>
+      </div>
+      <div class="stats-tagline">Every trade a <span>#ChartPulse</span> trade</div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Products</h4>
+          <ul>
+            <li><a href="#">Supercharts</a></li>
+            <li><a href="#">Screeners</a></li>
+            <li><a href="#">Pine Script</a></li>
+            <li><a href="#">Heatmaps</a></li>
+            <li><a href="#">Calendars</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Community</h4>
+          <ul>
+            <li><a href="#">Social Network</a></li>
+            <li><a href="#">Ideas</a></li>
+            <li><a href="#">Indicators &amp; Strategies</a></li>
+            <li><a href="#">Editors' Picks</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Markets</h4>
+          <ul>
+            <li><a href="#">Stocks</a></li>
+            <li><a href="#">ETFs</a></li>
+            <li><a href="#">Crypto</a></li>
+            <li><a href="#">Forex</a></li>
+            <li><a href="#">Futures</a></li>
+            <li><a href="#">Bonds</a></li>
+            <li><a href="#">Economy</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Brokers</h4>
+          <ul>
+            <li><a href="#">Top Brokers</a></li>
+            <li><a href="#">Broker Comparison</a></li>
+            <li><a href="#">Special Offers</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Media Kit</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#">Terms of Use</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Cookies Policy</a></li>
+            <li><a href="#">Disclaimer</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 ChartPulse</span>
+        <span>Market data provided for informational purposes only.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function() {
+      // Elements
+      const categoryTabs = document.querySelectorAll('#categoryTabs .tab');
+      const sortTabs = document.querySelectorAll('#sortTabs .tab');
+      const brokerContainer = document.getElementById('brokerContainer');
+      const brokerCards = Array.from(document.querySelectorAll('.broker-card'));
+      const noResults = document.getElementById('noResults');
+
+      let currentCategory = 'all';
+      let currentSort = 'best-rated';
+
+      // Tab click handlers
+      categoryTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          categoryTabs.forEach(function(t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          currentCategory = tab.getAttribute('data-category');
+          applyFilters();
+        });
+      });
+
+      sortTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          sortTabs.forEach(function(t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          currentSort = tab.getAttribute('data-sort');
+          applyFilters();
+        });
+      });
+
+      function applyFilters() {
+        // Filter
+        var visible = [];
+        brokerCards.forEach(function(card) {
+          var cats = card.getAttribute('data-categories').split(',');
+          if (currentCategory === 'all' || cats.indexOf(currentCategory) !== -1) {
+            visible.push(card);
+          }
+        });
+
+        // Sort
+        if (currentSort === 'best-rated') {
+          visible.sort(function(a, b) {
+            return parseFloat(b.getAttribute('data-rating')) - parseFloat(a.getAttribute('data-rating'));
+          });
+        } else {
+          visible.sort(function(a, b) {
+            return parseInt(a.getAttribute('data-order')) - parseInt(b.getAttribute('data-order'));
+          });
+        }
+
+        // Hide all cards first
+        brokerCards.forEach(function(card) {
+          card.style.display = 'none';
+          card.classList.remove('visible');
+        });
+
+        // Show and reorder visible cards
+        if (visible.length === 0) {
+          noResults.classList.add('visible');
+        } else {
+          noResults.classList.remove('visible');
+          visible.forEach(function(card, index) {
+            card.style.display = '';
+            brokerContainer.appendChild(card);
+            // Stagger the fade-in animation
+            setTimeout(function() {
+              card.classList.add('visible');
+            }, index * 60);
+          });
+        }
+      }
+
+      // Scroll-based fade-in using IntersectionObserver
+      var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+      brokerCards.forEach(function(card) {
+        observer.observe(card);
+      });
+
+      // Initial sort (best rated is default)
+      applyFilters();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChartPulse — Track All Markets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0F0F0F;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --bg-card: #1a1a2e;
+  --bg-hover: #1e1e3a;
+  --accent: #2962FF;
+  --accent-hover: #1e4fdb;
+  --text-primary: #EAEAEA;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --gain: #00C853;
+  --loss: #F7525F;
+  --border: #2a2a4a;
+  --border-light: #333355;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+.container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+/* Nav */
+.nav { position: sticky; top: 0; z-index: 100; background: rgba(15,15,15,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+.nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; color: var(--text-primary); }
+.nav-brand svg { width: 28px; height: 28px; }
+.nav-links { display: flex; align-items: center; gap: 32px; }
+.nav-links a { color: var(--text-secondary); font-size: 14px; font-weight: 500; transition: color 0.15s; }
+.nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+.nav-cta { display: flex; align-items: center; gap: 12px; }
+.nav-cta .btn-signup { background: var(--accent); color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.nav-cta .btn-signup:hover { background: var(--accent-hover); }
+.nav-cta .btn-login { color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer; background: none; border: none; }
+.nav-cta .btn-login:hover { color: var(--text-primary); }
+
+/* Hero */
+.hero { padding: 80px 0 60px; text-align: center; }
+.hero h1 { font-size: 48px; font-weight: 700; line-height: 1.15; max-width: 800px; margin: 0 auto 20px; letter-spacing: -0.02em; }
+.hero p { font-size: 18px; color: var(--text-secondary); max-width: 640px; margin: 0 auto 36px; line-height: 1.6; }
+.hero-btns { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.btn-primary { background: var(--accent); color: #fff; border: none; padding: 14px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border-light); padding: 14px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Section Header */
+.section { padding: 48px 0; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.section-header h2 { font-size: 22px; font-weight: 600; }
+.section-header .see-all { font-size: 14px; color: var(--accent); font-weight: 500; cursor: pointer; }
+
+/* Market Summary Tabs */
+.market-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+.market-tab { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--text-secondary); background: transparent; border: none; transition: all 0.15s; }
+.market-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.market-tab.active { background: var(--accent); color: #fff; }
+
+/* Market Summary Cards */
+.market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.market-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; transition: border-color 0.15s; }
+.market-card:hover { border-color: var(--accent); }
+.market-card .ticker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.market-card .flag { font-size: 16px; }
+.market-card .symbol { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.market-card .name { font-size: 13px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.market-card .price { font-size: 20px; font-weight: 700; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.market-card .change { font-size: 13px; font-weight: 600; }
+.market-card .change.positive { color: var(--gain); }
+.market-card .change.negative { color: var(--loss); }
+
+/* Community Ideas */
+.ideas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.idea-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; transition: border-color 0.15s; cursor: pointer; }
+.idea-card:hover { border-color: var(--accent); }
+.idea-card .author-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.idea-card .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: var(--accent); }
+.idea-card .author-name { font-size: 14px; font-weight: 600; }
+.idea-card .idea-time { font-size: 12px; color: var(--text-muted); }
+.idea-card .idea-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; line-height: 1.3; }
+.idea-card .idea-excerpt { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.idea-card .idea-ticker { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; background: var(--bg-tertiary); color: var(--accent); }
+.idea-card .idea-meta { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+
+/* Indicators Section */
+.indicators-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.indicator-item { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border-color 0.15s; cursor: pointer; }
+.indicator-item:hover { border-color: var(--accent); }
+.indicator-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.indicator-info { flex: 1; min-width: 0; }
+.indicator-name { font-size: 14px; font-weight: 600; }
+.indicator-desc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.indicator-stars { color: var(--accent); font-size: 12px; }
+
+/* Trending Stocks */
+.trending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.trending-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; display: flex; align-items: center; justify-content: space-between; transition: border-color 0.15s; cursor: pointer; }
+.trending-card:hover { border-color: var(--accent); }
+.trending-card .ticker-info { display: flex; flex-direction: column; gap: 2px; }
+.trending-card .ticker-name { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.trending-card .price-info { text-align: right; }
+.trending-card .price-val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.trending-card .change-val { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.trending-card .change-val.positive { color: var(--gain); }
+.trending-card .change-val.negative { color: var(--loss); }
+
+/* Top Stories */
+.stories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.story-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; transition: border-color 0.15s; cursor: pointer; }
+.story-card:hover { border-color: var(--accent); }
+.story-source { font-size: 12px; color: var(--accent); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.story-title { font-size: 15px; font-weight: 600; line-height: 1.4; margin-bottom: 6px; }
+.story-time { font-size: 12px; color: var(--text-muted); }
+
+/* Trade Ideas */
+.trade-ideas-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.trade-idea-item { display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border-color 0.15s; cursor: pointer; }
+.trade-idea-item:hover { border-color: var(--accent); }
+.trade-idea-item .pair { font-weight: 600; font-size: 14px; }
+.trade-idea-item .direction { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+.trade-idea-item .direction.buy { background: rgba(0,200,83,0.15); color: var(--gain); }
+.trade-idea-item .direction.sell { background: rgba(247,82,95,0.15); color: var(--loss); }
+
+/* Footer */
+.footer { background: var(--bg-secondary); border-top: 1px solid var(--border); padding: 48px 0 32px; margin-top: 60px; }
+.footer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 32px; margin-bottom: 36px; }
+.footer-col h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+.footer-col a { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 8px; transition: color 0.15s; }
+.footer-col a:hover { color: var(--text-primary); }
+.footer-bottom { border-top: 1px solid var(--border); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-muted); }
+
+/* Sparkline placeholder */
+.sparkline { width: 60px; height: 28px; display: flex; align-items: flex-end; gap: 1px; }
+.sparkline-bar { flex: 1; border-radius: 1px; min-height: 2px; }
+.sparkline-bar.up { background: var(--gain); }
+.sparkline-bar.down { background: var(--loss); }
+
+/* Tab Panel */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero h1 { font-size: 32px; }
+  .hero p { font-size: 15px; }
+  .nav-links { display: none; }
+  .market-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .ideas-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-brand">
+      <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#2962FF"/><path d="M6 20L12 10L16 14L22 6" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ChartPulse
+    </a>
+    <div class="nav-links">
+      <a href="chart.html">Products</a>
+      <a href="ideas.html" class="active">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="nav-cta">
+      <button class="btn-login">Sign in</button>
+      <button class="btn-signup">Get started free</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1>The best trades require research, then commitment.</h1>
+    <p>Where the world charts, chats, and trades markets. A supercharged super-charting platform and social network for traders and investors.</p>
+    <div class="hero-btns">
+      <button class="btn-primary">Get started for free</button>
+      <button class="btn-secondary">Explore features</button>
+    </div>
+  </div>
+</section>
+
+<!-- Market Summary -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Market Summary</h2>
+    </div>
+    <div class="market-tabs" id="market-tabs">
+      <button class="market-tab active" data-tab="us-stocks">US Stocks</button>
+      <button class="market-tab" data-tab="crypto">Crypto</button>
+      <button class="market-tab" data-tab="futures">Futures</button>
+      <button class="market-tab" data-tab="forex">Forex</button>
+      <button class="market-tab" data-tab="economy">Economy</button>
+      <button class="market-tab" data-tab="brokers">Brokers</button>
+    </div>
+
+    <div class="tab-panel active" id="panel-us-stocks">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇺🇸</span><span class="symbol">SPX</span></div><div class="name">S&P 500</div><div class="price">7,041.29</div><div class="change positive">+0.26%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇺🇸</span><span class="symbol">NDX</span></div><div class="name">Nasdaq 100</div><div class="price">26,333.00</div><div class="change positive">+0.49%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇯🇵</span><span class="symbol">NI225</span></div><div class="name">Japan 225</div><div class="price">58,475.90</div><div class="change negative">−1.75%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇨🇳</span><span class="symbol">000001</span></div><div class="name">SSE Composite</div><div class="price">4,051.4254</div><div class="change negative">−0.10%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇬🇧</span><span class="symbol">UKX</span></div><div class="name">FTSE 100</div><div class="price">10,562.63</div><div class="change negative">−0.26%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="flag">🇩🇪</span><span class="symbol">DAX</span></div><div class="name">DAX</div><div class="price">24,269.50</div><div class="change positive">+0.48%</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-crypto">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="symbol">Market Cap</span></div><div class="name">Crypto market cap</div><div class="price">2.54 T</div><div class="change positive">+1.37%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">BTC.D</span></div><div class="name">Bitcoin dominance</div><div class="price">59.61%</div><div class="change" style="color:var(--text-muted)">—</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">ETH.D</span></div><div class="name">Ethereum share</div><div class="price">11.20%</div><div class="change" style="color:var(--text-muted)">—</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">BTCUSD</span></div><div class="name">Bitcoin</div><div class="price">75,593</div><div class="change positive">+0.55%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">ETHUSD</span></div><div class="name">Ethereum</div><div class="price">2,355.7</div><div class="change positive">+0.28%</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-futures">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="symbol">CL1!</span></div><div class="name">Light crude oil</div><div class="price">87.72</div><div class="change negative">−7.36%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">NG1!</span></div><div class="name">Natural gas</div><div class="price">2.692</div><div class="change positive">+1.70%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">GC1!</span></div><div class="name">Gold</div><div class="price">4,818.6</div><div class="change positive">+0.21%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">HG1!</span></div><div class="name">Copper</div><div class="price">6.0430</div><div class="change negative">−0.55%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">SI1!</span></div><div class="name">Silver</div><div class="price">79.645</div><div class="change positive">+1.19%</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-forex">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="symbol">EURUSD</span></div><div class="name">EUR to USD</div><div class="price">1.17932</div><div class="change positive">+0.13%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">GBPUSD</span></div><div class="name">GBP to USD</div><div class="price">1.3529</div><div class="change positive">+0.06%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">USDJPY</span></div><div class="name">USD to JPY</div><div class="price">159.210</div><div class="change positive">+0.06%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">USDCHF</span></div><div class="name">USD to CHF</div><div class="price">0.78260</div><div class="change negative">−0.05%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">AUDUSD</span></div><div class="name">AUD to USD</div><div class="price">0.71718</div><div class="change positive">+0.19%</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-economy">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="symbol">US10Y</span></div><div class="name">US 10Y Bond Yield</div><div class="price">4.295%</div><div class="change negative" style="color:var(--loss)">−2.3 bp</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">US02Y</span></div><div class="name">US 2Y Bond Yield</div><div class="price">3.767%</div><div class="change negative" style="color:var(--loss)">−1.8 bp</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">DXY</span></div><div class="name">US Dollar Index</div><div class="price">104.52</div><div class="change positive">+0.12%</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">WTI</span></div><div class="name">CPI YoY</div><div class="price">3.2%</div><div class="change" style="color:var(--text-muted)">—</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">FFR</span></div><div class="name">Fed Funds Rate</div><div class="price">5.50%</div><div class="change" style="color:var(--text-muted)">—</div></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="panel-brokers">
+      <div class="market-grid">
+        <div class="market-card"><div class="ticker-row"><span class="symbol">FOREX</span></div><div class="name">FOREX.com</div><div class="price">4.5</div><div class="change" style="color:var(--accent)">Great</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">OKX</span></div><div class="name">OKX</div><div class="price">4.9</div><div class="change" style="color:var(--accent)">Excellent</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">AMP</span></div><div class="name">AMP Futures</div><div class="price">4.6</div><div class="change" style="color:var(--accent)">Excellent</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">OANDA</span></div><div class="name">OANDA</div><div class="price">4.5</div><div class="change" style="color:var(--accent)">Great</div></div>
+        <div class="market-card"><div class="ticker-row"><span class="symbol">IBKR</span></div><div class="name">Interactive Brokers</div><div class="price">4.2</div><div class="change" style="color:var(--accent)">Good</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Community Ideas -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Community Ideas</h2>
+      <div class="market-tabs" id="ideas-tabs">
+        <button class="market-tab active" data-ideas-tab="editors">Editors' picks</button>
+        <button class="market-tab" data-ideas-tab="popular">Popular</button>
+      </div>
+    </div>
+
+    <div class="tab-panel active" id="ideas-panel-editors">
+      <div class="ideas-grid">
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">JD</div><div class="author-info"><div class="author-name">James Dalton</div><div class="idea-time">2 hours ago</div></div></div>
+          <div class="idea-title">AAPL Bull Flag Forming on 4H — $280 Target</div>
+          <div class="idea-excerpt">Clear bull flag forming on AAPL 4H chart after recent breakout. Price consolidating between $260-265 with decreasing volume. Looking for entry at $264 with target at $280 (+6%). Stop loss at $257.</div>
+          <div class="idea-ticker">AAPL</div>
+          <div class="idea-meta"><span>★ 243</span><span>💬 67</span><span>👁 12.4K</span></div>
+        </div>
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">SK</div><div class="author-info"><div class="author-name">Sarah Kim</div><div class="idea-time">5 hours ago</div></div></div>
+          <div class="idea-title">Crypto Market — BTC Dominance Rising, Alt Season Delayed</div>
+          <div class="idea-excerpt">BTC.D breaking above 60% resistance. Historically this precedes a flight-to-quality event. Watching for ETH/BTC pair breakdown below 0.031 as confirmation of continued BTC dominance.</div>
+          <div class="idea-ticker">BTCUSD</div>
+          <div class="idea-meta"><span>★ 187</span><span>💬 43</span><span>👁 8.9K</span></div>
+        </div>
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">MR</div><div class="author-info"><div class="author-name">Mike Ross</div><div class="idea-time">8 hours ago</div></div></div>
+          <div class="idea-title">SPX at All-Time Highs — Distribution or Accumulation?</div>
+          <div class="idea-excerpt">S&P 500 hitting fresh ATH at 7,041. Volume profile shows declining participation on this leg up. Watching for bearish divergence on RSI. Critical support at 6,900.</div>
+          <div class="idea-ticker">SPX</div>
+          <div class="idea-meta"><span>★ 312</span><span>💬 89</span><span>👁 15.2K</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="ideas-panel-popular">
+      <div class="ideas-grid">
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">AL</div><div class="author-info"><div class="author-name">Alex Leung</div><div class="idea-time">1 hour ago</div></div></div>
+          <div class="idea-title">NVDA Earnings Play — Iron Condor Setup</div>
+          <div class="idea-excerpt">NVDA implied volatility elevated pre-earnings. Selling 185/190/210/215 iron condor expiring next week. 85% probability of profit. Max risk defined at $1,200 per contract.</div>
+          <div class="idea-ticker">NVDA</div>
+          <div class="idea-meta"><span>★ 421</span><span>💬 112</span><span>👁 22.1K</span></div>
+        </div>
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">PT</div><div class="author-info"><div class="author-name">Priya Thakur</div><div class="idea-time">3 hours ago</div></div></div>
+          <div class="idea-title">Gold Futures — Cup & Handle on Weekly Timeframe</div>
+          <div class="idea-excerpt">GC1! showing textbook cup and handle formation on the weekly chart. Handle consolidation near $4,800 support. Measured move target projects to $5,200+ by Q3.</div>
+          <div class="idea-ticker">GC1!</div>
+          <div class="idea-meta"><span>★ 358</span><span>💬 94</span><span>👁 18.7K</span></div>
+        </div>
+        <div class="idea-card">
+          <div class="author-row"><div class="avatar">DC</div><div class="author-info"><div class="author-name">David Chen</div><div class="idea-time">6 hours ago</div></div></div>
+          <div class="idea-title">TSLA Support Test — Bounce or Breakdown?</div>
+          <div class="idea-excerpt">TSLA testing key $380 support level after 3 consecutive red days. RSI oversold on daily. Watching for reversal candle for long entry. If breaks $380, next support at $350.</div>
+          <div class="idea-ticker">TSLA</div>
+          <div class="idea-meta"><span>★ 276</span><span>💬 78</span><span>👁 14.3K</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Indicators & Strategies -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <h2>Indicators & Strategies</h2>
+      <div class="market-tabs" id="indicators-tabs">
+        <button class="market-tab active" data-indicators-tab="editors">Editors' picks</button>
+        <button class="market-tab" data-indicators-tab="popular">Popular</button>
+      </div>
+    </div>
+
+    <div class="tab-panel active" id="indicators-panel-editors">
+      <div class="indicators-list">
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">📊</div>
+          <div class="indicator-info"><div class="indicator-name">LuxAlgo Price Action Concepts</div><div class="indicator-desc">Comprehensive order block and FVG detection suite</div></div>
+          <div class="indicator-stars">★★★★★</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">📈</div>
+          <div class="indicator-info"><div class="indicator-name">Smart Money Concepts (SMC)</div><div class="indicator-desc">Institutional order flow and liquidity analysis</div></div>
+          <div class="indicator-stars">★★★★★</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">🔍</div>
+          <div class="indicator-info"><div class="indicator-name">ICT Silver Bullet Strategy</div><div class="indicator-desc">Killzone-based entries with automated bias detection</div></div>
+          <div class="indicator-stars">★★★★☆</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">⚡</div>
+          <div class="indicator-info"><div class="indicator-name">Volume Profile + Market Profile</div><div class="indicator-desc">TPO and volume-based value area analysis</div></div>
+          <div class="indicator-stars">★★★★☆</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="indicators-panel-popular">
+      <div class="indicators-list">
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">💹</div>
+          <div class="indicator-info"><div class="indicator-name">RSI Divergence Scanner (MTF)</div><div class="indicator-desc">Multi-timeframe RSI divergence detection with alerts</div></div>
+          <div class="indicator-stars">★★★★★</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">📉</div>
+          <div class="indicator-info"><div class="indicator-name">Fair Value Gap / Imbalance Detector</div><div class="indicator-desc">Automatic FVG identification with fill probability</div></div>
+          <div class="indicator-stars">★★★★☆</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">🎯</div>
+          <div class="indicator-info"><div class="indicator-name">Supply & Demand Zones Pro</div><div class="indicator-desc">Fresh vs tested zone classification with strength rating</div></div>
+          <div class="indicator-stars">★★★★☆</div>
+        </div>
+        <div class="indicator-item">
+          <div class="indicator-icon" style="background:rgba(41,98,255,0.15);color:#2962FF">🔄</div>
+          <div class="indicator-info"><div class="indicator-name">Mean Reversion Ribbon</div><div class="indicator-desc">Multi-length MA ribbon with standard deviation bands</div></div>
+          <div class="indicator-stars">★★★★☆</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Top Stories -->
+<section class="section">
+  <div class="container">
+    <div class="section-header"><h2>Top Stories</h2><span class="see-all">See all →</span></div>
+    <div class="stories-grid">
+      <div class="story-card">
+        <div class="story-source">Bloomberg</div>
+        <div class="story-title">Fed Signals Potential Rate Cut in September as Inflation Cools to Target Range</div>
+        <div class="story-time">2 hours ago</div>
+      </div>
+      <div class="story-card">
+        <div class="story-source">Reuters</div>
+        <div class="story-title">Apple's iPhone Shipments in China Rose 20% in Q1, Strongest Growth Among Major Smartphone Vendors</div>
+        <div class="story-time">3 hours ago</div>
+      </div>
+      <div class="story-card">
+        <div class="story-source">CNBC</div>
+        <div class="story-title">NVIDIA Surpasses $4T Market Cap as AI Chip Demand Shows No Signs of Slowing</div>
+        <div class="story-time">5 hours ago</div>
+      </div>
+      <div class="story-card">
+        <div class="story-source">Financial Times</div>
+        <div class="story-title">Gold Hits New Record Above $4,800 as Central Banks Accelerate Bullion Purchases</div>
+        <div class="story-time">6 hours ago</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trending Stocks -->
+<section class="section">
+  <div class="container">
+    <div class="section-header"><h2>Community Trending Stocks</h2><span class="see-all">See all →</span></div>
+    <div class="trending-grid">
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">NFLX</span><span class="ticker-name">Netflix, Inc.</span></div>
+        <div class="price-info"><div class="price-val">107.79</div><div class="change-val positive">+0.07%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">PBM</span><span class="ticker-name">Psyence Biomedical</span></div>
+        <div class="price-info"><div class="price-val">5.87</div><div class="change-val positive">+103.82%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">AMD</span><span class="ticker-name">Advanced Micro Devices</span></div>
+        <div class="price-info"><div class="price-val">278.26</div><div class="change-val positive">+7.80%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">ONFO</span><span class="ticker-name">Onfolio Holdings</span></div>
+        <div class="price-info"><div class="price-val">1.50</div><div class="change-val positive">+124.89%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">RKLB</span><span class="ticker-name">Rocket Lab Corp.</span></div>
+        <div class="price-info"><div class="price-val">82.93</div><div class="change-val positive">+12.68%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">AXTI</span><span class="ticker-name">AXT Inc</span></div>
+        <div class="price-info"><div class="price-val">81.78</div><div class="change-val positive">+29.95%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">PL</span><span class="ticker-name">Planet Labs PBC</span></div>
+        <div class="price-info"><div class="price-val">39.89</div><div class="change-val positive">+15.93%</div></div>
+      </div>
+      <div class="trending-card">
+        <div class="ticker-info"><span style="font-weight:700;font-size:15px">MARA</span><span class="ticker-name">MARA Holdings</span></div>
+        <div class="price-info"><div class="price-val">11.55</div><div class="change-val positive">+10.32%</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trade Ideas -->
+<section class="section">
+  <div class="container">
+    <div class="section-header"><h2>Trade Ideas</h2><span class="see-all">See all →</span></div>
+    <div class="trade-ideas-list">
+      <div class="trade-idea-item">
+        <div class="pair">EUR/USD</div>
+        <span class="direction buy">BUY</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 1.1850</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @fxtrader</span>
+      </div>
+      <div class="trade-idea-item">
+        <div class="pair">AAPL</div>
+        <span class="direction buy">BUY</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 280</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @techbull</span>
+      </div>
+      <div class="trade-idea-item">
+        <div class="pair">BTC/USD</div>
+        <span class="direction buy">BUY</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 80K</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @cryptoking</span>
+      </div>
+      <div class="trade-idea-item">
+        <div class="pair">Gold</div>
+        <span class="direction sell">SELL</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 4,700</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @commodtrader</span>
+      </div>
+      <div class="trade-idea-item">
+        <div class="pair">USD/JPY</div>
+        <span class="direction sell">SELL</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 158.00</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @yenmaster</span>
+      </div>
+      <div class="trade-idea-item">
+        <div class="pair">TSLA</div>
+        <span class="direction buy">BUY</span>
+        <span style="font-size:13px;color:var(--text-secondary)">Target 420</span>
+        <span style="font-size:12px;color:var(--text-muted)">by @evbull</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="chart.html">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="ideas.html">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators & Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="markets.html">Stocks</a>
+        <a href="markets.html">ETFs</a>
+        <a href="markets.html">Crypto</a>
+        <a href="markets.html">Forex</a>
+        <a href="markets.html">Futures</a>
+        <a href="markets.html">Bonds</a>
+        <a href="markets.html">Economy</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="brokers.html">Top Brokers</a>
+        <a href="brokers.html">Broker Comparison</a>
+        <a href="brokers.html">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>Every trade a #ChartPulse trade</span>
+      <span>Join 100M+ traders and investors taking the future into their own hands. Free to sign up — $0 forever.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Market Summary tabs
+document.getElementById('market-tabs').addEventListener('click', function(e) {
+  if (e.target.classList.contains('market-tab')) {
+    this.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.querySelectorAll('#panel-us-stocks, #panel-crypto, #panel-futures, #panel-forex, #panel-economy, #panel-brokers').forEach(p => p.classList.remove('active'));
+    const panelId = 'panel-' + e.target.dataset.tab;
+    document.getElementById(panelId).classList.add('active');
+  }
+});
+
+// Ideas tabs
+document.getElementById('ideas-tabs').addEventListener('click', function(e) {
+  if (e.target.classList.contains('market-tab')) {
+    this.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('ideas-panel-editors').classList.toggle('active', e.target.dataset.ideasTab === 'editors');
+    document.getElementById('ideas-panel-popular').classList.toggle('active', e.target.dataset.ideasTab === 'popular');
+  }
+});
+
+// Indicators tabs
+document.getElementById('indicators-tabs').addEventListener('click', function(e) {
+  if (e.target.classList.contains('market-tab')) {
+    this.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('indicators-panel-editors').classList.toggle('active', e.target.dataset.indicatorsTab === 'editors');
+    document.getElementById('indicators-panel-popular').classList.toggle('active', e.target.dataset.indicatorsTab === 'popular');
+  }
+});
+</script>
+</body>
+</html>

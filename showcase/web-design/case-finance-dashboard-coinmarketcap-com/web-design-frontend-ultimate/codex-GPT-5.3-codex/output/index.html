@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoinTracker Pro — Cryptocurrency Prices, Charts and Market Capitalizations</title>
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --surface: #ffffff;
+      --surface-2: #f9fbff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --positive: #16c784;
+      --negative: #ea3943;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "SF Pro Display", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .container { width: min(1680px, 96vw); margin: 0 auto; }
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .topbar-inner {
+      display: flex; gap: 18px; flex-wrap: wrap; align-items: center;
+      padding: 10px 0;
+    }
+    .stat { color: var(--muted); }
+    .stat b { color: var(--text); font-weight: 650; }
+    .up { color: var(--positive); }
+    .down { color: var(--negative); }
+
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .nav-inner { display:flex; justify-content:space-between; align-items:center; padding:14px 0; }
+    .brand { font-weight: 800; letter-spacing: .2px; }
+    .brand span { color: var(--accent); }
+    .links { display:flex; gap:20px; font-size:14px; }
+    .links a { color: #334155; text-decoration:none; font-weight:500; }
+    .links a:hover { color: var(--accent); }
+
+    .promo {
+      margin: 16px 0;
+      background: linear-gradient(90deg, #0f172a, #1e293b);
+      color: #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    .promo-slide { display:none; padding:16px 20px; font-size:14px; }
+    .promo-slide.active { display:block; }
+    .promo-controls { position:absolute; right:12px; top:10px; display:flex; gap:8px; }
+    .icon-btn {
+      border:1px solid rgba(255,255,255,.25); background:transparent; color:white;
+      border-radius:8px; width:28px; height:28px; cursor:pointer;
+    }
+
+    .alerts {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+    }
+
+    .tabs-wrap { margin-top:16px; }
+    .tabs, .network-tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .tab {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color:#334155;
+      padding:8px 12px;
+      border-radius:10px;
+      font-size:13px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .tab.active { background: var(--accent-soft); color: var(--accent); border-color: #bfdbfe; }
+
+    .table-shell {
+      margin-top:12px;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .table-head-tools {
+      display:flex; justify-content:space-between; align-items:center;
+      gap:10px; padding:10px 12px; border-bottom:1px solid var(--border);
+      background: var(--surface-2);
+      position: sticky; top: 58px; z-index: 10;
+    }
+    .tool-actions { display:flex; gap:8px; }
+    .tool-btn {
+      border:1px solid var(--border); background: var(--surface); border-radius:8px;
+      padding:8px 10px; font-size:13px; cursor:pointer; color:#334155;
+    }
+    .tool-panel {
+      display:none; border-top:1px solid var(--border); background:#fbfdff; padding:10px 12px; font-size:13px;
+    }
+    .tool-panel.show { display:block; }
+
+    .table-wrap { overflow:auto; max-height: 70vh; }
+    table { border-collapse: collapse; width:100%; min-width:1280px; }
+    th, td { padding: 10px 10px; border-bottom: 1px solid #eef2f7; font-size: 13px; }
+    th {
+      position: sticky; top: 0; z-index: 5; background: #f8fafc;
+      color:#475569; font-weight:700; text-transform:uppercase; font-size:11px; letter-spacing:.04em;
+    }
+    td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+    td.center { text-align:center; }
+    tr:hover td { background:#f8fbff; }
+    .coin-name { display:flex; align-items:center; gap:8px; font-weight:600; }
+    .coin-dot { width:18px; height:18px; border-radius:50%; background:#cbd5e1; display:inline-block; }
+    .coin-sub { color: var(--muted); font-size:12px; font-weight:500; }
+    .spark { width:120px; height:34px; }
+
+    .pagination {
+      display:flex; justify-content:center; gap:6px; padding:14px; border-top:1px solid var(--border);
+      background:#fafcff;
+    }
+    .page-btn {
+      border:1px solid var(--border); background:var(--surface); border-radius:8px;
+      min-width:34px; height:34px; cursor:pointer; font-size:13px;
+    }
+    .page-btn.active { background:var(--accent); color:white; border-color:var(--accent); }
+
+    .section {
+      margin-top: 18px;
+      background: var(--surface);
+      border:1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .muted { color:var(--muted); }
+    .summary-extra { display:none; margin-top:8px; }
+    .summary-extra.show { display:block; }
+    .read-more {
+      border:none; background:none; color:var(--accent); cursor:pointer; padding:0; font-weight:600;
+    }
+    footer { margin: 24px 0 40px; color:#64748b; font-size:13px; }
+    .index-row td { background:#f1f5ff; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="container topbar-inner">
+      <div class="stat">Global Market Cap: <b>$2.56T</b> <span class="up">1.46%</span></div>
+      <div class="stat">CMC20: <b>$154.29</b> <span class="up">0.21%</span></div>
+      <div class="stat">Fear &amp; Greed: <b>57</b> Neutral</div>
+      <div class="stat">Altcoin Season: <b>37/100</b></div>
+      <div class="stat">BTC Dominance: <b>59.04%</b></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="container nav-inner">
+      <div class="brand">CoinTracker <span>Pro</span></div>
+      <nav class="links">
+        <a href="index.html">Cryptocurrencies</a>
+        <a href="index.html">Dashboards</a>
+        <a href="index.html">Exchanges</a>
+        <a href="index.html">DexScan</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="container">
+    <section class="promo" aria-label="Promotional banner carousel">
+      <div class="promo-slide active">🔥 CoinTracker Pro AI Alerts: Track whale movements and volatility spikes in real time.</div>
+      <div class="promo-slide">⚡ New: Multi-network heatmap now supports Solana, Base, and BSC flow analytics.</div>
+      <div class="promo-slide">📈 Pro Index Signal: CMC20 momentum +1.15% over 24h, +4.97% over 7d.</div>
+      <div class="promo-controls">
+        <button class="icon-btn" id="promoPrev" aria-label="Previous banner">‹</button>
+        <button class="icon-btn" id="promoNext" aria-label="Next banner">›</button>
+      </div>
+    </section>
+
+    <section class="alerts">
+      <div><strong>AI Market Alerts:</strong> Volatility elevated on mid-caps. BTC options skew normalizing. Stablecoin inflows +2.8% (24h).</div>
+      <button class="tool-btn">Manage Alerts</button>
+    </section>
+
+    <section class="tabs-wrap">
+      <div class="tabs" id="categoryTabs"></div>
+      <div class="network-tabs" id="networkTabs" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="table-shell">
+      <div class="table-head-tools">
+        <div style="font-size:13px;color:#64748b;">Showing <strong id="rowCount">0</strong> assets</div>
+        <div class="tool-actions">
+          <button class="tool-btn" id="columnsBtn">Columns</button>
+          <button class="tool-btn" id="filtersBtn">Filters</button>
+        </div>
+      </div>
+
+      <div class="tool-panel" id="columnsPanel"></div>
+      <div class="tool-panel" id="filtersPanel"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">#</th>
+              <th>Name</th>
+              <th class="num col-price">Price</th>
+              <th class="num col-1h">1h %</th>
+              <th class="num col-24h">24h %</th>
+              <th class="num col-7d">7d %</th>
+              <th class="num col-mcap">Market Cap</th>
+              <th class="num col-vol">Volume(24h)</th>
+              <th class="num col-supply">Circulating Supply</th>
+              <th class="center col-spark">Last 7 Days</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="pagination"></div>
+    </section>
+
+    <section class="section">
+      <h3 style="margin:0 0 8px;">Market Summary</h3>
+      <p class="muted" id="summaryText">The global cryptocurrency market cap today is <strong>$2.56T</strong>, up <strong>1.47%</strong> in the last 24 hours. Total market volume is <strong>$156.9B</strong>, with DeFi contributing <strong>14.51%</strong>. Stablecoin share remains elevated while Bitcoin dominance holds at <strong>59.04%</strong>.</p>
+      <div class="summary-extra muted" id="summaryExtra">Derivatives open interest is steady, funding rates are neutral across majors, and cross-chain liquidity has improved on Base and Solana. Risk sentiment remains balanced, aligning with the Fear &amp; Greed neutral regime.</div>
+      <button class="read-more" id="readMoreBtn">Read More</button>
+    </section>
+
+    <section class="section">
+      <h3 style="margin:0 0 8px;">About CoinTracker Pro</h3>
+      <p class="muted" style="margin:0;">CoinTracker Pro provides investors and traders with a comprehensive, real-time view of digital asset markets, including rankings, pricing, liquidity, and market structure indicators.</p>
+    </section>
+
+    <footer>© 2026 CoinTracker Pro • Real-time cryptocurrency market intelligence.</footer>
+  </main>
+
+  <script>
+    const categories = ["Top", "Trending", "Watchlist", "Prediction Markets", "Most Visited", "New"];
+    const networks = ["All Networks", "BSC", "Solana", "Base", "Ethereum", "More"];
+
+    const baseCoins = [
+      ["Bitcoin","BTC",75612.78,0.12,1.85,4.21,1.51e12,28.435e10,"20.01M BTC","Ethereum","Top"],
+      ["Ethereum","ETH",2356.00,-0.08,2.14,6.01,2.84e11,14.883e10,"120.44M ETH","Ethereum","Top"],
+      ["Tether","USDT",1.00,0.01,0.00,0.02,1.09e11,5.381e10,"109.2B USDT","Ethereum","Top"],
+      ["BNB","BNB",612.45,0.22,1.44,2.85,8.91e10,2.2e9,"145.9M BNB","BSC","Trending"],
+      ["Solana","SOL",144.78,0.35,3.72,10.84,6.91e10,4.7e9,"477.1M SOL","Solana","Trending"],
+      ["USDC","USDC",1.00,0.00,0.01,-0.01,5.22e10,6.2e9,"52.2B USDC","Base","Top"],
+      ["XRP","XRP",0.62,-0.12,1.23,7.52,3.55e10,1.8e9,"57.1B XRP","Ethereum","Most Visited"],
+      ["Dogecoin","DOGE",0.182,0.42,2.21,9.18,2.66e10,1.1e9,"146.0B DOGE","Base","Watchlist"],
+      ["Toncoin","TON",6.91,-0.32,-1.42,3.84,2.38e10,3.9e8,"3.47B TON","More","New"],
+      ["Cardano","ADA",0.47,0.18,0.94,4.11,1.67e10,5.5e8,"35.4B ADA","BSC","Prediction Markets"]
+    ];
+
+    const allCoins = [];
+    for (let i = 0; i < 100; i++) {
+      const t = baseCoins[i % baseCoins.length];
+      const factor = 1 + (i * 0.0075);
+      const price = t[2] / (1 + (i%7)*0.09) * (1 + (i%5)*0.015);
+      allCoins.push({
+        rank: i + 1,
+        name: i < 10 ? t[0] : `${t[0]} ${Math.floor(i/10)+1}`,
+        symbol: t[1],
+        price,
+        h1: t[3] + ((i%5)-2)*0.11,
+        h24: t[4] + ((i%7)-3)*0.39,
+        d7: t[5] + ((i%9)-4)*0.71,
+        mcap: t[6] / factor,
+        volume: t[7] / (1 + (i%8)*0.2),
+        supply: t[8],
+        network: t[9],
+        category: t[10],
+      });
+    }
+
+    let activeCategory = "Top";
+    let activeNetwork = "All Networks";
+    let activePage = 1;
+    const pageTotal = 84;
+    const visibleColumns = { price:true, h1:true, h24:true, d7:true, mcap:true, vol:true, supply:true, spark:true };
+    const filterState = { gainersOnly:false, volumeOver1B:false };
+
+    const fmtUsd = n => `$${n.toLocaleString(undefined, { maximumFractionDigits: n > 10 ? 2 : 6 })}`;
+    const fmtBig = n => {
+      if (n >= 1e12) return `$${(n/1e12).toFixed(2)}T`;
+      if (n >= 1e9) return `$${(n/1e9).toFixed(2)}B`;
+      if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+      return `$${n.toLocaleString()}`;
+    };
+    const pct = n => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`;
+
+    function renderTabs() {
+      const ct = document.getElementById('categoryTabs');
+      const nt = document.getElementById('networkTabs');
+      ct.innerHTML = categories.map(c => `<button class="tab ${c===activeCategory?'active':''}" data-cat="${c}">${c}</button>`).join('');
+      nt.innerHTML = networks.map(n => `<button class="tab ${n===activeNetwork?'active':''}" data-net="${n}">${n}</button>`).join('');
+
+      ct.querySelectorAll('button').forEach(btn => btn.onclick = () => { activeCategory = btn.dataset.cat; activePage = 1; renderAll(); });
+      nt.querySelectorAll('button').forEach(btn => btn.onclick = () => { activeNetwork = btn.dataset.net; activePage = 1; renderAll(); });
+    }
+
+    function sparkPath(seed, up) {
+      const pts = Array.from({length:24}, (_,i)=> Math.max(6, Math.min(30, 18 + Math.sin((i+seed)/3)*7 + (up? i*0.22 : -i*0.2))));
+      return pts.map((y,i)=>`${i*5},${y}`).join(' ');
+    }
+
+    function renderTable() {
+      const body = document.getElementById('tableBody');
+      let rows = allCoins.filter(c => c.category === activeCategory || activeCategory === "Top" && c.rank <= 100);
+      if (activeNetwork !== 'All Networks') rows = rows.filter(c => c.network === activeNetwork || (activeNetwork === 'More' && c.network === 'More'));
+      if (filterState.gainersOnly) rows = rows.filter(c => c.h24 > 0);
+      if (filterState.volumeOver1B) rows = rows.filter(c => c.volume > 1e9);
+
+      rows = rows.slice(0, 100);
+
+      const indexRow = `<tr class="index-row"><td class="num">—</td><td><div class="coin-name"><span class="coin-dot" style="background:#60a5fa"></span>CoinTracker 20 Index <span class="coin-sub">CT20</span></div></td>
+      <td class="num col-price">$154.29</td><td class="num col-1h up">+0.21%</td><td class="num col-24h up">+1.15%</td><td class="num col-7d up">+4.97%</td>
+      <td class="num col-mcap">$2.56T</td><td class="num col-vol">$156.9B</td><td class="num col-supply">—</td><td class="center col-spark"><svg class="spark" viewBox="0 0 120 34"><polyline fill="none" stroke="#16c784" stroke-width="2" points="${sparkPath(1,true)}"/></svg></td></tr>`;
+
+      body.innerHTML = indexRow + rows.map(c => `
+        <tr>
+          <td class="num">${c.rank}</td>
+          <td><div class="coin-name"><span class="coin-dot"></span>${c.name} <span class="coin-sub">${c.symbol}</span></div></td>
+          <td class="num col-price">${fmtUsd(c.price)}</td>
+          <td class="num col-1h ${c.h1>=0?'up':'down'}">${pct(c.h1)}</td>
+          <td class="num col-24h ${c.h24>=0?'up':'down'}">${pct(c.h24)}</td>
+          <td class="num col-7d ${c.d7>=0?'up':'down'}">${pct(c.d7)}</td>
+          <td class="num col-mcap">${fmtBig(c.mcap)}</td>
+          <td class="num col-vol">${fmtBig(c.volume)}</td>
+          <td class="num col-supply">${c.supply}</td>
+          <td class="center col-spark"><svg class="spark" viewBox="0 0 120 34"><polyline fill="none" stroke="${c.d7>=0?'#16c784':'#ea3943'}" stroke-width="2" points="${sparkPath(c.rank, c.d7>=0)}"/></svg></td>
+        </tr>`).join('');
+
+      document.getElementById('rowCount').textContent = rows.length.toString();
+      Object.entries(visibleColumns).forEach(([k,v]) => {
+        document.querySelectorAll(`.col-${k}`).forEach(el => el.style.display = v ? '' : 'none');
+      });
+    }
+
+    function renderPagination() {
+      const el = document.getElementById('pagination');
+      const pages = [1,2,3,4,'...',84];
+      el.innerHTML = pages.map(p => `<button class="page-btn ${p===activePage?'active':''}" data-p="${p}">${p}</button>`).join('');
+      el.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+        const val = btn.dataset.p;
+        if (val === '...') return;
+        activePage = Number(val);
+        renderPagination();
+      });
+    }
+
+    function renderPanels() {
+      const columnsPanel = document.getElementById('columnsPanel');
+      const filtersPanel = document.getElementById('filtersPanel');
+
+      const labels = [
+        ['price','Price'],['1h','1h %'],['24h','24h %'],['7d','7d %'],['mcap','Market Cap'],['vol','Volume(24h)'],['supply','Circulating Supply'],['spark','7d Sparkline']
+      ];
+      columnsPanel.innerHTML = labels.map(([id,txt]) => {
+        const key = id==='1h'?'h1':id==='24h'?'h24':id==='7d'?'d7':id;
+        return `<label style="margin-right:14px; display:inline-flex; gap:6px; align-items:center;"><input type="checkbox" data-col="${key}" ${visibleColumns[key]?'checked':''}/> ${txt}</label>`;
+      }).join('');
+      columnsPanel.querySelectorAll('input').forEach(i => i.onchange = () => { visibleColumns[i.dataset.col] = i.checked; renderTable(); });
+
+      filtersPanel.innerHTML = `
+        <label style="margin-right:16px;"><input type="checkbox" id="gainersOnly" ${filterState.gainersOnly?'checked':''}/> 24h Gainers only</label>
+        <label><input type="checkbox" id="volOver" ${filterState.volumeOver1B?'checked':''}/> Volume over $1B</label>`;
+      document.getElementById('gainersOnly').onchange = e => { filterState.gainersOnly = e.target.checked; renderTable(); };
+      document.getElementById('volOver').onchange = e => { filterState.volumeOver1B = e.target.checked; renderTable(); };
+    }
+
+    function renderAll() {
+      renderTabs();
+      renderPanels();
+      renderTable();
+      renderPagination();
+    }
+
+    document.getElementById('columnsBtn').onclick = () => document.getElementById('columnsPanel').classList.toggle('show');
+    document.getElementById('filtersBtn').onclick = () => document.getElementById('filtersPanel').classList.toggle('show');
+
+    document.getElementById('readMoreBtn').onclick = () => {
+      const ex = document.getElementById('summaryExtra');
+      ex.classList.toggle('show');
+      document.getElementById('readMoreBtn').textContent = ex.classList.contains('show') ? 'Read Less' : 'Read More';
+    };
+
+    const slides = Array.from(document.querySelectorAll('.promo-slide'));
+    let slideIdx = 0;
+    const showSlide = i => slides.forEach((s,idx)=>s.classList.toggle('active', idx===i));
+    const nextSlide = () => { slideIdx = (slideIdx + 1) % slides.length; showSlide(slideIdx); };
+    document.getElementById('promoNext').onclick = nextSlide;
+    document.getElementById('promoPrev').onclick = () => { slideIdx = (slideIdx - 1 + slides.length) % slides.length; showSlide(slideIdx); };
+    setInterval(nextSlide, 4500);
+
+    renderAll();
+  </script>
+</body>
+</html>
