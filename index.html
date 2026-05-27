@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=22">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
@@ -61,7 +61,7 @@
                 <span class="pill-label-hover" aria-hidden="true">Leaderboard</span>
               </span>
             </a>
-            <a href="#" class="pill-btn" data-pill-idx="1">
+            <a href="https://arxiv.org/pdf/2605.23657" class="pill-btn" data-pill-idx="1" target="_blank" rel="noopener">
               <span class="pill-circle" aria-hidden="true"></span>
               <span class="pill-label-stack">
                 <span class="pill-label">Report</span>
@@ -96,7 +96,8 @@
       <h2 class="section-title section-title--sm">Model Performance Across Tasks</h2>
       <p class="section-subtitle">Radar view of each model's score by task category</p>
     </div>
-    <div class="reveal" id="overall-chart" style="width:100%;height:820px;margin-top:32px"></div>
+    <div class="reveal" id="overall-chart" style="width:100%;height:680px;margin-top:32px"></div>
+    <div class="reveal overall-legend" id="overall-legend"></div>
     <div class="reveal" style="text-align:center;margin-top:32px">
       <a href="leaderboard.html" class="btn btn-secondary">Full Leaderboard &rarr;</a>
     </div>
@@ -245,7 +246,7 @@
   document.getElementById("hero-stats").innerHTML = [
     { value: "5", label: "Task Types" },
     { value: "667", label: "Cases" },
-    { value: "9", label: "Models" },
+    { value: "10", label: "Models" },
     { value: "30", label: "Skills" },
   ].map(s => `<div class="hero-stat"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`).join("");
 
@@ -487,46 +488,148 @@
       value: radarTasks.map(t => m.scores[t]),
       itemStyle: { color: m.display.color },
       lineStyle: { color: m.display.color, width: 2.5 },
-      areaStyle: { color: m.display.color, opacity: 0.08 }
+      areaStyle: { color: m.display.color, opacity: 0.08 },
+      emphasis: {
+        focus: 'self',
+        lineStyle: { color: m.display.color, width: 4 },
+        areaStyle: { color: m.display.color, opacity: 0.35 },
+        itemStyle: { color: m.display.color, borderColor: '#ffffff', borderWidth: 2 },
+        label: { show: true, color: '#ffffff', fontSize: 12, fontWeight: 600, formatter: p => p.value.toFixed(2) }
+      },
+      blur: {
+        lineStyle: { opacity: 0.15 },
+        areaStyle: { opacity: 0.02 },
+        itemStyle: { opacity: 0.15 }
+      }
     }));
 
   if (radarSeries.length) {
     const radarChart = echarts.init(document.getElementById("overall-chart"));
     const fluid = (min, ideal, max) => Math.max(min, Math.min(max, window.innerWidth * ideal));
-    const modelNames = lb.models.map(m => m.display.name);
-    const row1Names = modelNames.slice(0, 5);
-    const row2Names = modelNames.slice(5);
     const renderRadar = () => {
       const axisFs = fluid(13, 0.011, 24);
-      const legendFs = fluid(13, 0.0095, 20);
-      const itemGap = fluid(22, 0.016, 36);
-      const legendStyle = {
-        textStyle: { color: '#ffffff', fontSize: legendFs },
-        itemGap: itemGap,
-        left: 'center',
-      };
-      const rowH = Math.round(legendFs * 2.4 + 22);
       radarChart.setOption({
-        tooltip: { trigger: "item", formatter: function(p) {
-          let s = '<strong>' + p.name + '</strong>';
-          taskLabels.forEach((t, i) => { s += '<br>' + t + ': ' + (p.value[i] == null ? '—' : p.value[i].toFixed(2)); });
-          return s;
-        }},
-        legend: [
-          { ...legendStyle, bottom: rowH, data: row1Names },
-          { ...legendStyle, bottom: 14,   data: row2Names },
-        ],
-        radar: { indicator: radarIndicator, radius: '68%', center: ['50%', '44%'],
+        tooltip: {
+          trigger: "item",
+          triggerOn: "mousemove|click",
+          confine: true,
+          enterable: false,
+          formatter: function(p) {
+            let s = '<strong>' + p.name + '</strong>';
+            taskLabels.forEach((t, i) => { s += '<br>' + t + ': ' + (p.value[i] == null ? '—' : p.value[i].toFixed(2)); });
+            return s;
+          }
+        },
+        legend: { show: false },
+        radar: { indicator: radarIndicator, radius: '78%', center: ['50%', '50%'],
           axisName: { color: '#ffffff', fontSize: axisFs, fontWeight: 500 },
           splitArea: { areaStyle: { color: ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.06)'] } },
           splitLine: { lineStyle: { color: 'rgba(255,255,255,0.2)' } },
           axisLine: { lineStyle: { color: 'rgba(255,255,255,0.25)' } }
         },
-        series: [{ type: 'radar', data: radarSeries, symbol: 'circle', symbolSize: 6 }]
+        series: [{
+          type: 'radar',
+          data: radarSeries,
+          symbol: 'circle',
+          symbolSize: 8,
+          z: 2,
+          emphasis: { focus: 'self', blurScope: 'coordinateSystem' }
+        }]
       });
     };
     renderRadar();
     window.addEventListener("resize", () => { radarChart.resize(); renderRadar(); });
+
+    // Smart hover: snap to nearest data point and highlight that model.
+    // Uses zrender mousemove so any point along/near a line works, not just exact vertex hits.
+    const visibleNames = () => new Set(radarSeries.map(s => s.name));
+    let hovered = null;
+    const collectVertices = () => {
+      const radar = radarChart.getModel().getComponent('radar').coordinateSystem;
+      if (!radar) return [];
+      const visible = visibleNames();
+      const out = [];
+      lb.models.forEach(m => {
+        if (!visible.has(m.display.name)) return;
+        radarTasks.forEach((t, i) => {
+          const v = m.scores[t];
+          if (v == null) return;
+          const pt = radar.dataToPoint(v, i);
+          if (pt) out.push({ name: m.display.name, x: pt[0], y: pt[1] });
+        });
+      });
+      return out;
+    };
+    const setHover = (name) => {
+      if (name === hovered) return;
+      if (hovered) {
+        radarChart.dispatchAction({ type: 'downplay', seriesIndex: 0, name: hovered });
+      }
+      if (name) {
+        radarChart.dispatchAction({ type: 'highlight', seriesIndex: 0, name });
+        radarChart.dispatchAction({ type: 'showTip', seriesIndex: 0, name });
+      } else {
+        radarChart.dispatchAction({ type: 'hideTip' });
+      }
+      hovered = name;
+    };
+    const zr = radarChart.getZr();
+    zr.on('mousemove', (e) => {
+      const verts = collectVertices();
+      if (!verts.length) return;
+      const mx = e.offsetX, my = e.offsetY;
+      let best = null, bestDist = Infinity;
+      for (const v of verts) {
+        const d = Math.hypot(v.x - mx, v.y - my);
+        if (d < bestDist) { bestDist = d; best = v; }
+      }
+      // Snap radius: ~14% of chart width — generous so cursor moves along a line still snap
+      const snap = Math.max(80, radarChart.getWidth() * 0.12);
+      setHover(best && bestDist < snap ? best.name : null);
+    });
+    zr.on('globalout', () => setHover(null));
+
+    // Custom HTML legend with hover-to-highlight + click-to-toggle
+    const legendEl = document.getElementById("overall-legend");
+    if (legendEl) {
+      const hiddenModels = new Set();
+      legendEl.innerHTML = lb.models.map(m => {
+        const d = modelDisplay(m.model_id);
+        // Resolve to absolute URL so the mask in CSS doesn't try to resolve relative to the stylesheet
+        const iconUrl = d.model_icon ? new URL(d.model_icon, document.baseURI).href : '';
+        const modelIcon = iconUrl ? `<span class="legend-brand" style="--icon-url:url('${iconUrl}')"></span>` : '';
+        return `
+          <button type="button" class="overall-legend-item" data-name="${d.name}" style="--legend-color:${d.color}">
+            <span class="overall-legend-dot"></span>
+            ${modelIcon}
+            <span class="overall-legend-name">${d.name}</span>
+          </button>
+        `;
+      }).join("");
+      legendEl.addEventListener("mouseover", (e) => {
+        const btn = e.target.closest(".overall-legend-item");
+        if (!btn || hiddenModels.has(btn.dataset.name)) return;
+        setHover(btn.dataset.name);
+      });
+      legendEl.addEventListener("mouseout", (e) => {
+        const btn = e.target.closest(".overall-legend-item");
+        if (!btn) return;
+        setHover(null);
+      });
+      legendEl.addEventListener("click", (e) => {
+        const btn = e.target.closest(".overall-legend-item");
+        if (!btn) return;
+        const name = btn.dataset.name;
+        // Toggle visibility by setting the series data inline
+        if (hiddenModels.has(name)) hiddenModels.delete(name); else hiddenModels.add(name);
+        btn.classList.toggle("is-hidden", hiddenModels.has(name));
+        radarChart.setOption({
+          series: [{
+            data: radarSeries.filter(s => !hiddenModels.has(s.name))
+          }]
+        });
+      });
+    }
   }
 
 })();

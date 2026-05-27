@@ -371,6 +371,7 @@ function stripTaskPrefix(variant, taskType) {
       "codex-GPT-5.2",
       "codex-GPT-5.3-codex",
       "claude-code-deepseek-DeepSeek-V4",
+      "claude-code-glm-GLM-5.1",
       "kimi-cli-moonshot-kimi-k2.6",
       "claude-code-minimax-MiniMax-m2.7",
     ];
@@ -491,8 +492,11 @@ function stripTaskPrefix(variant, taskType) {
     html += '<div class="picker-bar" id="model-pills">';
     modelOrder.forEach(function (m, i) {
       var d = modelDisplay(m);
-      html += '<button class="picker-pill' + (i === 0 ? ' active' : '') + '" data-model="' + m + '"'
-        + '>' + d.name + '</button>';
+      // Resolve mono icon to absolute URL so the CSS mask doesn't try to resolve relative to the stylesheet
+      var iconUrl = d.model_icon ? new URL("../" + d.model_icon, document.baseURI).href : '';
+      var iconHTML = iconUrl ? '<span class="picker-pill-icon" style="--icon-url:url(\'' + iconUrl + '\')"></span>' : '';
+      html += '<button class="picker-pill' + (i === 0 ? ' active' : '') + '" data-model="' + m + '">'
+        + iconHTML + '<span>' + d.name + '</span></button>';
     });
     html += '</div></div>';
 
@@ -630,7 +634,9 @@ function stripTaskPrefix(variant, taskType) {
       document.getElementById("model-pills").innerHTML = avail.map(function (m) {
         var d = modelDisplay(m);
         var cls = "picker-pill" + (m === activeModel ? " active" : "");
-        return '<button class="' + cls + '" data-model="' + m + '">' + d.name + '</button>';
+        var iconUrl = d.model_icon ? new URL("../" + d.model_icon, document.baseURI).href : '';
+        var iconHTML = iconUrl ? '<span class="picker-pill-icon" style="--icon-url:url(\'' + iconUrl + '\')"></span>' : '';
+        return '<button class="' + cls + '" data-model="' + m + '">' + iconHTML + '<span>' + d.name + '</span></button>';
       }).join("");
     }
 
