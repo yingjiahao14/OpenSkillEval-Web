@@ -1,0 +1,659 @@
+{
+  "pipeline_nodes": {
+    "description": "All nodes (steps, decision gates, actions) in the Kubernetes multi-environment deployment pipeline",
+    "data": [
+      {
+        "id": "src-commit",
+        "label": "Source Commit & PR Merge",
+        "lane": "dev",
+        "type": "action",
+        "order": 1
+      },
+      {
+        "id": "ci-build",
+        "label": "CI Build & Unit Tests",
+        "lane": "dev",
+        "type": "action",
+        "order": 2
+      },
+      {
+        "id": "docker-push",
+        "label": "Docker Image Build & Push",
+        "lane": "dev",
+        "type": "action",
+        "order": 3
+      },
+      {
+        "id": "dev-deploy",
+        "label": "Deploy to Dev Namespace",
+        "lane": "dev",
+        "type": "action",
+        "order": 4
+      },
+      {
+        "id": "dev-smoke",
+        "label": "Smoke Tests (Dev)",
+        "lane": "dev",
+        "type": "check",
+        "order": 5
+      },
+      {
+        "id": "dev-hpa-check",
+        "label": "HPA Scaling Check (Dev)",
+        "lane": "dev",
+        "type": "hpa_decision",
+        "cpu_threshold_pct": 60,
+        "mem_threshold_pct": 70,
+        "order": 6
+      },
+      {
+        "id": "dev-gate",
+        "label": "Dev Health Gate",
+        "lane": "dev",
+        "type": "decision",
+        "error_rate_threshold_pct": 5.0,
+        "order": 7
+      },
+      {
+        "id": "staging-deploy",
+        "label": "Deploy to Staging Namespace",
+        "lane": "staging",
+        "type": "action",
+        "order": 8
+      },
+      {
+        "id": "staging-integration",
+        "label": "Integration & E2E Tests",
+        "lane": "staging",
+        "type": "check",
+        "order": 9
+      },
+      {
+        "id": "staging-hpa-check",
+        "label": "HPA Scaling Check (Staging)",
+        "lane": "staging",
+        "type": "hpa_decision",
+        "cpu_threshold_pct": 55,
+        "mem_threshold_pct": 65,
+        "order": 10
+      },
+      {
+        "id": "staging-perf",
+        "label": "Performance / Load Tests",
+        "lane": "staging",
+        "type": "check",
+        "order": 11
+      },
+      {
+        "id": "staging-gate",
+        "label": "Staging Health Gate",
+        "lane": "staging",
+        "type": "decision",
+        "error_rate_threshold_pct": 2.0,
+        "order": 12
+      },
+      {
+        "id": "canary-deploy",
+        "label": "Deploy Canary (10% Traffic)",
+        "lane": "canary",
+        "type": "action",
+        "traffic_pct": 10,
+        "order": 13
+      },
+      {
+        "id": "canary-observe",
+        "label": "Observe Metrics (5 min)",
+        "lane": "canary",
+        "type": "check",
+        "duration_min": 5,
+        "order": 14
+      },
+      {
+        "id": "canary-hpa-check",
+        "label": "HPA Scaling Check (Canary)",
+        "lane": "canary",
+        "type": "hpa_decision",
+        "cpu_threshold_pct": 50,
+        "mem_threshold_pct": 60,
+        "order": 15
+      },
+      {
+        "id": "canary-ramp-25",
+        "label": "Ramp Canary to 25% Traffic",
+        "lane": "canary",
+        "type": "action",
+        "traffic_pct": 25,
+        "order": 16
+      },
+      {
+        "id": "canary-observe-2",
+        "label": "Observe Metrics (10 min)",
+        "lane": "canary",
+        "type": "check",
+        "duration_min": 10,
+        "order": 17
+      },
+      {
+        "id": "canary-ramp-50",
+        "label": "Ramp Canary to 50% Traffic",
+        "lane": "canary",
+        "type": "action",
+        "traffic_pct": 50,
+        "order": 18
+      },
+      {
+        "id": "canary-gate",
+        "label": "Canary Health Gate",
+        "lane": "canary",
+        "type": "decision",
+        "error_rate_threshold_pct": 1.0,
+        "p99_latency_ms_threshold": 250,
+        "order": 19
+      },
+      {
+        "id": "prod-blue-green-prep",
+        "label": "Prepare Standby Slot (Green)",
+        "lane": "production",
+        "type": "action",
+        "order": 20
+      },
+      {
+        "id": "prod-deploy-green",
+        "label": "Deploy to Green Slot",
+        "lane": "production",
+        "type": "action",
+        "order": 21
+      },
+      {
+        "id": "prod-green-healthcheck",
+        "label": "Green Slot Health Check",
+        "lane": "production",
+        "type": "check",
+        "order": 22
+      },
+      {
+        "id": "prod-hpa-check",
+        "label": "HPA Scaling Check (Prod)",
+        "lane": "production",
+        "type": "hpa_decision",
+        "cpu_threshold_pct": 45,
+        "mem_threshold_pct": 55,
+        "order": 23
+      },
+      {
+        "id": "prod-bg-switch-gate",
+        "label": "Blue-Green Switch Decision",
+        "lane": "production",
+        "type": "decision",
+        "error_rate_threshold_pct": 0.5,
+        "p99_latency_ms_threshold": 200,
+        "order": 24
+      },
+      {
+        "id": "prod-switch-traffic",
+        "label": "Switch 100% Traffic → Green",
+        "lane": "production",
+        "type": "action",
+        "order": 25
+      },
+      {
+        "id": "prod-verify",
+        "label": "Post-Switch Verification (3 min)",
+        "lane": "production",
+        "type": "check",
+        "duration_min": 3,
+        "order": 26
+      },
+      {
+        "id": "prod-finalize",
+        "label": "Decommission Blue Slot",
+        "lane": "production",
+        "type": "action",
+        "order": 27
+      },
+      {
+        "id": "pipeline-complete",
+        "label": "Pipeline Complete ✓",
+        "lane": "production",
+        "type": "terminal",
+        "order": 28
+      },
+      {
+        "id": "rollback-dev",
+        "label": "Rollback Dev Deployment",
+        "lane": "dev",
+        "type": "rollback",
+        "order": 100
+      },
+      {
+        "id": "rollback-staging",
+        "label": "Rollback Staging Deployment",
+        "lane": "staging",
+        "type": "rollback",
+        "order": 101
+      },
+      {
+        "id": "rollback-canary",
+        "label": "Rollback Canary (Shift Traffic to Stable)",
+        "lane": "canary",
+        "type": "rollback",
+        "order": 102
+      },
+      {
+        "id": "rollback-prod",
+        "label": "Rollback: Revert Traffic → Blue",
+        "lane": "production",
+        "type": "rollback",
+        "order": 103
+      },
+      {
+        "id": "hpa-scale-up",
+        "label": "HPA: Scale Up Replicas",
+        "lane": "global",
+        "type": "hpa_action",
+        "order": 200
+      },
+      {
+        "id": "hpa-scale-down",
+        "label": "HPA: Scale Down Replicas",
+        "lane": "global",
+        "type": "hpa_action",
+        "order": 201
+      },
+      {
+        "id": "alert-oncall",
+        "label": "Alert On-Call & Open Incident",
+        "lane": "global",
+        "type": "action",
+        "order": 202
+      }
+    ]
+  },
+  "pipeline_edges": {
+    "description": "Directed edges connecting pipeline nodes, with edge type indicating forward flow, rollback, HPA branching, or blue-green switching",
+    "data": [
+      {
+        "from": "src-commit",
+        "to": "ci-build",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "ci-build",
+        "to": "docker-push",
+        "type": "forward",
+        "label": "tests pass"
+      },
+      {
+        "from": "docker-push",
+        "to": "dev-deploy",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "dev-deploy",
+        "to": "dev-smoke",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "dev-smoke",
+        "to": "dev-hpa-check",
+        "type": "forward",
+        "label": "pass"
+      },
+      {
+        "from": "dev-hpa-check",
+        "to": "hpa-scale-up",
+        "type": "hpa_branch",
+        "label": "CPU>60% or Mem>70%"
+      },
+      {
+        "from": "dev-hpa-check",
+        "to": "hpa-scale-down",
+        "type": "hpa_branch",
+        "label": "CPU<25% and Mem<30%"
+      },
+      {
+        "from": "dev-hpa-check",
+        "to": "dev-gate",
+        "type": "forward",
+        "label": "within range"
+      },
+      {
+        "from": "hpa-scale-up",
+        "to": "dev-gate",
+        "type": "forward",
+        "label": "scaled"
+      },
+      {
+        "from": "hpa-scale-down",
+        "to": "dev-gate",
+        "type": "forward",
+        "label": "scaled"
+      },
+      {
+        "from": "dev-gate",
+        "to": "staging-deploy",
+        "type": "forward",
+        "label": "error rate < 5%"
+      },
+      {
+        "from": "dev-gate",
+        "to": "rollback-dev",
+        "type": "rollback",
+        "label": "error rate ≥ 5%"
+      },
+      {
+        "from": "rollback-dev",
+        "to": "alert-oncall",
+        "type": "rollback",
+        "label": ""
+      },
+      {
+        "from": "staging-deploy",
+        "to": "staging-integration",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "staging-integration",
+        "to": "staging-hpa-check",
+        "type": "forward",
+        "label": "pass"
+      },
+      {
+        "from": "staging-hpa-check",
+        "to": "hpa-scale-up",
+        "type": "hpa_branch",
+        "label": "CPU>55% or Mem>65%"
+      },
+      {
+        "from": "staging-hpa-check",
+        "to": "hpa-scale-down",
+        "type": "hpa_branch",
+        "label": "CPU<20% and Mem<25%"
+      },
+      {
+        "from": "staging-hpa-check",
+        "to": "staging-perf",
+        "type": "forward",
+        "label": "within range"
+      },
+      {
+        "from": "staging-perf",
+        "to": "staging-gate",
+        "type": "forward",
+        "label": "pass"
+      },
+      {
+        "from": "staging-gate",
+        "to": "canary-deploy",
+        "type": "forward",
+        "label": "error rate < 2%"
+      },
+      {
+        "from": "staging-gate",
+        "to": "rollback-staging",
+        "type": "rollback",
+        "label": "error rate ≥ 2%"
+      },
+      {
+        "from": "rollback-staging",
+        "to": "alert-oncall",
+        "type": "rollback",
+        "label": ""
+      },
+      {
+        "from": "staging-integration",
+        "to": "rollback-staging",
+        "type": "rollback",
+        "label": "tests fail"
+      },
+      {
+        "from": "canary-deploy",
+        "to": "canary-observe",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "canary-observe",
+        "to": "canary-hpa-check",
+        "type": "forward",
+        "label": "metrics OK"
+      },
+      {
+        "from": "canary-hpa-check",
+        "to": "hpa-scale-up",
+        "type": "hpa_branch",
+        "label": "CPU>50% or Mem>60%"
+      },
+      {
+        "from": "canary-hpa-check",
+        "to": "hpa-scale-down",
+        "type": "hpa_branch",
+        "label": "CPU<20% and Mem<25%"
+      },
+      {
+        "from": "canary-hpa-check",
+        "to": "canary-ramp-25",
+        "type": "forward",
+        "label": "within range"
+      },
+      {
+        "from": "canary-ramp-25",
+        "to": "canary-observe-2",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "canary-observe-2",
+        "to": "canary-ramp-50",
+        "type": "forward",
+        "label": "metrics OK"
+      },
+      {
+        "from": "canary-ramp-50",
+        "to": "canary-gate",
+        "type": "forward",
+        "label": ""
+      },
+      {
+        "from": "canary-gate",
+        "to": "prod-blue-green-prep",
+        "type": "forward",
+        "label": "error<1% & p99<250ms"
+      },
+      {
+        "from": "canary-gate",
+        "to": "rollback-canary",
+        "type": "rollback",
+        "label": "error≥1% or p99≥250ms"
+      },
+      {
+        "from": "rollback-canary",
+        "to": "alert-oncall",
+        "type": "rollback",
+        "label": ""
+      },
+      {
+        "from": "canary-observe",
+        "to": "rollback-canary",
+        "type": "rollback",
+        "label": "metrics degraded"
+      },
+      {
+        "from": "canary-observe-2",
+        "to": "rollback-canary",
+        "type": "rollback",
+        "label": "metrics degraded"
+      },
+      {
+        "from": "prod-blue-green-prep",
+        "to": "prod-deploy-green",
+        "type": "blue_green",
+        "label": ""
+      },
+      {
+        "from": "prod-deploy-green",
+        "to": "prod-green-healthcheck",
+        "type": "blue_green",
+        "label": ""
+      },
+      {
+        "from": "prod-green-healthcheck",
+        "to": "prod-hpa-check",
+        "type": "forward",
+        "label": "healthy"
+      },
+      {
+        "from": "prod-hpa-check",
+        "to": "hpa-scale-up",
+        "type": "hpa_branch",
+        "label": "CPU>45% or Mem>55%"
+      },
+      {
+        "from": "prod-hpa-check",
+        "to": "hpa-scale-down",
+        "type": "hpa_branch",
+        "label": "CPU<15% and Mem<20%"
+      },
+      {
+        "from": "prod-hpa-check",
+        "to": "prod-bg-switch-gate",
+        "type": "forward",
+        "label": "within range"
+      },
+      {
+        "from": "prod-bg-switch-gate",
+        "to": "prod-switch-traffic",
+        "type": "blue_green",
+        "label": "error<0.5% & p99<200ms"
+      },
+      {
+        "from": "prod-bg-switch-gate",
+        "to": "rollback-prod",
+        "type": "rollback",
+        "label": "error≥0.5% or p99≥200ms"
+      },
+      {
+        "from": "prod-green-healthcheck",
+        "to": "rollback-prod",
+        "type": "rollback",
+        "label": "unhealthy"
+      },
+      {
+        "from": "rollback-prod",
+        "to": "alert-oncall",
+        "type": "rollback",
+        "label": ""
+      },
+      {
+        "from": "prod-switch-traffic",
+        "to": "prod-verify",
+        "type": "blue_green",
+        "label": ""
+      },
+      {
+        "from": "prod-verify",
+        "to": "prod-finalize",
+        "type": "forward",
+        "label": "verified OK"
+      },
+      {
+        "from": "prod-verify",
+        "to": "rollback-prod",
+        "type": "rollback",
+        "label": "verification failed"
+      },
+      {
+        "from": "prod-finalize",
+        "to": "pipeline-complete",
+        "type": "forward",
+        "label": ""
+      }
+    ]
+  },
+  "hpa_policies": {
+    "description": "HPA (Horizontal Pod Autoscaler) configuration per environment, defining scaling thresholds and replica bounds",
+    "data": [
+      {
+        "environment": "dev",
+        "min_replicas": 1,
+        "max_replicas": 5,
+        "cpu_target_pct": 60,
+        "mem_target_pct": 70,
+        "scale_up_cooldown_sec": 30,
+        "scale_down_cooldown_sec": 60
+      },
+      {
+        "environment": "staging",
+        "min_replicas": 2,
+        "max_replicas": 10,
+        "cpu_target_pct": 55,
+        "mem_target_pct": 65,
+        "scale_up_cooldown_sec": 45,
+        "scale_down_cooldown_sec": 90
+      },
+      {
+        "environment": "canary",
+        "min_replicas": 2,
+        "max_replicas": 15,
+        "cpu_target_pct": 50,
+        "mem_target_pct": 60,
+        "scale_up_cooldown_sec": 30,
+        "scale_down_cooldown_sec": 120
+      },
+      {
+        "environment": "production",
+        "min_replicas": 5,
+        "max_replicas": 50,
+        "cpu_target_pct": 45,
+        "mem_target_pct": 55,
+        "scale_up_cooldown_sec": 15,
+        "scale_down_cooldown_sec": 180
+      }
+    ]
+  },
+  "environment_config": {
+    "description": "Configuration metadata for each deployment environment including health-check and gate parameters",
+    "data": [
+      {
+        "environment": "dev",
+        "namespace": "app-dev",
+        "gate_error_rate_pct": 5.0,
+        "gate_p99_latency_ms": null,
+        "traffic_strategy": "direct",
+        "rollback_auto": true,
+        "approval_required": false
+      },
+      {
+        "environment": "staging",
+        "namespace": "app-staging",
+        "gate_error_rate_pct": 2.0,
+        "gate_p99_latency_ms": null,
+        "traffic_strategy": "direct",
+        "rollback_auto": true,
+        "approval_required": false
+      },
+      {
+        "environment": "canary",
+        "namespace": "app-canary",
+        "gate_error_rate_pct": 1.0,
+        "gate_p99_latency_ms": 250,
+        "traffic_strategy": "weighted_canary",
+        "rollback_auto": true,
+        "approval_required": false
+      },
+      {
+        "environment": "production",
+        "namespace": "app-production",
+        "gate_error_rate_pct": 0.5,
+        "gate_p99_latency_ms": 200,
+        "traffic_strategy": "blue_green",
+        "rollback_auto": true,
+        "approval_required": true
+      }
+    ]
+  }
+}
