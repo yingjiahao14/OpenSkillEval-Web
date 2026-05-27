@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Tracker User Health &amp; Activity Analytics Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #10b981;
+    --accent2: #f59e0b;
+    --accent3: #ef4444;
+    --accent4: #8b5cf6;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+  .container { max-width:1200px; margin:0 auto; padding:0 24px; }
+  header { background:linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color:#fff; padding:48px 0 40px; margin-bottom:32px; }
+  header h1 { font-size:2rem; font-weight:700; margin-bottom:8px; }
+  header p { font-size:1rem; opacity:.85; max-width:700px; }
+  .meta-bar { display:flex; gap:24px; margin-top:16px; font-size:.85rem; opacity:.7; }
+  .meta-bar span { display:flex; align-items:center; gap:4px; }
+
+  .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:32px; }
+  .kpi-card { background:var(--card); border-radius:12px; padding:20px; box-shadow:var(--shadow); border-left:4px solid var(--primary); }
+  .kpi-card.green { border-left-color:var(--accent); }
+  .kpi-card.amber { border-left-color:var(--accent2); }
+  .kpi-card.red { border-left-color:var(--accent3); }
+  .kpi-card.purple { border-left-color:var(--accent4); }
+  .kpi-label { font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-bottom:4px; }
+  .kpi-value { font-size:1.75rem; font-weight:700; }
+  .kpi-sub { font-size:.78rem; color:var(--text-muted); margin-top:2px; }
+
+  section { margin-bottom:40px; }
+  .section-card { background:var(--card); border-radius:12px; padding:28px 32px; box-shadow:var(--shadow); margin-bottom:24px; }
+  h2 { font-size:1.4rem; font-weight:700; margin-bottom:16px; color:var(--text); border-bottom:2px solid var(--primary); padding-bottom:8px; }
+  h3 { font-size:1.1rem; font-weight:600; margin:20px 0 10px; }
+
+  .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:20px 0; }
+  .chart-row.three { grid-template-columns:1fr 1fr 1fr; }
+  .chart-box { position:relative; background:var(--bg); border-radius:8px; padding:16px; }
+  .chart-box canvas { width:100%!important; }
+  .chart-title { font-size:.85rem; font-weight:600; margin-bottom:8px; color:var(--text-muted); text-align:center; }
+
+  table { width:100%; border-collapse:collapse; font-size:.88rem; margin:12px 0; }
+  th { background:var(--primary-light); color:var(--primary); font-weight:600; text-align:left; padding:10px 12px; border-bottom:2px solid var(--border); }
+  td { padding:9px 12px; border-bottom:1px solid var(--border); }
+  tr:hover td { background:#f1f5f9; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  .insight-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:16px 20px; margin:12px 0; }
+  .insight-box.warn { background:#fffbeb; border-color:#fde68a; }
+  .insight-box h4 { font-size:.9rem; font-weight:700; margin-bottom:4px; }
+  .insight-box p { font-size:.88rem; color:#334155; }
+
+  .rec-list { list-style:none; }
+  .rec-list li { padding:12px 16px; border-left:3px solid var(--primary); background:var(--bg); margin-bottom:8px; border-radius:0 8px 8px 0; }
+  .rec-list li strong { display:block; margin-bottom:2px; }
+
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.75rem; font-weight:600; }
+  .tag-blue { background:#dbeafe; color:#1d4ed8; }
+  .tag-green { background:#d1fae5; color:#065f46; }
+  .tag-amber { background:#fef3c7; color:#92400e; }
+
+  footer { text-align:center; padding:32px 0; color:var(--text-muted); font-size:.8rem; border-top:1px solid var(--border); margin-top:40px; }
+
+  @media(max-width:768px) {
+    .chart-row, .chart-row.three { grid-template-columns:1fr; }
+    .kpi-grid { grid-template-columns:1fr 1fr; }
+    header h1 { font-size:1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+<div class="container">
+  <h1>Fitness Tracker User Health &amp; Activity Analytics Report</h1>
+  <p>Comprehensive analysis of daily health metrics, activity patterns, and lifestyle indicators across a synthetic cohort of fitness tracker users (2015&ndash;2025).</p>
+  <div class="meta-bar">
+    <span>4,000 records</span>
+    <span>970 unique users</span>
+    <span>Jan 2015 &ndash; Dec 2025</span>
+    <span>Generated: April 2026</span>
+  </div>
+</div>
+</header>
+
+<div class="container">
+
+<!-- ======================== KPI CARDS ======================== -->
+<section>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Daily Steps</div>
+      <div class="kpi-value">10,574</div>
+      <div class="kpi-sub">Median: 10,729 &middot; P90: 18,025</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Avg Calories Burned</div>
+      <div class="kpi-value">616.7</div>
+      <div class="kpi-sub">kcal/day across all users</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">Avg Sleep Duration</div>
+      <div class="kpi-value">6.99 h</div>
+      <div class="kpi-sub">8.2% sleeping &lt; 5 h</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Workout Participation</div>
+      <div class="kpi-value">83.1%</div>
+      <div class="kpi-sub">3,325 of 4,000 daily records</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Avg Stress Level</div>
+      <div class="kpi-value">5.45</div>
+      <div class="kpi-sub">Scale 1&ndash;10 &middot; Nearly uniform distribution</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 1: Demographics ======================== -->
+<section id="demographic-overview">
+  <div class="section-card">
+    <h2>1. User Demographics &amp; Body Metrics Overview</h2>
+    <p>The dataset contains <strong>4,000 daily records</strong> from <strong>970 unique users</strong>, nearly evenly split by gender (50.6% Male, 49.4% Female). Users range from 18 to 59 years old with a mean age of 38.5 years.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Gender Distribution</div>
+        <canvas id="chartGender" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Age Group Distribution</div>
+        <canvas id="chartAge" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Body Metrics Summary</h3>
+    <table>
+      <thead><tr><th>Metric</th><th class="num">Min</th><th class="num">Mean</th><th class="num">Max</th></tr></thead>
+      <tbody>
+        <tr><td>Height (cm)</td><td class="num">150.0</td><td class="num">170.0</td><td class="num">200.0</td></tr>
+        <tr><td>Weight (kg)</td><td class="num">45.0</td><td class="num">70.3</td><td class="num">116.6</td></tr>
+        <tr><td>BMI (kg/m&sup2;)</td><td class="num">11.5</td><td class="num">24.6</td><td class="num">49.5</td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">BMI Category Distribution</div>
+        <canvas id="chartBMI" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Mood Distribution by Gender</div>
+        <canvas id="chartMoodGender" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="insight-box">
+      <h4>Demographic Takeaway</h4>
+      <p>The cohort is well-balanced across genders. The 25&ndash;44 age range represents 49.0% of records. BMI classification shows 39.8% Normal, 27.3% Overweight, 17.5% Obese, and 15.4% Underweight &mdash; indicating a broad fitness spectrum suitable for segmented product experiences.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 2: Activity ======================== -->
+<section id="activity-analysis">
+  <div class="section-card">
+    <h2>2. Physical Activity &amp; Workout Patterns</h2>
+
+    <h3>Daily Steps Distribution</h3>
+    <p>Average daily steps stand at <strong>10,574</strong> (median 10,729). The distribution is broad: 20.9% of days record fewer than 5,000 steps, while 26.3% exceed 15,000 steps.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Daily Steps Distribution</div>
+        <canvas id="chartStepsBuckets" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Average Steps by Workout Type</div>
+        <canvas id="chartStepsWorkout" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Workout Participation &amp; Preferences</h3>
+    <p><strong>83.1%</strong> of daily records include a workout. Participation is consistent across genders (Female: 82.7%, Male: 83.6%) and moods (range 82.6%&ndash;83.9%). Workout types are nearly uniformly distributed among active days.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Workout Type Distribution (Active Days)</div>
+        <canvas id="chartWorkoutDist" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Workout Type by Gender</div>
+        <canvas id="chartWorkoutGender" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Workout Participation by Segment</h3>
+    <table>
+      <thead><tr><th>Segment</th><th class="num">Participation Rate</th><th class="num">Avg Duration (min)</th></tr></thead>
+      <tbody>
+        <tr><td>Overall</td><td class="num">83.1%</td><td class="num">54.4</td></tr>
+        <tr><td>Female</td><td class="num">82.7%</td><td class="num">53.9</td></tr>
+        <tr><td>Male</td><td class="num">83.6%</td><td class="num">54.9</td></tr>
+        <tr><td>Mood: Happy</td><td class="num">82.9%</td><td class="num">&mdash;</td></tr>
+        <tr><td>Mood: Neutral</td><td class="num">83.9%</td><td class="num">&mdash;</td></tr>
+        <tr><td>Mood: Tired</td><td class="num">82.6%</td><td class="num">&mdash;</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead><tr><th>Workout Type</th><th class="num">Records</th><th class="num">Share</th><th class="num">Avg Steps</th><th class="num">Avg Duration</th><th class="num">Avg Calories</th></tr></thead>
+      <tbody>
+        <tr><td>Running</td><td class="num">641</td><td class="num">19.3%</td><td class="num">10,721</td><td class="num">55.0 min</td><td class="num">622.0</td></tr>
+        <tr><td>Gym</td><td class="num">689</td><td class="num">20.7%</td><td class="num">10,497</td><td class="num">55.6 min</td><td class="num">615.7</td></tr>
+        <tr><td>Walking</td><td class="num">676</td><td class="num">20.3%</td><td class="num">10,354</td><td class="num">53.6 min</td><td class="num">607.9</td></tr>
+        <tr><td>Yoga</td><td class="num">675</td><td class="num">20.3%</td><td class="num">10,626</td><td class="num">54.5 min</td><td class="num">619.8</td></tr>
+        <tr><td>Cycling</td><td class="num">644</td><td class="num">19.4%</td><td class="num">10,701</td><td class="num">53.6 min</td><td class="num">621.8</td></tr>
+      </tbody>
+    </table>
+
+    <div class="insight-box">
+      <h4>Activity Takeaway</h4>
+      <p>Workout participation is robust at 83.1% with no meaningful variation across gender or mood segments. Workout type selection is remarkably even, suggesting users in this cohort don't cluster around a single modality. Running and Cycling days show the highest average step counts. Steps correlate very strongly with calories burned (r = 0.973).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 3: Health Vitals ======================== -->
+<section id="health-vitals">
+  <div class="section-card">
+    <h2>3. Heart Rate, Sleep &amp; Calorie Burn Analysis</h2>
+
+    <h3>Heart Rate</h3>
+    <p>Average resting heart rate across the cohort is <strong>75.1 bpm</strong>, with no meaningful gender difference (Female: 75.0, Male: 75.2). The majority (37.6%) fall in the 70&ndash;80 bpm range.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Heart Rate Distribution</div>
+        <canvas id="chartHR" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Sleep Duration Distribution</div>
+        <canvas id="chartSleep" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Sleep Duration</h3>
+    <p>Mean sleep is <strong>6.99 hours</strong>. Nearly half of records (49.6%) fall between 6&ndash;8 hours. Males average slightly more sleep (7.04 h) vs. Females (6.95 h). Sleep shows minimal variation across stress levels (range 6.88&ndash;7.11 h) and moods (range 6.95&ndash;7.02 h).</p>
+
+    <h3>Calorie Burn</h3>
+    <p>Average daily calorie expenditure is <strong>616.7 kcal</strong>. The steps&ndash;calories correlation is extremely strong (r = 0.973), while workout duration shows essentially no independent correlation with calories (r = 0.026 among active days), suggesting that step count is the dominant driver of calorie tracking in this dataset.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Avg Calories by Workout Type</div>
+        <canvas id="chartCalWorkout" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Avg Calories by Age Group</div>
+        <canvas id="chartCalAge" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Sleep by Stress Level</h3>
+    <table>
+      <thead><tr><th>Stress Level</th><th class="num">Avg Sleep (h)</th><th class="num">Records</th></tr></thead>
+      <tbody>
+        <tr><td>1 (Low)</td><td class="num">7.03</td><td class="num">409</td></tr>
+        <tr><td>2</td><td class="num">7.01</td><td class="num">429</td></tr>
+        <tr><td>3</td><td class="num">7.01</td><td class="num">396</td></tr>
+        <tr><td>4</td><td class="num">6.88</td><td class="num">391</td></tr>
+        <tr><td>5</td><td class="num">7.06</td><td class="num">405</td></tr>
+        <tr><td>6</td><td class="num">6.92</td><td class="num">404</td></tr>
+        <tr><td>7</td><td class="num">7.11</td><td class="num">388</td></tr>
+        <tr><td>8</td><td class="num">7.04</td><td class="num">386</td></tr>
+        <tr><td>9</td><td class="num">6.98</td><td class="num">403</td></tr>
+        <tr><td>10 (High)</td><td class="num">6.91</td><td class="num">389</td></tr>
+      </tbody>
+    </table>
+
+    <div class="insight-box">
+      <h4>Vitals Takeaway</h4>
+      <p>Sleep and stress show effectively no linear correlation (r = -0.008), suggesting that in this synthetic dataset, self-reported stress is independent of measured sleep. The near-perfect steps&ndash;calorie correlation indicates that calorie estimation is predominantly step-derived. Heart rate distributions are healthy and tightly clustered around normal resting values.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 4: Lifestyle ======================== -->
+<section id="lifestyle-wellness">
+  <div class="section-card">
+    <h2>4. Lifestyle &amp; Wellness Indicators</h2>
+
+    <h3>Water Intake</h3>
+    <p>Average daily water intake is <strong>2.49 liters</strong>, with minimal variation across workout types (range 2.46&ndash;2.52 L). Walking days show the highest average intake (2.52 L), while rest days show the lowest (2.46 L).</p>
+
+    <h3>Stress Levels</h3>
+    <p>Mean stress level is <strong>5.45</strong> on a 1&ndash;10 scale. The distribution is nearly uniform across all levels (389&ndash;429 records per level), indicating this synthetic variable lacks the skew typically seen in real-world self-reported stress data.</p>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Stress Level Distribution</div>
+        <canvas id="chartStress" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Avg Stress by Age Group</div>
+        <canvas id="chartStressAge" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Mood Analysis</h3>
+    <p>Mood is evenly distributed: Happy 34.0%, Tired 33.2%, Neutral 32.8%. Mood shows only minor variation across metrics:</p>
+    <table>
+      <thead><tr><th>Mood</th><th class="num">Records</th><th class="num">Avg Steps</th><th class="num">Avg Calories</th><th class="num">Avg Sleep</th><th class="num">Avg Stress</th><th class="num">Workout %</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-green">Happy</span></td><td class="num">1,359</td><td class="num">10,358</td><td class="num">609.3</td><td class="num">7.02</td><td class="num">5.33</td><td class="num">82.9%</td></tr>
+        <tr><td><span class="tag tag-blue">Neutral</span></td><td class="num">1,312</td><td class="num">10,621</td><td class="num">618.7</td><td class="num">7.01</td><td class="num">5.43</td><td class="num">83.9%</td></tr>
+        <tr><td><span class="tag tag-amber">Tired</span></td><td class="num">1,329</td><td class="num">10,749</td><td class="num">622.3</td><td class="num">6.95</td><td class="num">5.58</td><td class="num">82.6%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Avg Water Intake by Workout Type</div>
+        <canvas id="chartWater" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Mood Distribution</div>
+        <canvas id="chartMood" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="insight-box warn">
+      <h4>Lifestyle Note</h4>
+      <p>Interestingly, "Tired" users record the highest average steps (10,749) and calories (622.3) but the lowest sleep (6.95 h) and highest stress (5.58). This could indicate that physical over-exertion without adequate recovery drives tiredness &mdash; a pattern worth monitoring for user wellness nudges.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 5: Temporal ======================== -->
+<section id="temporal-trends">
+  <div class="section-card">
+    <h2>5. Temporal Trends &amp; Seasonal Patterns</h2>
+    <p>This is the <strong>highest-priority analysis section</strong>. We examine yearly trends, monthly seasonality, and day-of-week patterns across key metrics.</p>
+
+    <h3>Year-Over-Year Trends</h3>
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Average Daily Steps by Year</div>
+        <canvas id="chartYearSteps" height="260"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Average Daily Calories by Year</div>
+        <canvas id="chartYearCals" height="260"></canvas>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Year</th><th class="num">n</th><th class="num">Avg Steps</th><th class="num">Avg Calories</th><th class="num">Avg Sleep</th><th class="num">Avg HR</th><th class="num">Avg Stress</th><th class="num">Workout %</th></tr></thead>
+      <tbody>
+        <tr><td>2015</td><td class="num">365</td><td class="num">10,963</td><td class="num">632</td><td class="num">7.03</td><td class="num">75.0</td><td class="num">5.33</td><td class="num">84.4%</td></tr>
+        <tr><td>2016</td><td class="num">366</td><td class="num">11,105</td><td class="num">640</td><td class="num">6.92</td><td class="num">74.1</td><td class="num">5.48</td><td class="num">83.6%</td></tr>
+        <tr><td>2017</td><td class="num">365</td><td class="num">10,574</td><td class="num">617</td><td class="num">7.08</td><td class="num">75.1</td><td class="num">5.47</td><td class="num">84.1%</td></tr>
+        <tr><td>2018</td><td class="num">365</td><td class="num">10,003</td><td class="num">598</td><td class="num">7.04</td><td class="num">75.2</td><td class="num">5.42</td><td class="num">77.5%</td></tr>
+        <tr><td>2019</td><td class="num">365</td><td class="num">10,909</td><td class="num">628</td><td class="num">6.93</td><td class="num">75.4</td><td class="num">5.40</td><td class="num">86.6%</td></tr>
+        <tr><td>2020</td><td class="num">366</td><td class="num">10,335</td><td class="num">606</td><td class="num">6.85</td><td class="num">75.3</td><td class="num">5.37</td><td class="num">82.2%</td></tr>
+        <tr><td>2021</td><td class="num">365</td><td class="num">10,425</td><td class="num">609</td><td class="num">7.11</td><td class="num">75.0</td><td class="num">5.48</td><td class="num">80.0%</td></tr>
+        <tr><td>2022</td><td class="num">365</td><td class="num">10,390</td><td class="num">612</td><td class="num">6.95</td><td class="num">74.8</td><td class="num">5.50</td><td class="num">85.2%</td></tr>
+        <tr><td>2023</td><td class="num">365</td><td class="num">10,742</td><td class="num">621</td><td class="num">6.99</td><td class="num">75.5</td><td class="num">5.42</td><td class="num">83.8%</td></tr>
+        <tr><td>2024</td><td class="num">366</td><td class="num">10,582</td><td class="num">618</td><td class="num">6.95</td><td class="num">75.8</td><td class="num">5.42</td><td class="num">81.4%</td></tr>
+        <tr><td>2025</td><td class="num">347</td><td class="num">10,271</td><td class="num">601</td><td class="num">7.09</td><td class="num">74.9</td><td class="num">5.64</td><td class="num">85.6%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Workout Participation Rate by Year</div>
+        <canvas id="chartYearWorkout" height="260"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Avg Sleep &amp; Stress by Year</div>
+        <canvas id="chartYearSleepStress" height="260"></canvas>
+      </div>
+    </div>
+
+    <h3>Monthly Seasonality (All Years Aggregated)</h3>
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Avg Steps by Month</div>
+        <canvas id="chartMonthSteps" height="260"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Workout Participation by Month</div>
+        <canvas id="chartMonthWorkout" height="260"></canvas>
+      </div>
+    </div>
+
+    <h3>Day-of-Week Patterns</h3>
+    <div class="chart-row">
+      <div class="chart-box">
+        <div class="chart-title">Avg Steps by Day of Week</div>
+        <canvas id="chartDOWSteps" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Workout Participation by Day of Week</div>
+        <canvas id="chartDOWWorkout" height="220"></canvas>
+      </div>
+    </div>
+
+    <h3>Year &times; Gender: Steps Trend</h3>
+    <div class="chart-box" style="max-width:700px;margin:0 auto;">
+      <div class="chart-title">Avg Daily Steps by Year &amp; Gender</div>
+      <canvas id="chartYearGender" height="280"></canvas>
+    </div>
+
+    <div class="insight-box">
+      <h4>Temporal Takeaways</h4>
+      <p><strong>Year-over-year:</strong> Steps and calories peaked in 2016 (11,105 steps, 640 kcal) and hit their lowest in 2018 (10,003 steps, 598 kcal) before partially recovering. Workout participation dipped notably in 2018 (77.5%) and 2021 (80.0%). Stress shows a slight upward trend toward 2025 (5.64).</p>
+      <p><strong>Monthly seasonality:</strong> March and December show the highest step counts (10,976 and 11,113 respectively). August leads in workout participation (86.5%), while October has the lowest (80.1%). This suggests a mild &ldquo;spring surge&rdquo; and &ldquo;late-year uptick&rdquo; pattern.</p>
+      <p><strong>Day-of-week:</strong> Tuesday leads for steps (10,799) and workout participation (84.1%), while Sunday trails (10,445 steps, 82.0% participation). The weekday-weekend gap is modest (~350 steps).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== SECTION 6: Insights ======================== -->
+<section id="key-insights-recommendations">
+  <div class="section-card">
+    <h2>6. Key Insights &amp; Recommendations</h2>
+
+    <h3>Top Findings</h3>
+    <ol style="padding-left:20px; margin-bottom:20px;">
+      <li style="margin-bottom:10px;"><strong>Steps are the dominant engagement signal.</strong> With a 0.973 correlation to calories burned (the only strong correlation in the dataset), step count is effectively the single metric driving calorie estimates. Workout duration adds negligible independent signal (r = 0.026).</li>
+      <li style="margin-bottom:10px;"><strong>Workout participation is high and stable,</strong> at 83.1% with no meaningful variation by gender, mood, or age group. This suggests the user base is already highly engaged, but also that current segmentation dimensions don't predict dropout risk.</li>
+      <li style="margin-bottom:10px;"><strong>2018 was an engagement trough.</strong> Both steps (10,003) and workout participation (77.5%) hit their lowest point in 2018, a potential product or cohort effect worth investigating.</li>
+      <li style="margin-bottom:10px;"><strong>"Tired" users are paradoxically the most active.</strong> They log the most steps (10,749), highest calories (622.3), but least sleep (6.95 h) and highest stress (5.58) &mdash; a potential overtraining signal.</li>
+      <li style="margin-bottom:10px;"><strong>Seasonal patterns are mild but real.</strong> March and December show elevated activity; October shows the lowest workout participation. Tuesday is the most active weekday.</li>
+      <li style="margin-bottom:10px;"><strong>Sleep and stress are statistically independent</strong> in this dataset (r = -0.008), which is atypical of real-world data and likely a synthetic artifact. Product features linking these two should be validated with real user data before launch.</li>
+    </ol>
+
+    <h3>Product &amp; Engagement Recommendations</h3>
+    <ul class="rec-list">
+      <li>
+        <strong>1. Introduce recovery-focused nudges for high-activity, low-sleep users.</strong>
+        "Tired" users are the most active yet least rested. A product feature that detects consecutive high-step / low-sleep days and prompts rest could improve long-term retention and wellness outcomes.
+      </li>
+      <li>
+        <strong>2. Time engagement campaigns around seasonal dips.</strong>
+        October (80.1% workout participation) and January (81.2%) are the weakest months. Schedule challenges, social features, or re-engagement campaigns in early October and late December to counter these dips.
+      </li>
+      <li>
+        <strong>3. Diversify calorie-burn estimation beyond steps.</strong>
+        Given that workout duration shows no independent correlation with calories, the tracking algorithm likely under-credits non-step activities (e.g., strength training, yoga). Improving this could increase perceived value for gym and yoga users.
+      </li>
+      <li>
+        <strong>4. Leverage Tuesday as a "momentum day."</strong>
+        Tuesday consistently shows peak activity and participation. Consider scheduling weekly goals, social comparisons, or push notifications on Tuesday mornings to capitalize on existing behavioral momentum.
+      </li>
+      <li>
+        <strong>5. Investigate the 2018 engagement dip for causal drivers.</strong>
+        The simultaneous drop in steps and workout participation in 2018 may reflect a product change, onboarding shift, or cohort effect. Understanding the cause can prevent recurrence.
+      </li>
+      <li>
+        <strong>6. Build segmentation beyond demographics.</strong>
+        Gender, age, and mood show minimal differentiation across KPIs. To identify at-risk or high-value user segments, consider behavioral clustering (e.g., step-count trajectories, workout consistency streaks) rather than demographic cuts.
+      </li>
+    </ul>
+  </div>
+</section>
+
+</div><!-- container -->
+
+<footer>
+  <div class="container">
+    Fitness Tracker Health &amp; Activity Analytics Report &middot; Data: Synthetic cohort (4,000 records, 970 users, 2015&ndash;2025) &middot; Generated April 2026
+  </div>
+</footer>
+
+<!-- ======================== CHART SCRIPTS ======================== -->
+<script>
+const COLORS = {
+  blue: '#2563eb', blueBg: 'rgba(37,99,235,.15)',
+  green: '#10b981', greenBg: 'rgba(16,185,129,.15)',
+  amber: '#f59e0b', amberBg: 'rgba(245,158,11,.15)',
+  red: '#ef4444', redBg: 'rgba(239,68,68,.15)',
+  purple: '#8b5cf6', purpleBg: 'rgba(139,92,246,.15)',
+  gray: '#64748b', grayBg: 'rgba(100,116,139,.12)',
+  teal: '#14b8a6',
+  pink: '#ec4899'
+};
+
+const baseOpts = {
+  responsive:true,
+  maintainAspectRatio:false,
+  plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false} },
+  scales:{ x:{grid:{display:false}}, y:{beginAtZero:false, grid:{color:'#f1f5f9'}} }
+};
+
+function mergeOpts(overrides) {
+  return JSON.parse(JSON.stringify({...baseOpts, ...overrides}));
+}
+
+// 1. Gender Doughnut
+new Chart(document.getElementById('chartGender'), {
+  type:'doughnut',
+  data:{
+    labels:['Female','Male'],
+    datasets:[{data:[1975,2025], backgroundColor:[COLORS.pink, COLORS.blue], borderWidth:0}]
+  },
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'60%'}
+});
+
+// 2. Age Group Bar
+new Chart(document.getElementById('chartAge'), {
+  type:'bar',
+  data:{
+    labels:['18-24','25-34','35-44','45-54','55+'],
+    datasets:[{data:[648,976,983,909,484], backgroundColor:COLORS.blue, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{beginAtZero:true}}})
+});
+
+// 3. BMI Doughnut
+new Chart(document.getElementById('chartBMI'), {
+  type:'doughnut',
+  data:{
+    labels:['Normal','Overweight','Obese','Underweight'],
+    datasets:[{data:[1593,1091,701,615], backgroundColor:[COLORS.green,COLORS.amber,COLORS.red,COLORS.gray], borderWidth:0}]
+  },
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+});
+
+// 4. Mood x Gender
+new Chart(document.getElementById('chartMoodGender'), {
+  type:'bar',
+  data:{
+    labels:['Happy','Neutral','Tired'],
+    datasets:[
+      {label:'Female', data:[688,651,636], backgroundColor:COLORS.pink, borderRadius:4},
+      {label:'Male', data:[671,661,693], backgroundColor:COLORS.blue, borderRadius:4}
+    ]
+  },
+  options:mergeOpts({plugins:{legend:{display:true,position:'top'}}, scales:{y:{beginAtZero:true}}})
+});
+
+// 5. Steps Buckets
+new Chart(document.getElementById('chartStepsBuckets'), {
+  type:'bar',
+  data:{
+    labels:['0-5K','5-7.5K','7.5-10K','10-12.5K','12.5-15K','15-20K'],
+    datasets:[{data:[838,482,531,532,566,1051], backgroundColor:[COLORS.red,COLORS.amber,COLORS.amber,COLORS.green,COLORS.green,COLORS.blue], borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{beginAtZero:true}}})
+});
+
+// 6. Steps by Workout Type
+new Chart(document.getElementById('chartStepsWorkout'), {
+  type:'bar',
+  data:{
+    labels:['Running','Cycling','Yoga','None','Gym','Walking'],
+    datasets:[{data:[10721,10701,10626,10562,10497,10354], backgroundColor:COLORS.blue, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:10000}}})
+});
+
+// 7. Workout Distribution Doughnut
+new Chart(document.getElementById('chartWorkoutDist'), {
+  type:'doughnut',
+  data:{
+    labels:['Gym','Walking','Yoga','Cycling','Running'],
+    datasets:[{data:[689,676,675,644,641], backgroundColor:[COLORS.purple,COLORS.green,COLORS.amber,COLORS.teal,COLORS.red], borderWidth:0}]
+  },
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'50%'}
+});
+
+// 8. Workout x Gender
+new Chart(document.getElementById('chartWorkoutGender'), {
+  type:'bar',
+  data:{
+    labels:['Cycling','Gym','Running','Walking','Yoga'],
+    datasets:[
+      {label:'Female', data:[314,310,318,352,339], backgroundColor:COLORS.pink, borderRadius:4},
+      {label:'Male', data:[330,379,323,324,336], backgroundColor:COLORS.blue, borderRadius:4}
+    ]
+  },
+  options:mergeOpts({plugins:{legend:{display:true,position:'top'}}, scales:{y:{beginAtZero:true}}})
+});
+
+// 9. HR Distribution
+new Chart(document.getElementById('chartHR'), {
+  type:'bar',
+  data:{
+    labels:['<60','60-70','70-80','80-90','90+'],
+    datasets:[{data:[226,940,1506,1031,296], backgroundColor:[COLORS.blue,COLORS.green,COLORS.teal,COLORS.amber,COLORS.red], borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{beginAtZero:true}}})
+});
+
+// 10. Sleep Distribution
+new Chart(document.getElementById('chartSleep'), {
+  type:'bar',
+  data:{
+    labels:['<5h','5-6h','6-7h','7-8h','8-9h','9+h'],
+    datasets:[{data:[328,634,992,992,667,387], backgroundColor:[COLORS.red,COLORS.amber,COLORS.green,COLORS.green,COLORS.blue,COLORS.purple], borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{beginAtZero:true}}})
+});
+
+// 11. Calories by Workout Type
+new Chart(document.getElementById('chartCalWorkout'), {
+  type:'bar',
+  data:{
+    labels:['Running','Cycling','Yoga','Gym','None','Walking'],
+    datasets:[{data:[622.0,621.8,619.8,615.7,613.4,607.9], backgroundColor:COLORS.green, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:600}}})
+});
+
+// 12. Calories by Age
+new Chart(document.getElementById('chartCalAge'), {
+  type:'bar',
+  data:{
+    labels:['18-24','25-34','35-44','45-54','55+'],
+    datasets:[{data:[630.8,612.0,609.9,621.8,611.5], backgroundColor:COLORS.amber, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:600}}})
+});
+
+// 13. Stress Distribution
+new Chart(document.getElementById('chartStress'), {
+  type:'bar',
+  data:{
+    labels:['1','2','3','4','5','6','7','8','9','10'],
+    datasets:[{data:[409,429,396,391,405,404,388,386,403,389], backgroundColor:COLORS.red, borderRadius:3}]
+  },
+  options:mergeOpts({scales:{y:{beginAtZero:true}}})
+});
+
+// 14. Stress by Age
+new Chart(document.getElementById('chartStressAge'), {
+  type:'bar',
+  data:{
+    labels:['18-24','25-34','35-44','45-54','55+'],
+    datasets:[{data:[5.36,5.45,5.58,5.42,5.35], backgroundColor:COLORS.purple, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:5.0,max:5.8}}})
+});
+
+// 15. Water by Workout
+new Chart(document.getElementById('chartWater'), {
+  type:'bar',
+  data:{
+    labels:['Walking','Yoga','Running','Cycling','Gym','None'],
+    datasets:[{data:[2.52,2.50,2.49,2.48,2.48,2.46], backgroundColor:COLORS.teal, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:2.4,max:2.55}}})
+});
+
+// 16. Mood Doughnut
+new Chart(document.getElementById('chartMood'), {
+  type:'doughnut',
+  data:{
+    labels:['Happy','Tired','Neutral'],
+    datasets:[{data:[1359,1329,1312], backgroundColor:[COLORS.green,COLORS.amber,COLORS.blue], borderWidth:0}]
+  },
+  options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+});
+
+// === TEMPORAL ===
+const years = ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+
+// 17. Year Steps
+new Chart(document.getElementById('chartYearSteps'), {
+  type:'line',
+  data:{
+    labels:years,
+    datasets:[{
+      label:'Avg Steps',
+      data:[10963,11105,10574,10003,10909,10335,10425,10390,10742,10582,10271],
+      borderColor:COLORS.blue, backgroundColor:COLORS.blueBg, fill:true,
+      tension:.3, pointRadius:5, pointBackgroundColor:COLORS.blue
+    }]
+  },
+  options:mergeOpts({scales:{y:{min:9500,max:11500}}, plugins:{legend:{display:false}}})
+});
+
+// 18. Year Calories
+new Chart(document.getElementById('chartYearCals'), {
+  type:'line',
+  data:{
+    labels:years,
+    datasets:[{
+      label:'Avg Calories',
+      data:[632,640,617,598,628,606,609,612,621,618,601],
+      borderColor:COLORS.green, backgroundColor:COLORS.greenBg, fill:true,
+      tension:.3, pointRadius:5, pointBackgroundColor:COLORS.green
+    }]
+  },
+  options:mergeOpts({scales:{y:{min:580,max:660}}, plugins:{legend:{display:false}}})
+});
+
+// 19. Year Workout Participation
+new Chart(document.getElementById('chartYearWorkout'), {
+  type:'bar',
+  data:{
+    labels:years,
+    datasets:[{
+      label:'Workout %',
+      data:[84.4,83.6,84.1,77.5,86.6,82.2,80.0,85.2,83.8,81.4,85.6],
+      backgroundColor: [84.4,83.6,84.1,77.5,86.6,82.2,80.0,85.2,83.8,81.4,85.6].map(v=>v<80?COLORS.red:v<83?COLORS.amber:COLORS.blue),
+      borderRadius:4
+    }]
+  },
+  options:mergeOpts({scales:{y:{min:70,max:90}}, plugins:{legend:{display:false}}})
+});
+
+// 20. Year Sleep + Stress
+new Chart(document.getElementById('chartYearSleepStress'), {
+  type:'line',
+  data:{
+    labels:years,
+    datasets:[
+      {label:'Avg Sleep (h)', data:[7.03,6.92,7.08,7.04,6.93,6.85,7.11,6.95,6.99,6.95,7.09], borderColor:COLORS.blue, backgroundColor:'transparent', tension:.3, pointRadius:4, yAxisID:'y'},
+      {label:'Avg Stress', data:[5.33,5.48,5.47,5.42,5.40,5.37,5.48,5.50,5.42,5.42,5.64], borderColor:COLORS.red, backgroundColor:'transparent', tension:.3, pointRadius:4, borderDash:[5,5], yAxisID:'y1'}
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top'}, tooltip:{mode:'index',intersect:false}},
+    scales:{
+      x:{grid:{display:false}},
+      y:{position:'left', min:6.5, max:7.3, title:{display:true,text:'Sleep (h)'}, grid:{color:'#f1f5f9'}},
+      y1:{position:'right', min:5.0, max:5.8, title:{display:true,text:'Stress'}, grid:{display:false}}
+    }
+  }
+});
+
+// 21. Monthly Steps
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+new Chart(document.getElementById('chartMonthSteps'), {
+  type:'bar',
+  data:{
+    labels:months,
+    datasets:[{
+      data:[10176,10589,10976,10579,10472,10267,10829,10548,10404,10607,10337,11113],
+      backgroundColor: [10176,10589,10976,10579,10472,10267,10829,10548,10404,10607,10337,11113].map(v=>v>=10800?COLORS.blue:v>=10500?COLORS.teal:COLORS.gray),
+      borderRadius:4
+    }]
+  },
+  options:mergeOpts({scales:{y:{min:9800,max:11400}}, plugins:{legend:{display:false}}})
+});
+
+// 22. Monthly Workout
+new Chart(document.getElementById('chartMonthWorkout'), {
+  type:'bar',
+  data:{
+    labels:months,
+    datasets:[{
+      data:[81.2,84.2,85.9,82.7,80.6,84.5,83.3,86.5,81.5,80.1,84.2,82.7],
+      backgroundColor:[81.2,84.2,85.9,82.7,80.6,84.5,83.3,86.5,81.5,80.1,84.2,82.7].map(v=>v>=85?COLORS.blue:v>=83?COLORS.teal:COLORS.gray),
+      borderRadius:4
+    }]
+  },
+  options:mergeOpts({scales:{y:{min:75,max:90}}, plugins:{legend:{display:false}}})
+});
+
+// 23. DOW Steps
+new Chart(document.getElementById('chartDOWSteps'), {
+  type:'bar',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets:[{data:[10664,10799,10600,10317,10656,10537,10445], backgroundColor:COLORS.blue, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:10000,max:11000}}})
+});
+
+// 24. DOW Workout
+new Chart(document.getElementById('chartDOWWorkout'), {
+  type:'bar',
+  data:{
+    labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets:[{data:[83.7,84.1,84.1,81.1,84.1,82.9,82.0], backgroundColor:COLORS.green, borderRadius:4}]
+  },
+  options:mergeOpts({scales:{y:{min:78,max:86}}})
+});
+
+// 25. Year x Gender Steps
+new Chart(document.getElementById('chartYearGender'), {
+  type:'line',
+  data:{
+    labels:years,
+    datasets:[
+      {label:'Female', data:[11093,10908,10893,10141,10593,10605,10237,10020,10521,10798,10556], borderColor:COLORS.pink, tension:.3, pointRadius:5, pointBackgroundColor:COLORS.pink, backgroundColor:'transparent'},
+      {label:'Male', data:[10816,11276,10283,9866,11181,10077,10592,10771,10972,10345,9987], borderColor:COLORS.blue, tension:.3, pointRadius:5, pointBackgroundColor:COLORS.blue, backgroundColor:'transparent'}
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:true,position:'top'}, tooltip:{mode:'index',intersect:false}},
+    scales:{x:{grid:{display:false}}, y:{min:9500,max:11600, grid:{color:'#f1f5f9'}}}
+  }
+});
+</script>
+
+</body>
+</html>

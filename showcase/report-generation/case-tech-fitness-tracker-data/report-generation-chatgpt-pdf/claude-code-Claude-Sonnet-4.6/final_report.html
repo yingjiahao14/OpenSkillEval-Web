@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness Tracker User Health &amp; Activity Analytics Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1e40af;
+    --primary-light: #3b82f6;
+    --primary-dark: #1e3a8a;
+    --secondary: #64748b;
+    --accent: #0ea5e9;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  /* Cover Page */
+  .cover {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 40%, #2563eb 70%, #0ea5e9 100%);
+    color: white;
+    padding: 80px 60px;
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: -40px;
+    width: 300px; height: 300px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+  .cover-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 16px;
+  }
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 12px;
+    max-width: 700px;
+  }
+  .cover p {
+    font-size: 15px;
+    opacity: 0.85;
+    max-width: 600px;
+    margin-bottom: 32px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    font-size: 12px;
+    opacity: 0.7;
+  }
+  .cover-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* Layout */
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 32px; }
+
+  /* TOC */
+  .toc {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 24px 0;
+  }
+  .toc-inner { max-width: 1140px; margin: 0 auto; padding: 0 32px; }
+  .toc h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+  .toc-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+  .toc-list li a {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .toc-list li a:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* KPI Bar */
+  .kpi-bar {
+    background: white;
+    border-bottom: 2px solid var(--border);
+    padding: 20px 0;
+  }
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; }
+  .kpi-item {
+    padding: 12px 20px;
+    border-right: 1px solid var(--border);
+    text-align: center;
+  }
+  .kpi-item:last-child { border-right: none; }
+  .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .kpi-value { font-size: 24px; font-weight: 800; color: var(--primary-dark); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+  /* Main content */
+  main { padding: 40px 0; }
+
+  /* Section */
+  .section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .section-num {
+    width: 32px; height: 32px;
+    background: var(--primary);
+    color: white;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .section-subtitle { font-size: 12px; color: var(--text-muted); }
+  .section-body { padding: 24px 28px; }
+
+  /* Chart grid */
+  .chart-grid { display: grid; gap: 24px; }
+  .chart-grid-2 { grid-template-columns: 1fr 1fr; }
+  .chart-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .chart-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chart-box h4 {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .chart-box canvas { max-height: 260px; }
+
+  /* Stat row */
+  .stat-row {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-row-3 { grid-template-columns: repeat(3, 1fr); }
+  .stat-row-4 { grid-template-columns: repeat(4, 1fr); }
+  .stat-row-5 { grid-template-columns: repeat(5, 1fr); }
+
+  .stat-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-card .val { font-size: 22px; font-weight: 800; color: var(--primary-dark); }
+  .stat-card .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); margin-top: 2px; }
+  .stat-card .sub { font-size: 11px; color: var(--text-light); margin-top: 1px; }
+
+  /* Data table */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th {
+    background: #f1f5f9;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    color: var(--text);
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #f8fafc; }
+
+  /* Progress bar */
+  .prog-bar-wrap { margin-bottom: 10px; }
+  .prog-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; color: var(--text); }
+  .prog-bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .prog-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--primary-light), var(--accent)); }
+
+  /* Callout boxes */
+  .callout {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 13px;
+  }
+  .callout-info { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .callout-success { background: #f0fdf4; border-left: 4px solid #10b981; }
+  .callout-warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
+  .callout-danger { background: #fef2f2; border-left: 4px solid #ef4444; }
+  .callout-icon { font-size: 16px; flex-shrink: 0; }
+  .callout-text strong { display: block; font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; }
+
+  /* Insight cards */
+  .insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .insight-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .insight-card .ic-num {
+    width: 28px; height: 28px;
+    background: var(--primary);
+    color: white;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .insight-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .insight-card p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .insight-card .rec {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #eff6ff;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--primary-dark);
+    font-weight: 500;
+  }
+
+  /* Horizontal bar chart (CSS) */
+  .hbar-list { list-style: none; }
+  .hbar-item { margin-bottom: 8px; }
+  .hbar-name { font-size: 12px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .hbar-track { height: 12px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 3px; }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Typography */
+  p { margin-bottom: 10px; color: var(--text); font-size: 13px; }
+  p:last-child { margin-bottom: 0; }
+  h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    background: white;
+    padding: 20px 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-light);
+  }
+
+  /* Highlight number */
+  .hl { color: var(--primary); font-weight: 700; }
+
+  /* Tag/badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+
+  /* Priority label */
+  .priority-banner {
+    background: linear-gradient(90deg, #1e3a8a, #2563eb);
+    color: white;
+    padding: 10px 28px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-bottom: none;
+  }
+  .priority-banner span { opacity: 0.7; }
+
+  @media (max-width: 768px) {
+    .chart-grid-2 { grid-template-columns: 1fr; }
+    .chart-grid-3 { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    .stat-row-4 { grid-template-columns: repeat(2, 1fr); }
+    .insight-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== COVER ===== -->
+<div class="cover">
+  <div class="cover-badge">Health Analytics Team &nbsp;|&nbsp; Internal Report</div>
+  <h1>Fitness Tracker User Health &amp; Activity Analytics Report</h1>
+  <p>A comprehensive analysis of daily health metrics, activity patterns, and lifestyle indicators across a synthetic cohort of fitness tracker users — 2015 to 2025.</p>
+  <div class="cover-meta">
+    <span>&#128197; April 21, 2026</span>
+    <span>&#128202; 4,000 daily records</span>
+    <span>&#128337; 2015–2025 cohort</span>
+    <span>&#128203; 6 analysis sections</span>
+  </div>
+</div>
+
+<!-- ===== TOC ===== -->
+<div class="toc">
+  <div class="toc-inner">
+    <h2>Sections</h2>
+    <ul class="toc-list">
+      <li><a href="#s0">Global KPIs</a></li>
+      <li><a href="#s1">1. User Demographics</a></li>
+      <li><a href="#s2">2. Physical Activity &amp; Workouts</a></li>
+      <li><a href="#s3">3. Heart Rate, Sleep &amp; Calories</a></li>
+      <li><a href="#s4">4. Lifestyle &amp; Wellness</a></li>
+      <li><a href="#s5">&#9733; 5. Temporal Trends &amp; Seasonality</a></li>
+      <li><a href="#s6">6. Key Insights &amp; Recommendations</a></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ===== KPI BAR ===== -->
+<div class="kpi-bar" id="s0">
+  <div class="container">
+    <div class="kpi-grid">
+      <div class="kpi-item">
+        <div class="kpi-label">Avg Daily Steps</div>
+        <div class="kpi-value">10,574</div>
+        <div class="kpi-sub">steps / day</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Avg Calories Burned</div>
+        <div class="kpi-value">616.7</div>
+        <div class="kpi-sub">kcal / day</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Avg Sleep Duration</div>
+        <div class="kpi-value">6.99</div>
+        <div class="kpi-sub">hours / night</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Workout Participation</div>
+        <div class="kpi-value">100%</div>
+        <div class="kpi-sub">all records active</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Avg Stress Level</div>
+        <div class="kpi-value">5.45</div>
+        <div class="kpi-sub">scale 1–10</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<main>
+<div class="container">
+
+  <!-- ===================== SECTION 1: DEMOGRAPHICS ===================== -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div>
+        <div class="section-title">User Demographics &amp; Body Metrics Overview</div>
+        <div class="section-subtitle">Distribution of users by age, gender, height, weight, and BMI</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="stat-row stat-row-4" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="val">4,000</div>
+          <div class="lbl">Total Records</div>
+          <div class="sub">Jan 2015 – Dec 2025</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">38.5 yrs</div>
+          <div class="lbl">Mean Age</div>
+          <div class="sub">Range: 18–59</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">24.6</div>
+          <div class="lbl">Avg BMI</div>
+          <div class="sub">Normal range</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">50.6% M</div>
+          <div class="lbl">Gender Split</div>
+          <div class="sub">2,025 M / 1,975 F</div>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h4>Gender Distribution</h4>
+          <canvas id="chart-gender" height="220"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Age Group Distribution</h4>
+          <canvas id="chart-age" height="220"></canvas>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3>Body Metrics by Gender</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Gender</th>
+            <th>Count</th>
+            <th>Avg Height (cm)</th>
+            <th>Avg Weight (kg)</th>
+            <th>Avg BMI</th>
+            <th>Avg Steps</th>
+            <th>Avg Calories</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Female</td><td>1,975</td><td>170.0</td><td>70.3</td><td>24.6</td><td>10,580</td><td>617.3</td></tr>
+          <tr><td>Male</td><td>2,025</td><td>169.9</td><td>70.3</td><td>24.6</td><td>10,568</td><td>616.2</td></tr>
+        </tbody>
+      </table>
+
+      <div class="divider"></div>
+      <h3>Age Group Performance Summary</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Age Group</th><th>Avg Steps</th><th>Avg Calories</th><th>Avg Stress</th><th>Avg Workout (min)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-blue">18–25</span></td><td>10,844</td><td>628.3</td><td>5.4</td><td>44.9</td></tr>
+          <tr><td><span class="badge badge-blue">26–35</span></td><td>10,449</td><td>611.8</td><td>5.5</td><td>45.7</td></tr>
+          <tr><td><span class="badge badge-blue">36–45</span></td><td>10,392</td><td>606.6</td><td>5.6</td><td>44.2</td></tr>
+          <tr><td><span class="badge badge-blue">46–59</span></td><td>10,656</td><td>621.5</td><td>5.4</td><td>46.0</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info" style="margin-top:16px;">
+        <span class="callout-icon">&#128101;</span>
+        <div class="callout-text">
+          <strong>Demographic Note</strong>
+          The dataset is nearly balanced by gender (50.6% Male / 49.4% Female) with an even spread across adult age groups. Body metrics (height, weight, BMI) are virtually identical across genders in this synthetic dataset, suggesting uniform generation — demographic-based product targeting should prioritize behavioral variables over body metrics.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 2: ACTIVITY ===================== -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div>
+        <div class="section-title">Physical Activity &amp; Workout Patterns</div>
+        <div class="section-subtitle">Daily step counts, workout type preferences, duration analysis, and activity segmentation</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="stat-row stat-row-4" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="val">10,574</div>
+          <div class="lbl">Avg Daily Steps</div>
+          <div class="sub">Median: 10,725</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">100%</div>
+          <div class="lbl">Workout Rate</div>
+          <div class="sub">0 "None" records</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">45.3 min</div>
+          <div class="lbl">Avg Workout</div>
+          <div class="sub">Per session</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">5 types</div>
+          <div class="lbl">Workout Varieties</div>
+          <div class="sub">Gym leads at 17.2%</div>
+        </div>
+      </div>
+
+      <div class="callout callout-warning">
+        <span class="callout-icon">&#9888;</span>
+        <div class="callout-text">
+          <strong>Workout Participation: 100%</strong>
+          Every record in the dataset includes an active workout (no "None" entries). This differs from a typical real-world population where non-workout days are common. Participation rate cannot be used as a differentiating KPI in this dataset — engagement should instead be measured via step counts, workout duration, and workout type distribution.
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Workout Type Distribution</h4>
+          <canvas id="chart-workout-dist" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Avg Daily Steps by Workout Type</h4>
+          <canvas id="chart-steps-workout" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Step Count Distribution (Buckets)</h4>
+          <canvas id="chart-steps-dist" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Avg Workout Duration by Type (minutes)</h4>
+          <canvas id="chart-workout-dur" height="240"></canvas>
+        </div>
+      </div>
+
+      <h3>Steps by Gender &amp; Workout Type</h3>
+      <div class="divider" style="margin-top:4px;"></div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Workout Type</th>
+            <th>Count</th>
+            <th>% of Records</th>
+            <th>Avg Steps</th>
+            <th>Avg Duration (min)</th>
+            <th>Avg Calories</th>
+            <th>Avg Stress</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Gym</td><td>689</td><td>17.2%</td><td>10,497</td><td>55.6</td><td>615.7</td><td>5.45</td></tr>
+          <tr><td>Walking</td><td>676</td><td>16.9%</td><td>10,353</td><td>53.6</td><td>607.9</td><td>5.50</td></tr>
+          <tr><td>Yoga</td><td>675</td><td>16.9%</td><td>10,626</td><td>54.5</td><td>619.8</td><td>5.42</td></tr>
+          <tr><td>Cycling</td><td>644</td><td>16.1%</td><td>10,701</td><td>53.6</td><td>621.8</td><td>5.55</td></tr>
+          <tr><td>Running</td><td>641</td><td>16.0%</td><td>10,721</td><td>55.0</td><td>622.0</td><td>5.36</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info" style="margin-top:16px;">
+        <span class="callout-icon">&#128203;</span>
+        <div class="callout-text">
+          <strong>Key Activity Finding</strong>
+          Running and Cycling users log the highest average daily steps (10,721 and 10,701 respectively), while Walking records the lowest (10,353). The step-calorie correlation is extremely strong (r = 0.97), making step count an effective proxy for calorie burn. Running also has the lowest associated stress level (5.36), suggesting either that active runners report lower stress or that lower-stress days favor high-intensity workouts.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 3: HEALTH VITALS ===================== -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div>
+        <div class="section-title">Heart Rate, Sleep &amp; Calorie Burn Analysis</div>
+        <div class="section-subtitle">Distribution, correlations, and demographic breakdowns of core health vitals</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="stat-row stat-row-3" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="val">75.1 bpm</div>
+          <div class="lbl">Avg Heart Rate</div>
+          <div class="sub">Range across types: 74.8–75.5</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">6.99 hrs</div>
+          <div class="lbl">Avg Sleep Duration</div>
+          <div class="sub">Slightly below 7-hr target</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">616.7 kcal</div>
+          <div class="lbl">Avg Calories Burned</div>
+          <div class="sub">r=0.97 correlation with steps</div>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Avg Calories Burned by Workout Type</h4>
+          <canvas id="chart-cal-workout" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Avg Sleep Hours by Mood</h4>
+          <canvas id="chart-sleep-mood" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Avg Sleep Hours by Stress Level</h4>
+          <canvas id="chart-sleep-stress" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Avg Heart Rate by Workout Type</h4>
+          <canvas id="chart-hr-workout" height="240"></canvas>
+        </div>
+      </div>
+
+      <h3>Vitals Correlation Summary</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Variable</th><th>Correlation with Daily Steps</th><th>Interpretation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Calories Burned</td><td><span class="badge badge-green">r = +0.973</span></td><td>Very strong — steps drive calorie burn directly</td></tr>
+          <tr><td>Sleep Hours</td><td><span class="badge badge-amber">r = +0.022</span></td><td>Negligible — sleep not linked to step count</td></tr>
+          <tr><td>Heart Rate Avg</td><td><span class="badge badge-amber">r = −0.010</span></td><td>Negligible — HR independent of step volume</td></tr>
+          <tr><td>Workout Duration</td><td><span class="badge badge-amber">r = +0.015</span></td><td>Negligible — duration uncorrelated with steps</td></tr>
+          <tr><td>Stress Level</td><td><span class="badge badge-amber">r = −0.012</span></td><td>Negligible — stress independent of activity</td></tr>
+          <tr><td>Age</td><td><span class="badge badge-amber">r = −0.014</span></td><td>Negligible — age not a step predictor here</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-info" style="margin-top:16px;">
+        <span class="callout-icon">&#128293;</span>
+        <div class="callout-text">
+          <strong>Calorie–Steps Relationship</strong>
+          The near-perfect correlation (r = 0.97) between steps and calories confirms that step count is a reliable, single-number proxy for daily energy expenditure in this dataset. Heart rate, sleep, and stress show essentially zero linear correlation with step counts — these metrics are orthogonal dimensions that each require independent tracking and intervention strategies.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 4: LIFESTYLE ===================== -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div>
+        <div class="section-title">Lifestyle &amp; Wellness Indicators</div>
+        <div class="section-subtitle">Water intake, stress levels, mood distributions, and their relationships with activity metrics</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="stat-row stat-row-4" style="margin-bottom:24px;">
+        <div class="stat-card">
+          <div class="val">2.49 L</div>
+          <div class="lbl">Avg Water Intake</div>
+          <div class="sub">Consistent across moods</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">5.45</div>
+          <div class="lbl">Avg Stress Level</div>
+          <div class="sub">Mid-scale (1–10)</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">33.9%</div>
+          <div class="lbl">Happy Days</div>
+          <div class="sub">1,359 / 4,000 records</div>
+        </div>
+        <div class="stat-card">
+          <div class="val">33.2%</div>
+          <div class="lbl">Tired Days</div>
+          <div class="sub">1,329 / 4,000 records</div>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Mood Distribution</h4>
+          <canvas id="chart-mood-dist" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Avg Steps by Mood</h4>
+          <canvas id="chart-steps-mood" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Avg Stress Level by Workout Type</h4>
+          <canvas id="chart-stress-workout" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Mood Distribution by Workout Type (%)</h4>
+          <canvas id="chart-mood-workout" height="240"></canvas>
+        </div>
+      </div>
+
+      <h3>Stress &amp; Mood Breakdown</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Mood</th><th>Count</th><th>Avg Steps</th><th>Avg Stress</th><th>Avg Sleep (hrs)</th><th>Avg Water (L)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-green">Happy</span></td><td>1,359</td><td>10,358</td><td>5.33</td><td>7.02</td><td>2.49</td></tr>
+          <tr><td><span class="badge badge-amber">Neutral</span></td><td>1,312</td><td>10,621</td><td>5.43</td><td>7.01</td><td>2.49</td></tr>
+          <tr><td><span class="badge badge-red">Tired</span></td><td>1,329</td><td>10,749</td><td>5.58</td><td>6.95</td><td>2.49</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning" style="margin-top:16px;">
+        <span class="callout-icon">&#128161;</span>
+        <div class="callout-text">
+          <strong>Counterintuitive Mood–Steps Pattern</strong>
+          "Tired" days show the highest average steps (10,749) — higher than "Happy" days (10,358). This counterintuitive finding likely reflects that users report "Tired" after physically demanding days rather than as a cause of inactivity. Running is associated with the highest share of "Tired" mood (35.1%), while Yoga has the lowest (31.3%). Products should distinguish physical fatigue from motivational fatigue when serving mood-aware recommendations.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 5: TEMPORAL (PRIORITY) ===================== -->
+  <div class="section" id="s5">
+    <div class="priority-banner">&#9733; PRIORITY SECTION &nbsp;<span>— Highest-priority for roadmap timing decisions</span></div>
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div>
+        <div class="section-title">Temporal Trends &amp; Seasonal Patterns</div>
+        <div class="section-subtitle">Year-over-year shifts, monthly seasonality, and day-of-week patterns in activity and wellness metrics</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <!-- Year-over-year KPI summary -->
+      <h3>Year-over-Year KPI Summary (2015–2025)</h3>
+      <div style="overflow-x:auto; margin-bottom:20px;">
+        <table class="data-table">
+          <thead>
+            <tr><th>Year</th><th>Records</th><th>Avg Steps</th><th>Avg Calories</th><th>Avg Sleep (hrs)</th><th>Avg HR (bpm)</th><th>Avg Stress</th><th>Avg Water (L)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>2015</td><td>365</td><td>10,963</td><td>631.6</td><td>7.03</td><td>75.0</td><td>5.33</td><td>2.56</td></tr>
+            <tr><td>2016</td><td>366</td><td>11,105</td><td>639.7</td><td>6.92</td><td>74.1</td><td>5.48</td><td>2.48</td></tr>
+            <tr><td>2017</td><td>365</td><td>10,574</td><td>617.2</td><td>7.08</td><td>75.1</td><td>5.47</td><td>2.47</td></tr>
+            <tr><td>2018</td><td>365</td><td>10,003</td><td>598.3</td><td>7.04</td><td>75.2</td><td>5.42</td><td>2.46</td></tr>
+            <tr><td>2019</td><td>365</td><td>10,909</td><td>627.9</td><td>6.93</td><td>75.5</td><td>5.40</td><td>2.47</td></tr>
+            <tr><td>2020</td><td>366</td><td>10,335</td><td>606.2</td><td>6.85</td><td>75.3</td><td>5.37</td><td>2.40</td></tr>
+            <tr><td>2021</td><td>365</td><td>10,425</td><td>608.5</td><td>7.11</td><td>75.0</td><td>5.48</td><td>2.50</td></tr>
+            <tr><td>2022</td><td>365</td><td>10,390</td><td>612.4</td><td>6.95</td><td>74.8</td><td>5.50</td><td>2.52</td></tr>
+            <tr><td>2023</td><td>365</td><td>10,742</td><td>621.5</td><td>6.99</td><td>75.5</td><td>5.42</td><td>2.50</td></tr>
+            <tr><td>2024</td><td>366</td><td>10,582</td><td>618.2</td><td>6.95</td><td>75.8</td><td>5.42</td><td>2.52</td></tr>
+            <tr><td>2025</td><td>347</td><td>10,271</td><td>601.3</td><td>7.09</td><td>74.9</td><td>5.64</td><td>2.47</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- YoY charts -->
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Annual Avg Daily Steps (2015–2025)</h4>
+          <canvas id="chart-yoy-steps" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Annual Avg Calories &amp; Stress (2015–2025)</h4>
+          <canvas id="chart-yoy-cals" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Annual Avg Sleep Duration (2015–2025)</h4>
+          <canvas id="chart-yoy-sleep" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Annual Avg Heart Rate (2015–2025)</h4>
+          <canvas id="chart-yoy-hr" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <h3>Monthly Seasonality (Averaged Across All Years)</h3>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Monthly Avg Steps</h4>
+          <canvas id="chart-monthly-steps" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Monthly Avg Stress Level</h4>
+          <canvas id="chart-monthly-stress" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Monthly Avg Sleep (hrs)</h4>
+          <canvas id="chart-monthly-sleep" height="240"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Monthly Avg Calories Burned</h4>
+          <canvas id="chart-monthly-cals" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <h3>Day-of-Week Patterns</h3>
+      <div class="chart-grid chart-grid-2" style="margin-bottom:20px;">
+        <div class="chart-box">
+          <h4>Avg Daily Steps by Day of Week</h4>
+          <canvas id="chart-dow-steps" height="220"></canvas>
+        </div>
+        <div class="chart-box">
+          <h4>Monthly Seasonality Summary</h4>
+          <table class="data-table" style="font-size:12px;">
+            <thead>
+              <tr><th>Month</th><th>Avg Steps</th><th>Avg Stress</th><th>Avg Sleep</th><th>Avg Calories</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Jan</td><td>10,176</td><td>5.59</td><td>7.02</td><td>598.8</td></tr>
+              <tr><td>Feb</td><td>10,589</td><td>5.38</td><td>7.09</td><td>615.1</td></tr>
+              <tr><td>Mar</td><td><strong>10,976</strong></td><td>5.55</td><td>7.01</td><td><strong>628.9</strong></td></tr>
+              <tr><td>Apr</td><td>10,579</td><td>5.38</td><td>6.90</td><td>618.8</td></tr>
+              <tr><td>May</td><td>10,472</td><td>5.61</td><td>7.00</td><td>614.7</td></tr>
+              <tr><td>Jun</td><td>10,267</td><td>5.46</td><td>6.93</td><td>605.7</td></tr>
+              <tr><td>Jul</td><td>10,829</td><td>5.51</td><td>7.10</td><td>628.0</td></tr>
+              <tr><td>Aug</td><td>10,548</td><td><strong>5.79</strong></td><td>6.98</td><td>616.2</td></tr>
+              <tr><td>Sep</td><td>10,404</td><td>5.11</td><td>7.01</td><td>608.0</td></tr>
+              <tr><td>Oct</td><td>10,607</td><td>5.27</td><td>6.96</td><td>619.7</td></tr>
+              <tr><td>Nov</td><td>10,337</td><td>5.28</td><td>7.08</td><td>610.9</td></tr>
+              <tr><td>Dec</td><td><strong>11,113</strong></td><td>5.41</td><td>6.87</td><td><strong>635.7</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout callout-success" style="margin-top:4px;">
+        <span class="callout-icon">&#128200;</span>
+        <div class="callout-text">
+          <strong>Key Seasonal Finding: Dec &amp; Mar are Peak Activity Months</strong>
+          December records the highest average steps (11,113) and calories burned (635.7 kcal), followed by March (10,976 steps). June is the seasonal trough (10,267 steps, 605.7 kcal). August registers the year's highest stress peak (5.79). September is the lowest-stress month (5.11). These patterns suggest natural engagement windows for feature launches and push notification campaigns.
+        </div>
+      </div>
+
+      <div class="callout callout-info" style="margin-top:8px;">
+        <span class="callout-icon">&#128337;</span>
+        <div class="callout-text">
+          <strong>Year-over-Year: Step Count Volatility without Clear Trend</strong>
+          Steps peaked in 2016 (11,105/day) and hit a low in 2018 (10,003/day) — a 10% intra-decade swing. No consistent upward or downward trend is observable across the 2015–2025 range. Stress ticked upward in 2025 (5.64, the highest recorded year), which may signal a cohort-level wellness concern worth monitoring in future data collection.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== SECTION 6: INSIGHTS ===================== -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div>
+        <div class="section-title">Key Insights &amp; Recommendations</div>
+        <div class="section-subtitle">Data-driven recommendations for product feature development and user engagement strategies</div>
+      </div>
+    </div>
+    <div class="section-body">
+
+      <div class="insight-grid">
+
+        <div class="insight-card">
+          <div class="ic-num">1</div>
+          <h4>December &amp; March: Natural Activation Windows</h4>
+          <p>December (11,113 avg steps) and March (10,976) are the two highest-activity months — each ~8–9% above the June trough (10,267). These are not random noise; they represent consistent seasonal peaks across all 11 years.</p>
+          <div class="rec">&#127919; Launch new challenge features, streak campaigns, and push notification series in late November and mid-February to ride natural engagement upswings.</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="ic-num">2</div>
+          <h4>August Stress Spike Demands a Wellness Response</h4>
+          <p>August is the peak stress month (avg 5.79/10), 13% above September's low (5.11). Meanwhile, September records the lowest stress in any month. This makes August a critical window for wellness intervention.</p>
+          <div class="rec">&#127919; Deploy stress-management nudges, breathing exercise prompts, and sleep coaching campaigns in August. Use September's low-stress window to re-engage users with new goal-setting features.</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="ic-num">3</div>
+          <h4>Steps Are the Single Best Engagement Proxy</h4>
+          <p>Step count has a near-perfect correlation with calories burned (r = 0.97). No other metric — sleep, HR, water, stress — shows more than negligible correlation with daily steps. This makes steps uniquely reliable as an activity engagement signal.</p>
+          <div class="rec">&#127919; Focus engagement dashboards and team challenges on step counts as the primary KPI. Calories, HR, and sleep are independent wellness dimensions that should be tracked and nudged separately.</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="ic-num">4</div>
+          <h4>Running = Highest Activity, Lowest Stress</h4>
+          <p>Running users average the highest step count (10,721) and the lowest stress level (5.36) among all workout types. Yoga users have the lowest share of "Tired" mood days (31.3% vs. 35.1% for Running).</p>
+          <div class="rec">&#127919; Promote Running for users showing high-step / high-calorie goals; promote Yoga for users showing elevated stress or high tired-mood frequency. Personalized workout recommendations by goal/mood state can drive meaningful differentiation.</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="ic-num">5</div>
+          <h4>Tired Days Correlate with High Activity, Not Low</h4>
+          <p>"Tired" mood records have the highest average step count (10,749) — 3.8% more than "Happy" days (10,358). Physical exhaustion, not disengagement, is what "Tired" captures. Sleep differences across moods are minimal (6.95 vs. 7.02 hrs).</p>
+          <div class="rec">&#127919; Reframe "Tired" mood capture in the app as a recovery signal rather than a disengagement flag. Serve recovery content (sleep tips, lower-intensity next-day plans) rather than motivational prompts on tired days.</div>
+        </div>
+
+        <div class="insight-card">
+          <div class="ic-num">6</div>
+          <h4>2025 Stress Elevation Warrants Monitoring</h4>
+          <p>2025 recorded the highest annual average stress (5.64) of the entire 11-year cohort — up from a 2015 low of 5.33. While steps and calories remain within historical range, the stress signal is a potential early indicator of cohort-level wellness degradation.</p>
+          <div class="rec">&#127919; Prioritize stress-tracking feature development and in-app wellness check-ins as a product differentiator. Consider stress-to-activity ratio as a composite health index in future analytics.</div>
+        </div>
+
+      </div>
+
+      <div class="divider"></div>
+      <h3>Priority Engagement Calendar</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Month</th><th>Activity Level</th><th>Stress Level</th><th>Recommended Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>December</td><td><span class="badge badge-green">Peak (11,113 steps)</span></td><td>Moderate (5.41)</td><td>Launch year-end challenges &amp; streak features</td></tr>
+          <tr><td>March</td><td><span class="badge badge-green">High (10,976 steps)</span></td><td>Moderate (5.55)</td><td>Spring activation campaigns, new goal-setting</td></tr>
+          <tr><td>July</td><td><span class="badge badge-green">High (10,829 steps)</span></td><td>Moderate (5.51)</td><td>Summer fitness challenges, social features</td></tr>
+          <tr><td>August</td><td>Moderate (10,548 steps)</td><td><span class="badge badge-red">Peak stress (5.79)</span></td><td>Wellness interventions, stress coaching</td></tr>
+          <tr><td>September</td><td>Moderate (10,404 steps)</td><td><span class="badge badge-green">Lowest stress (5.11)</span></td><td>Re-engagement, new feature rollouts</td></tr>
+          <tr><td>June</td><td><span class="badge badge-red">Trough (10,267 steps)</span></td><td>Moderate (5.46)</td><td>Re-activation campaigns, lapsed-user nudges</td></tr>
+          <tr><td>January</td><td><span class="badge badge-amber">Low (10,176 steps)</span></td><td>High stress (5.59)</td><td>New Year goals flow, onboarding refreshes</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-success" style="margin-top:16px;">
+        <span class="callout-icon">&#9989;</span>
+        <div class="callout-text">
+          <strong>Summary: Top 3 Immediate Product Actions</strong>
+          (1) Build a seasonality-aware notification engine that intensifies engagement prompts in November–December and February–March, and shifts to recovery/wellness content in August. (2) Implement mood-aware workout recommendations — Running for goal-driven users, Yoga for high-stress or tired-day users. (3) Add a cohort stress trend dashboard for the analytics team to monitor the 2025 stress elevation pattern and intervene before it becomes a churn signal.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+</main>
+
+<footer>
+  <div class="container">
+    Fitness Tracker User Health &amp; Activity Analytics Report &nbsp;|&nbsp; Health Analytics Team &nbsp;|&nbsp; Generated April 21, 2026 &nbsp;|&nbsp; Dataset: 4,000 records, 2015–2025 &nbsp;|&nbsp; Synthetic data — not representative of real individuals
+  </div>
+</footer>
+
+<!-- ===== CHARTS ===== -->
+<script>
+// Shared defaults
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#64748b';
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding = 12;
+
+const BLUE_PALETTE = [
+  '#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd',
+  '#0ea5e9','#0284c7','#0369a1','#38bdf8','#7dd3fc'
+];
+const GRID = { color: '#f1f5f9', drawBorder: false };
+
+// 1. Gender pie
+new Chart(document.getElementById('chart-gender'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Male (50.6%)', 'Female (49.4%)'],
+    datasets: [{ data: [2025, 1975], backgroundColor: ['#1e40af','#60a5fa'], borderWidth: 0 }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+});
+
+// 2. Age group bar
+new Chart(document.getElementById('chart-age'), {
+  type: 'bar',
+  data: {
+    labels: ['18–25', '26–35', '36–45', '46–59'],
+    datasets: [{
+      label: 'Records',
+      data: [612, 1016, 1204, 1168],
+      backgroundColor: ['#1e40af','#2563eb','#3b82f6','#60a5fa'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: GRID }, y: { grid: GRID, beginAtZero: true } }
+  }
+});
+
+// 3. Workout distribution doughnut
+new Chart(document.getElementById('chart-workout-dist'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Gym (17.2%)', 'Walking (16.9%)', 'Yoga (16.9%)', 'Cycling (16.1%)', 'Running (16.0%)'],
+    datasets: [{ data: [689, 676, 675, 644, 641], backgroundColor: BLUE_PALETTE.slice(0,5), borderWidth: 0 }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+});
+
+// 4. Steps by workout
+new Chart(document.getElementById('chart-steps-workout'), {
+  type: 'bar',
+  data: {
+    labels: ['Running', 'Cycling', 'Yoga', 'Gym', 'Walking'],
+    datasets: [{
+      label: 'Avg Steps',
+      data: [10721, 10701, 10626, 10497, 10353],
+      backgroundColor: ['#1e40af','#2563eb','#3b82f6','#60a5fa','#93c5fd'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID, min: 10000, max: 11000 },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// 5. Steps distribution
+new Chart(document.getElementById('chart-steps-dist'), {
+  type: 'bar',
+  data: {
+    labels: ['< 5k steps', '5k – 8k steps', '8k – 12k steps', '> 12k steps'],
+    datasets: [{
+      label: 'Records',
+      data: [838, 592, 848, 1722],
+      backgroundColor: ['#ef4444','#f59e0b','#3b82f6','#10b981'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { display: false } }, y: { grid: GRID, beginAtZero: true } }
+  }
+});
+
+// 6. Workout duration
+new Chart(document.getElementById('chart-workout-dur'), {
+  type: 'bar',
+  data: {
+    labels: ['Gym', 'Running', 'Yoga', 'Cycling', 'Walking'],
+    datasets: [{
+      label: 'Avg Duration (min)',
+      data: [55.6, 55.0, 54.5, 53.6, 53.6],
+      backgroundColor: BLUE_PALETTE.slice(0,5),
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 50, max: 58 }
+    }
+  }
+});
+
+// 7. Calories by workout
+new Chart(document.getElementById('chart-cal-workout'), {
+  type: 'bar',
+  data: {
+    labels: ['Running', 'Cycling', 'Yoga', 'Gym', 'Walking'],
+    datasets: [{
+      label: 'Avg Calories (kcal)',
+      data: [622.0, 621.8, 619.8, 615.7, 607.9],
+      backgroundColor: BLUE_PALETTE.slice(0,5),
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID, min: 595, max: 635 },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+// 8. Sleep by mood
+new Chart(document.getElementById('chart-sleep-mood'), {
+  type: 'bar',
+  data: {
+    labels: ['Happy', 'Neutral', 'Tired'],
+    datasets: [{
+      label: 'Avg Sleep (hrs)',
+      data: [7.02, 7.01, 6.95],
+      backgroundColor: ['#10b981','#3b82f6','#ef4444'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 6.8, max: 7.2 }
+    }
+  }
+});
+
+// 9. Sleep by stress level
+new Chart(document.getElementById('chart-sleep-stress'), {
+  type: 'line',
+  data: {
+    labels: ['1','2','3','4','5','6','7','8','9','10'],
+    datasets: [{
+      label: 'Avg Sleep (hrs)',
+      data: [7.03, 7.01, 7.01, 6.88, 7.06, 6.92, 7.11, 7.04, 6.98, 6.91],
+      borderColor: '#1e40af',
+      backgroundColor: 'rgba(30,64,175,0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: '#1e40af'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID, title: { display: true, text: 'Stress Level (1=low, 10=high)' } },
+      y: { grid: GRID, min: 6.7, max: 7.2 }
+    }
+  }
+});
+
+// 10. HR by workout
+new Chart(document.getElementById('chart-hr-workout'), {
+  type: 'bar',
+  data: {
+    labels: ['Yoga', 'Running', 'Gym', 'Walking', 'Cycling'],
+    datasets: [{
+      label: 'Avg HR (bpm)',
+      data: [75.5, 75.4, 75.1, 74.8, 74.8],
+      backgroundColor: BLUE_PALETTE.slice(0,5),
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 74, max: 76.5 }
+    }
+  }
+});
+
+// 11. Mood distribution pie
+new Chart(document.getElementById('chart-mood-dist'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Happy (34.0%)', 'Tired (33.2%)', 'Neutral (32.8%)'],
+    datasets: [{ data: [1359, 1329, 1312], backgroundColor: ['#10b981','#ef4444','#3b82f6'], borderWidth: 0 }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+});
+
+// 12. Steps by mood
+new Chart(document.getElementById('chart-steps-mood'), {
+  type: 'bar',
+  data: {
+    labels: ['Tired', 'Neutral', 'Happy'],
+    datasets: [{
+      label: 'Avg Steps',
+      data: [10749, 10621, 10358],
+      backgroundColor: ['#ef4444','#3b82f6','#10b981'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 10000, max: 11000 }
+    }
+  }
+});
+
+// 13. Stress by workout
+new Chart(document.getElementById('chart-stress-workout'), {
+  type: 'bar',
+  data: {
+    labels: ['Cycling', 'Walking', 'Gym', 'Yoga', 'Running'],
+    datasets: [{
+      label: 'Avg Stress Level',
+      data: [5.55, 5.50, 5.45, 5.42, 5.36],
+      backgroundColor: BLUE_PALETTE.slice(0,5),
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 5.0, max: 5.8 }
+    }
+  }
+});
+
+// 14. Mood by workout stacked
+new Chart(document.getElementById('chart-mood-workout'), {
+  type: 'bar',
+  data: {
+    labels: ['Cycling', 'Gym', 'Running', 'Walking', 'Yoga'],
+    datasets: [
+      { label: 'Happy', data: [35.2, 33.4, 31.7, 35.1, 33.9], backgroundColor: '#10b981' },
+      { label: 'Neutral', data: [32.1, 33.5, 33.2, 31.8, 34.8], backgroundColor: '#3b82f6' },
+      { label: 'Tired', data: [32.6, 33.1, 35.1, 33.1, 31.3], backgroundColor: '#ef4444' }
+    ]
+  },
+  options: {
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, grid: GRID, max: 100 }
+    }
+  }
+});
+
+// 15. YoY steps line
+new Chart(document.getElementById('chart-yoy-steps'), {
+  type: 'line',
+  data: {
+    labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
+    datasets: [{
+      label: 'Avg Daily Steps',
+      data: [10963, 11105, 10574, 10003, 10909, 10335, 10425, 10390, 10742, 10582, 10271],
+      borderColor: '#1e40af',
+      backgroundColor: 'rgba(30,64,175,0.1)',
+      fill: true, tension: 0.4,
+      pointRadius: 5, pointBackgroundColor: '#1e40af',
+      pointHoverRadius: 7
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 9500, max: 11500 }
+    }
+  }
+});
+
+// 16. YoY calories + stress (dual axis)
+new Chart(document.getElementById('chart-yoy-cals'), {
+  type: 'line',
+  data: {
+    labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
+    datasets: [
+      {
+        label: 'Avg Calories (kcal)',
+        data: [631.6, 639.7, 617.2, 598.3, 627.9, 606.2, 608.5, 612.4, 621.5, 618.2, 601.3],
+        borderColor: '#2563eb', backgroundColor: 'transparent',
+        tension: 0.4, pointRadius: 4, yAxisID: 'y'
+      },
+      {
+        label: 'Avg Stress',
+        data: [5.33, 5.48, 5.47, 5.42, 5.40, 5.37, 5.48, 5.50, 5.42, 5.42, 5.64],
+        borderColor: '#f59e0b', backgroundColor: 'transparent',
+        tension: 0.4, pointRadius: 4, borderDash: [4,2], yAxisID: 'y2'
+      }
+    ]
+  },
+  options: {
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 585, max: 650, title: { display: true, text: 'Calories (kcal)' } },
+      y2: { position: 'right', min: 5.0, max: 6.0, grid: { display: false }, title: { display: true, text: 'Stress' } }
+    }
+  }
+});
+
+// 17. YoY sleep
+new Chart(document.getElementById('chart-yoy-sleep'), {
+  type: 'line',
+  data: {
+    labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
+    datasets: [{
+      label: 'Avg Sleep (hrs)',
+      data: [7.03, 6.92, 7.08, 7.04, 6.93, 6.85, 7.11, 6.95, 6.99, 6.95, 7.09],
+      borderColor: '#0ea5e9',
+      backgroundColor: 'rgba(14,165,233,0.1)',
+      fill: true, tension: 0.4,
+      pointRadius: 5, pointBackgroundColor: '#0ea5e9'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 6.6, max: 7.3 }
+    }
+  }
+});
+
+// 18. YoY HR
+new Chart(document.getElementById('chart-yoy-hr'), {
+  type: 'line',
+  data: {
+    labels: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'],
+    datasets: [{
+      label: 'Avg Heart Rate (bpm)',
+      data: [75.0, 74.1, 75.1, 75.2, 75.5, 75.3, 75.0, 74.8, 75.5, 75.8, 74.9],
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239,68,68,0.08)',
+      fill: true, tension: 0.4,
+      pointRadius: 5, pointBackgroundColor: '#ef4444'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 73, max: 77 }
+    }
+  }
+});
+
+// 19. Monthly steps
+new Chart(document.getElementById('chart-monthly-steps'), {
+  type: 'bar',
+  data: {
+    labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets: [{
+      label: 'Avg Steps',
+      data: [10176, 10589, 10976, 10579, 10472, 10267, 10829, 10548, 10404, 10607, 10337, 11113],
+      backgroundColor: [
+        '#60a5fa','#3b82f6','#10b981','#3b82f6','#60a5fa','#ef4444',
+        '#10b981','#3b82f6','#60a5fa','#3b82f6','#60a5fa','#10b981'
+      ],
+      borderRadius: 3, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 9800, max: 11500 }
+    }
+  }
+});
+
+// 20. Monthly stress
+new Chart(document.getElementById('chart-monthly-stress'), {
+  type: 'line',
+  data: {
+    labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets: [{
+      label: 'Avg Stress Level',
+      data: [5.59, 5.38, 5.55, 5.38, 5.61, 5.46, 5.51, 5.79, 5.11, 5.27, 5.28, 5.41],
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245,158,11,0.1)',
+      fill: true, tension: 0.4,
+      pointRadius: 5, pointBackgroundColor: '#f59e0b'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 4.8, max: 6.1 }
+    }
+  }
+});
+
+// 21. Monthly sleep
+new Chart(document.getElementById('chart-monthly-sleep'), {
+  type: 'line',
+  data: {
+    labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets: [{
+      label: 'Avg Sleep (hrs)',
+      data: [7.02, 7.09, 7.01, 6.90, 7.00, 6.93, 7.10, 6.98, 7.01, 6.96, 7.08, 6.87],
+      borderColor: '#0ea5e9',
+      backgroundColor: 'rgba(14,165,233,0.1)',
+      fill: true, tension: 0.4,
+      pointRadius: 5, pointBackgroundColor: '#0ea5e9'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: GRID },
+      y: { grid: GRID, min: 6.7, max: 7.3 }
+    }
+  }
+});
+
+// 22. Monthly calories
+new Chart(document.getElementById('chart-monthly-cals'), {
+  type: 'bar',
+  data: {
+    labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets: [{
+      label: 'Avg Calories (kcal)',
+      data: [598.8, 615.1, 628.9, 618.8, 614.7, 605.7, 628.0, 616.2, 608.0, 619.7, 610.9, 635.7],
+      backgroundColor: '#2563eb',
+      borderRadius: 3, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 580, max: 650 }
+    }
+  }
+});
+
+// 23. DoW steps
+new Chart(document.getElementById('chart-dow-steps'), {
+  type: 'bar',
+  data: {
+    labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets: [{
+      label: 'Avg Steps',
+      data: [10664, 10799, 10600, 10317, 10656, 10537, 10445],
+      backgroundColor: ['#1e40af','#10b981','#1e40af','#ef4444','#1e40af','#3b82f6','#3b82f6'],
+      borderRadius: 4, borderSkipped: false
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false } },
+      y: { grid: GRID, min: 10000, max: 11100 }
+    }
+  }
+});
+</script>
+</body>
+</html>

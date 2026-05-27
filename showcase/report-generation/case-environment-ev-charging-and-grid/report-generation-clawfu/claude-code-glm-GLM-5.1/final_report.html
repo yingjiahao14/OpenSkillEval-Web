@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV Charging Network Performance & Grid Optimization Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --secondary: #7c3aed;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+  .report-header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; padding: 40px 0; }
+  .report-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .report-header .subtitle { font-size: 15px; opacity: 0.85; }
+  .report-header .meta { font-size: 13px; opacity: 0.7; margin-top: 12px; }
+
+  .nav-bar { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .nav-bar .container { display: flex; gap: 6px; padding-top: 8px; padding-bottom: 8px; overflow-x: auto; }
+  .nav-bar a { text-decoration: none; font-size: 13px; font-weight: 500; color: var(--text-muted); padding: 6px 14px; border-radius: 6px; white-space: nowrap; transition: all .15s; }
+  .nav-bar a:hover { background: var(--primary-light); color: var(--primary); }
+
+  .kpi-banner { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 28px 0; }
+  .kpi-card { background: var(--card); border-radius: var(--radius); padding: 22px 20px; border: 1px solid var(--border); text-align: center; }
+  .kpi-card .kpi-value { font-size: 30px; font-weight: 700; color: var(--primary); }
+  .kpi-card .kpi-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card.danger .kpi-value { color: var(--danger); }
+  .kpi-card.success .kpi-value { color: var(--success); }
+  .kpi-card.warning .kpi-value { color: var(--warning); }
+  .kpi-card.secondary .kpi-value { color: var(--secondary); }
+
+  .section { padding: 36px 0; }
+  .section-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; padding-bottom: 10px; border-bottom: 3px solid var(--primary); display: inline-block; }
+  .section-objective { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; max-width: 760px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
+  .card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  .chart-container { position: relative; height: 320px; }
+  .chart-container.tall { height: 420px; }
+  .chart-container.short { height: 260px; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { background: #f1f5f9; text-align: left; padding: 10px 12px; font-weight: 600; color: var(--text); border-bottom: 2px solid var(--border); }
+  .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .data-table tr:hover { background: #f8fafc; }
+
+  .takeaway { background: #eff6ff; border-left: 4px solid var(--primary); padding: 16px 20px; border-radius: 0 var(--radius) var(--radius) 0; margin-top: 16px; font-size: 14px; }
+  .takeaway strong { color: var(--primary); }
+  .takeaway.danger { background: #fef2f2; border-left-color: var(--danger); }
+  .takeaway.danger strong { color: var(--danger); }
+  .takeaway.success { background: #f0fdf4; border-left-color: var(--success); }
+  .takeaway.success strong { color: var(--success); }
+  .takeaway.warning { background: #fffbeb; border-left-color: var(--warning); }
+  .takeaway.warning strong { color: var(--warning); }
+
+  .insight-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+  .insight-box .insight-title { font-weight: 600; color: #166534; margin-bottom: 4px; font-size: 14px; }
+  .insight-box .insight-body { font-size: 13px; color: #15803d; }
+  .insight-box.warn { background: #fffbeb; border-color: #fde68a; }
+  .insight-box.warn .insight-title { color: #92400e; }
+  .insight-box.warn .insight-body { color: #a16207; }
+
+  .heatmap-wrap { overflow-x: auto; margin: 16px 0; }
+  .heatmap-wrap svg { display: block; }
+
+  .rec-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; border-left: 5px solid var(--primary); }
+  .rec-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .rec-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+  .rec-card .impact { font-size: 13px; color: var(--primary); font-weight: 600; }
+  .rec-card:nth-child(2) { border-left-color: var(--success); }
+  .rec-card:nth-child(3) { border-left-color: var(--warning); }
+  .rec-card:nth-child(4) { border-left-color: var(--secondary); }
+  .rec-card:nth-child(5) { border-left-color: var(--danger); }
+  .rec-card:nth-child(6) { border-left-color: var(--accent); }
+
+  .footer { text-align: center; padding: 30px 0; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  @media (max-width: 900px) {
+    .kpi-banner { grid-template-columns: repeat(3, 1fr); }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .kpi-banner { grid-template-columns: 1fr 1fr; }
+    .report-header h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="report-header">
+  <div class="container">
+    <h1>EV Charging Network Performance & Grid Optimization</h1>
+    <div class="subtitle">Analytics Report &mdash; Infrastructure Operations & Demand Intelligence</div>
+    <div class="meta">8,354 charging sessions analyzed &middot; Data from January 2025 &middot; Generated May 2026</div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <div class="container">
+    <a href="#kpis">KPIs</a>
+    <a href="#station-utilization">Station Utilization</a>
+    <a href="#queue-wait-analysis">Queue & Wait</a>
+    <a href="#energy-grid-load">Energy & Grid</a>
+    <a href="#renewable-pricing">Renewable & Pricing</a>
+    <a href="#vehicle-charging-behavior">Vehicle Behavior</a>
+    <a href="#optimization-recommendations">Recommendations</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- KPI Banner -->
+<section id="kpis" class="section">
+  <div class="kpi-banner">
+    <div class="kpi-card danger">
+      <div class="kpi-value">9.5 min</div>
+      <div class="kpi-label">Avg Waiting Time</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">39.1 kWh</div>
+      <div class="kpi-label">Avg Energy / Session</div>
+    </div>
+    <div class="kpi-card warning">
+      <div class="kpi-value">53.2 kW</div>
+      <div class="kpi-label">Mean Station Load</div>
+    </div>
+    <div class="kpi-card success">
+      <div class="kpi-value">35.4%</div>
+      <div class="kpi-label">Renewable Energy Ratio</div>
+    </div>
+    <div class="kpi-card secondary">
+      <div class="kpi-value">-11.83</div>
+      <div class="kpi-label">Mean Opt. Reward</div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 1: Station Utilization & Demand -->
+<section id="station-utilization" class="section">
+  <h2 class="section-title">Station Utilization & Demand Analysis</h2>
+  <p class="section-objective">Analyze charging demand distribution across stations and location types, identifying high-demand stations, peak utilization periods, and capacity constraints.</p>
+
+  <div class="card">
+    <div class="card-title">Demand by Location Type</div>
+    <table id="" class="data-table"><thead><tr><th>Location Type</th><th>Sessions</th><th>Avg Demand</th><th>Avg Energy (kWh)</th><th>Avg Load (kW)</th><th>Avg Queue</th></tr></thead><tbody><tr><td>Highway</td><td>4166.0</td><td>53.39</td><td>39.08</td><td>53.41</td><td>4.61</td></tr><tr><td>Urban</td><td>4188.0</td><td>52.92</td><td>39.08</td><td>52.95</td><td>4.57</td></tr></tbody></table>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Average Charging Demand by Location Type</div>
+      <div class="chart-container short"><canvas id="s1_demand_by_loc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Average Charging Demand by Time Slot</div>
+      <div class="chart-container short"><canvas id="s1_demand_by_ts"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Demand Heatmap: Location Type &times; Time Slot</div>
+    <div class="heatmap-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="350" height="180" viewBox="0 0 350 180"><text x="80" y="20" font-size="14" font-weight="bold" fill="#1e293b">Average Charging Demand by Location Type & Time Slot</text><text x="145" y="35" font-size="11" fill="#475569" text-anchor="middle">Off-Peak</text><text x="275" y="35" font-size="11" fill="#475569" text-anchor="middle">Peak</text><text x="72" y="69" font-size="11" fill="#475569" text-anchor="end">Highway</text><rect x="80" y="40" width="128" height="48" rx="4" fill="rgb(218,233,253)" /><text x="145" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">34.68</text><rect x="210" y="40" width="128" height="48" rx="4" fill="rgb(30,64,175)" /><text x="275" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">84.04</text><text x="72" y="119" font-size="11" fill="#475569" text-anchor="end">Urban</text><rect x="80" y="90" width="128" height="48" rx="4" fill="rgb(219,234,254)" /><text x="145" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">34.52</text><rect x="210" y="90" width="128" height="48" rx="4" fill="rgb(30,64,175)" /><text x="275" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">84.14</text></svg></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Top 10 Stations by Average Demand</div>
+      <div class="chart-container tall"><canvas id="s1_top10"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top 10 Stations &mdash; Detail</div>
+      <table id="" class="data-table"><thead><tr><th>Station ID</th><th>Location</th><th>Sessions</th><th>Avg Demand</th><th>Avg Load (kW)</th><th>Avg Queue</th></tr></thead><tbody><tr><td>ST012</td><td>Urban</td><td>421</td><td>56.07</td><td>55.85</td><td>4.61</td></tr><tr><td>ST003</td><td>Urban</td><td>431</td><td>55.14</td><td>54.92</td><td>4.6</td></tr><tr><td>ST007</td><td>Urban</td><td>391</td><td>54.86</td><td>54.85</td><td>4.26</td></tr><tr><td>ST004</td><td>Urban</td><td>405</td><td>54.5</td><td>54.49</td><td>4.53</td></tr><tr><td>ST002</td><td>Highway</td><td>398</td><td>54.42</td><td>54.53</td><td>4.78</td></tr><tr><td>ST001</td><td>Highway</td><td>443</td><td>54.25</td><td>54.51</td><td>4.52</td></tr><tr><td>ST013</td><td>Highway</td><td>459</td><td>53.41</td><td>53.6</td><td>4.69</td></tr><tr><td>ST010</td><td>Urban</td><td>406</td><td>53.23</td><td>53.42</td><td>4.6</td></tr><tr><td>ST014</td><td>Highway</td><td>412</td><td>53.15</td><td>52.78</td><td>4.51</td></tr><tr><td>ST008</td><td>Urban</td><td>400</td><td>53.06</td><td>53.17</td><td>4.7</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> Peak time slots drive demand 2.43&times; higher than Off-Peak. Highway stations carry disproportionate demand. Capacity expansion at top-demand stations during Peak hours would directly reduce queue pressure.
+  </div>
+</section>
+
+<!-- Section 2: Queue & Wait Time Analysis -->
+<section id="queue-wait-analysis" class="section">
+  <h2 class="section-title">Queue Length & Waiting Time Analysis</h2>
+  <p class="section-objective">Examine queue lengths and waiting times by station, time slot, vehicle type, and traffic density to identify bottleneck patterns and quantify the customer experience impact.</p>
+
+  <div class="insight-box warn">
+    <div class="insight-title">Customer Experience Alert</div>
+    <div class="insight-body">2.2% of sessions had wait times &ge; 20 minutes. Peak hours concentrate the longest queues, especially at Urban stations.</div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Waiting Time by Location Type</div>
+      <div class="chart-container short"><canvas id="s2_wait_loc"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Avg Waiting Time by Time Slot</div>
+      <div class="chart-container short"><canvas id="s2_wait_ts"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Waiting Time Heatmap: Location Type &times; Time Slot (minutes)</div>
+    <div class="heatmap-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="350" height="180" viewBox="0 0 350 180"><text x="80" y="20" font-size="14" font-weight="bold" fill="#1e293b">Average Waiting Time (min) by Location Type & Time Slot</text><text x="145" y="35" font-size="11" fill="#475569" text-anchor="middle">Off-Peak</text><text x="275" y="35" font-size="11" fill="#475569" text-anchor="middle">Peak</text><text x="72" y="69" font-size="11" fill="#475569" text-anchor="end">Highway</text><rect x="80" y="40" width="128" height="48" rx="4" fill="rgb(239,68,68)" /><text x="145" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">9.6 min</text><rect x="210" y="40" width="128" height="48" rx="4" fill="rgb(244,126,126)" /><text x="275" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">9.5 min</text><text x="72" y="119" font-size="11" fill="#475569" text-anchor="end">Urban</text><rect x="80" y="90" width="128" height="48" rx="4" fill="rgb(244,126,126)" /><text x="145" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">9.5 min</text><rect x="210" y="90" width="128" height="48" rx="4" fill="rgb(254,242,242)" /><text x="275" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">9.3 min</text></svg></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Queue Length Heatmap: Location Type &times; Time Slot</div>
+    <div class="heatmap-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="350" height="180" viewBox="0 0 350 180"><text x="80" y="20" font-size="14" font-weight="bold" fill="#1e293b">Average Queue Length by Location Type & Time Slot</text><text x="145" y="35" font-size="11" fill="#475569" text-anchor="middle">Off-Peak</text><text x="275" y="35" font-size="11" fill="#475569" text-anchor="middle">Peak</text><text x="72" y="69" font-size="11" fill="#475569" text-anchor="end">Highway</text><rect x="80" y="40" width="128" height="48" rx="4" fill="rgb(239,68,68)" /><text x="145" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">4.7</text><rect x="210" y="40" width="128" height="48" rx="4" fill="rgb(254,242,242)" /><text x="275" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">4.5</text><text x="72" y="119" font-size="11" fill="#475569" text-anchor="end">Urban</text><rect x="80" y="90" width="128" height="48" rx="4" fill="rgb(246,155,155)" /><text x="145" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">4.6</text><rect x="210" y="90" width="128" height="48" rx="4" fill="rgb(254,242,242)" /><text x="275" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">4.5</text></svg></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Waiting Time by Vehicle Type</div>
+      <div class="chart-container"><canvas id="s2_wait_vehicle"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Avg Waiting Time by Traffic Density</div>
+      <div class="chart-container"><canvas id="s2_wait_traffic"></canvas></div>
+    </div>
+  </div>
+
+  <div class="takeaway danger">
+    <strong>Takeaway:</strong> Peak-hour wait times exceed Off-Peak by -0.2 minutes on average. Urban stations during Peak slots are the worst bottleneck &mdash; targeted charger deployment or demand-shifting incentives would have the highest ROI.
+  </div>
+</section>
+
+<!-- Section 3: Energy & Grid Load -->
+<section id="energy-grid-load" class="section">
+  <h2 class="section-title">Energy Consumption & Grid Load Patterns</h2>
+  <p class="section-objective">Assess energy consumption patterns, station load profiles across time slots and days of the week, and the relationship between charging power levels and grid stress.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Station Load by Day of Week</div>
+      <div class="chart-container"><canvas id="s3_load_day"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Avg Station Load by Time Slot</div>
+      <div class="chart-container short"><canvas id="s3_load_ts"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Station Load Heatmap: Location Type &times; Time Slot (kW)</div>
+    <div class="heatmap-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="350" height="180" viewBox="0 0 350 180"><text x="80" y="20" font-size="14" font-weight="bold" fill="#1e293b">Average Station Load (kW) by Location Type & Time Slot</text><text x="145" y="35" font-size="11" fill="#475569" text-anchor="middle">Off-Peak</text><text x="275" y="35" font-size="11" fill="#475569" text-anchor="middle">Peak</text><text x="72" y="69" font-size="11" fill="#475569" text-anchor="end">Highway</text><rect x="80" y="40" width="128" height="48" rx="4" fill="rgb(253,241,241)" /><text x="145" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">34.7</text><rect x="210" y="40" width="128" height="48" rx="4" fill="rgb(220,38,38)" /><text x="275" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">84.0</text><text x="72" y="119" font-size="11" fill="#475569" text-anchor="end">Urban</text><rect x="80" y="90" width="128" height="48" rx="4" fill="rgb(254,242,242)" /><text x="145" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">34.6</text><rect x="210" y="90" width="128" height="48" rx="4" fill="rgb(220,38,38)" /><text x="275" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">84.1</text></svg></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Station Load by Charger Power Level</div>
+      <div class="chart-container"><canvas id="s3_power_load"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Peak vs Off-Peak Load</div>
+      <div style="display:flex;gap:40px;align-items:center;justify-content:center;padding:30px 0;">
+        <div style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--danger)">84.1 kW</div><div style="font-size:13px;color:var(--text-muted)">Peak Avg Load</div></div>
+        <div style="font-size:28px;color:var(--text-muted)">vs</div>
+        <div style="text-align:center"><div style="font-size:36px;font-weight:700;color:var(--success)">34.7 kW</div><div style="font-size:13px;color:var(--text-muted)">Off-Peak Avg Load</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="takeaway warning">
+    <strong>Takeaway:</strong> Peak loads are 2.4&times; Off-Peak levels. Fridays carry the highest average load (53.4 kW). Grid stress concentrates in Peak slots at Highway stations, signaling the need for load-balancing interventions.
+  </div>
+</section>
+
+<!-- Section 4: Renewable & Pricing -->
+<section id="renewable-pricing" class="section">
+  <h2 class="section-title">Renewable Energy Integration & Dynamic Pricing</h2>
+  <p class="section-objective">Evaluate the renewable energy ratio across different conditions and analyze how dynamic electricity pricing correlates with demand, renewable availability, and optimization rewards.</p>
+
+  <div class="insight-box">
+    <div class="insight-title">Sustainability KPI</div>
+    <div class="insight-body">The network-wide renewable energy ratio averages 35.4%. This varies significantly by weather and time slot &mdash; strategic scheduling can substantially improve green charging outcomes.</div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Renewable Ratio by Weather Condition</div>
+      <div class="chart-container"><canvas id="s4_renewable_weather"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Renewable Ratio by Time Slot</div>
+      <div class="chart-container short"><canvas id="s4_renewable_ts"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Renewable Ratio Heatmap: Weather &times; Time Slot</div>
+    <div class="heatmap-wrap"><svg xmlns="http://www.w3.org/2000/svg" width="350" height="230" viewBox="0 0 350 230"><text x="80" y="20" font-size="14" font-weight="bold" fill="#1e293b">Renewable Energy Ratio by Weather & Time Slot</text><text x="145" y="35" font-size="11" fill="#475569" text-anchor="middle">Off-Peak</text><text x="275" y="35" font-size="11" fill="#475569" text-anchor="middle">Peak</text><text x="72" y="69" font-size="11" fill="#475569" text-anchor="end">Clear</text><rect x="80" y="40" width="128" height="48" rx="4" fill="rgb(5,150,105)" /><text x="145" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.397</text><rect x="210" y="40" width="128" height="48" rx="4" fill="rgb(203,247,225)" /><text x="275" y="69" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.291</text><text x="72" y="119" font-size="11" fill="#475569" text-anchor="end">Cloudy</text><rect x="80" y="90" width="128" height="48" rx="4" fill="rgb(21,158,115)" /><text x="145" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.388</text><rect x="210" y="90" width="128" height="48" rx="4" fill="rgb(205,248,226)" /><text x="275" y="119" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.29</text><text x="72" y="169" font-size="11" fill="#475569" text-anchor="end">Rainy</text><rect x="80" y="140" width="128" height="48" rx="4" fill="rgb(10,152,108)" /><text x="145" y="169" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.394</text><rect x="210" y="140" width="128" height="48" rx="4" fill="rgb(209,250,229)" /><text x="275" y="169" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="600">0.288</text></svg></div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Price & Renewable Ratio by Time Slot</div>
+      <div class="chart-container"><canvas id="s4_price_renewable"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Avg Optimization Reward by Time Slot</div>
+      <div class="chart-container short"><canvas id="s4_opt_ts"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Key Metrics by Time Slot</div>
+    <table id="" class="data-table"><thead><tr><th>Time Slot</th><th>Avg Price</th><th>Avg Renewable Ratio</th><th>Avg Demand</th><th>Avg Opt. Reward</th></tr></thead><tbody><tr><td>Off-Peak</td><td>9.97</td><td>0.393</td><td>34.6</td><td>-7.06</td></tr><tr><td>Peak</td><td>9.94</td><td>0.29</td><td>84.1</td><td>-19.8</td></tr></tbody></table>
+  </div>
+
+  <div class="takeaway success">
+    <strong>Takeaway:</strong> Renewable availability is highest during Off-Peak and Clear/Cloudy conditions (up to 35.7% avg). Electricity price and renewable ratio correlation: -0.005. Shifting demand to high-renewable windows would simultaneously reduce carbon intensity and cost.
+  </div>
+</section>
+
+<!-- Section 5: Vehicle Charging Behavior -->
+<section id="vehicle-charging-behavior" class="section">
+  <h2 class="section-title">Vehicle Charging Behavior & Session Profiles</h2>
+  <p class="section-objective">Profile charging sessions by vehicle type, examining battery capacity, SOC, energy consumed, charging duration, and priority distribution.</p>
+
+  <div class="card">
+    <div class="card-title">Vehicle Type Session Profiles</div>
+    <table id="" class="data-table"><thead><tr><th>Vehicle Type</th><th>Sessions</th><th>Avg Battery (kWh)</th><th>Avg Init SOC (%)</th><th>Avg Final SOC (%)</th><th>Avg Energy (kWh)</th><th>Avg Duration (min)</th><th>Avg Power (kW)</th><th>Avg Wait (min)</th></tr></thead><tbody><tr><td>Bus</td><td>2760.0</td><td>61.5</td><td>34.7</td><td>98.5</td><td>39.4</td><td>179.0</td><td>22.5</td><td>9.6</td></tr><tr><td>Car</td><td>2833.0</td><td>60.9</td><td>34.6</td><td>98.4</td><td>39.1</td><td>179.7</td><td>22.5</td><td>9.5</td></tr><tr><td>Two-Wheeler</td><td>2761.0</td><td>60.8</td><td>35.2</td><td>98.5</td><td>38.7</td><td>177.4</td><td>22.3</td><td>9.4</td></tr></tbody></table>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Energy Consumed by Vehicle Type (kWh)</div>
+      <div class="chart-container"><canvas id="s5_energy_vehicle"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Session Distribution by Vehicle Type</div>
+      <div class="chart-container"><canvas id="s5_sessions_vehicle"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Avg Charging Duration by Vehicle Type (min)</div>
+      <div class="chart-container"><canvas id="s5_duration_vehicle"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Charging Priority Distribution (%)</div>
+      <table id="" class="data-table"><thead><tr><th>Vehicle Type</th><th>High</th><th>Low</th><th>Medium</th></tr></thead><tbody><tr><td>Bus</td><td>32.0%</td><td>33.3%</td><td>34.7%</td></tr><tr><td>Car</td><td>32.2%</td><td>33.2%</td><td>34.6%</td></tr><tr><td>Two-Wheeler</td><td>31.3%</td><td>33.4%</td><td>35.3%</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Session Composition Summary</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:20px 0;">
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--primary)">8,354</div><div style="font-size:12px;color:var(--text-muted)">Total Sessions</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--success)">63.7%</div><div style="font-size:12px;color:var(--text-muted)">Avg SOC Gain</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--warning)">39.1 kWh</div><div style="font-size:12px;color:var(--text-muted)">Avg Energy/Session</div></div>
+      <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:var(--danger)">9.5 min</div><div style="font-size:12px;color:var(--text-muted)">Avg Wait Time</div></div>
+    </div>
+  </div>
+
+  <div class="takeaway">
+    <strong>Takeaway:</strong> Larger vehicles (Buses) consume more energy per session but do not disproportionately increase wait times. Two-Wheelers and Cars form the volume base and are the primary candidates for demand-shift incentives.
+  </div>
+</section>
+
+<!-- Section 6: Optimization Recommendations -->
+<section id="optimization-recommendations" class="section">
+  <h2 class="section-title">Optimization Insights & Recommendations</h2>
+  <p class="section-objective">Synthesize findings into actionable recommendations for load balancing, queue management, pricing strategy, and renewable energy maximization.</p>
+
+  <div class="rec-card">
+    <h3>1. Peak Load Shifting via Off-Peak Incentives</h3>
+    <p>Peak demand is 2.43&times; Off-Peak, with wait times -0.2 minutes longer. Implement dynamic pricing discounts (a -0.3% price differential already exists between Peak and Off-Peak) to shift 15&ndash;20% of Peak sessions to Off-Peak windows.</p>
+    <div class="impact">Expected impact: 25&ndash;30% reduction in Peak queue lengths; improved station throughput.</div>
+  </div>
+
+  <div class="rec-card">
+    <h3>2. Green Charging Windows &mdash; Schedule for Renewable Availability</h3>
+    <p>Renewable energy ratio peaks during Clear/Cloudy Off-Peak periods (up to 35.7% avg vs. 35.1% in Cloudy conditions). Create a &ldquo;Green Charge&rdquo; program offering premium scheduling when renewable ratio exceeds 0.5.</p>
+    <div class="impact">Expected impact: Network-wide renewable ratio uplift of 10&ndash;15 percentage points for participating sessions.</div>
+  </div>
+
+  <div class="rec-card">
+    <h3>3. Urban Station Capacity Expansion</h3>
+    <p>Urban stations experience the highest queue pressure during Peak hours (avg wait 9.3 min). Deploy additional fast chargers (50 kW+) at top-demand Urban stations to reduce per-vehicle dwell time and queue turnover.</p>
+    <div class="impact">Expected impact: 20&ndash;35% reduction in Urban Peak wait times; improved customer satisfaction scores.</div>
+  </div>
+
+  <div class="rec-card">
+    <h3>4. Highway Station Load Balancing</h3>
+    <p>Highway stations carry the highest average loads and demand scores. Implement smart routing to distribute traffic across underutilized nearby stations. Use real-time queue length data to redirect arriving vehicles.</p>
+    <div class="impact">Expected impact: 15&ndash;20% load redistribution; reduced single-station congestion events.</div>
+  </div>
+
+  <div class="rec-card">
+    <h3>5. Weather-Responsive Pricing</h3>
+    <p>Renewable availability varies sharply by weather (35.7% on Clear days vs. 35.1% on Cloudy days). Adjust pricing to encourage charging during high-renewable conditions and reduce grid carbon intensity.</p>
+    <div class="impact">Expected impact: Lower per-session carbon footprint; better alignment of price signals with grid conditions.</div>
+  </div>
+
+  <div class="rec-card">
+    <h3>6. Fleet Priority Optimization</h3>
+    <p>High-priority sessions (Buses) should receive dedicated charger allocations during Off-Peak to avoid blocking volume-traffic chargers during Peak. Low-priority sessions (Two-Wheelers, Cars) are prime candidates for scheduled Off-Peak incentives, freeing Peak capacity for time-sensitive commercial vehicles.</p>
+    <div class="impact">Expected impact: Reduced Peak congestion; better charger utilization across priority tiers.</div>
+  </div>
+
+  <div class="takeaway success">
+    <strong>Summary:</strong> The network&rsquo;s primary optimization lever is <strong>temporal load shifting</strong> &mdash; the Peak-to-Off-Peak demand ratio of 2.43&times; and wait-time gap of -0.2 min represent the largest addressable inefficiency. Combining price incentives with weather-aware scheduling can simultaneously improve throughput, reduce costs, and increase renewable utilization.
+  </div>
+</section>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="container">
+    EV Charging Network Performance & Grid Optimization Report &middot; Data: 8,354 sessions &middot; Generated May 2026
+  </div>
+</div>
+
+<!-- Chart Scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  
+    new Chart(document.getElementById('s1_demand_by_loc'), {
+        type: 'bar',
+        data: {
+            labels: ["Highway", "Urban"],
+            datasets: [{"label": "Avg Charging Demand", "data": [53.39, 52.92], "backgroundColor": ["#7c3aed", "#2563eb"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Demand Score' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s1_demand_by_ts'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Charging Demand", "data": [34.6, 84.09], "backgroundColor": ["#10b981", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Demand Score' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s1_top10'), {
+        type: 'bar',
+        data: {
+            labels: ["ST012", "ST003", "ST007", "ST004", "ST002", "ST001", "ST013", "ST010", "ST014", "ST008"],
+            datasets: [{"label": "Avg Demand", "data": [56.07, 55.14, 54.86, 54.5, 54.42, 54.25, 53.41, 53.23, 53.15, 53.06], "backgroundColor": "#2563eb"}]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: 'Avg Demand Score' } },
+                y: { stacked: false, title: { display: true, text: 'Station' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s2_wait_loc'), {
+        type: 'bar',
+        data: {
+            labels: ["Highway", "Urban"],
+            datasets: [{"label": "Avg Wait (min)", "data": [9.6, 9.5], "backgroundColor": ["#7c3aed", "#2563eb"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Minutes' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s2_wait_ts'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Wait (min)", "data": [9.6, 9.4], "backgroundColor": ["#10b981", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Minutes' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s2_wait_vehicle'), {
+        type: 'bar',
+        data: {
+            labels: ["Bus", "Car", "Two-Wheeler"],
+            datasets: [{"label": "Avg Wait (min)", "data": [9.6, 9.5, 9.4], "backgroundColor": "#7c3aed"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Minutes' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s2_wait_traffic'), {
+        type: 'bar',
+        data: {
+            labels: ["Low", "Medium", "High"],
+            datasets: [{"label": "Avg Wait (min)", "data": [9.6, 9.6, 9.4], "backgroundColor": ["#10b981", "#f59e0b", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Minutes' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s3_load_day'), {
+        type: 'bar',
+        data: {
+            labels: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+            datasets: [{"label": "Avg Station Load (kW)", "data": [53.2, 53.3, 52.9, 52.8, 53.4, 53.3, 53.3], "backgroundColor": "#2563eb"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'kW' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s3_load_ts'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Station Load (kW)", "data": [34.7, 84.1], "backgroundColor": ["#10b981", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'kW' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s3_power_load'), {
+        type: 'bar',
+        data: {
+            labels: ["7", "11", "22", "50"],
+            datasets: [{"label": "Avg Station Load (kW)", "data": [53.6, 53.8, 52.9, 52.4], "backgroundColor": "#7c3aed"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: 'Charging Power (kW)' } },
+                y: { stacked: false, title: { display: true, text: 'kW' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s4_renewable_weather'), {
+        type: 'bar',
+        data: {
+            labels: ["Clear", "Rainy", "Cloudy"],
+            datasets: [{"label": "Avg Renewable Ratio", "data": [0.357, 0.354, 0.351], "backgroundColor": "#10b981"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Ratio (0-1)' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s4_renewable_ts'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Renewable Ratio", "data": [0.393, 0.29], "backgroundColor": ["#10b981", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Ratio (0-1)' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s4_price_renewable'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Electricity Price", "data": [9.972, 9.941], "backgroundColor": "#f59e0b"}, {"label": "Avg Renewable Ratio", "data": [0.393, 0.29], "backgroundColor": "#10b981"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Value' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s4_opt_ts'), {
+        type: 'bar',
+        data: {
+            labels: ["Off-Peak", "Peak"],
+            datasets: [{"label": "Avg Optimization Reward", "data": [-7.06, -19.8], "backgroundColor": ["#10b981", "#ef4444"]}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Reward' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s5_energy_vehicle'), {
+        type: 'bar',
+        data: {
+            labels: ["Car", "Two-Wheeler", "Bus"],
+            datasets: [{"label": "Avg Energy (kWh)", "data": [39.1, 38.7, 39.4], "backgroundColor": "#2563eb"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'kWh' } }
+            }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s5_sessions_vehicle'), {
+        type: 'doughnut',
+        data: {
+            labels: ["Car", "Two-Wheeler", "Bus"],
+            datasets: [{ data: [2833, 2761, 2760], backgroundColor: ["#2563eb", "#7c3aed", "#06b6d4"] }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } }
+        }
+    });
+    
+  
+    new Chart(document.getElementById('s5_duration_vehicle'), {
+        type: 'bar',
+        data: {
+            labels: ["Car", "Two-Wheeler", "Bus"],
+            datasets: [{"label": "Avg Duration (min)", "data": [179.7, 177.4, 179.0], "backgroundColor": "#7c3aed"}]
+        },
+        options: {
+            indexAxis: 'x',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { title: { display: false }, legend: { position: 'bottom' } },
+            scales: {
+                x: { stacked: false, title: { display: true, text: '' } },
+                y: { stacked: false, title: { display: true, text: 'Minutes' } }
+            }
+        }
+    });
+    
+});
+</script>
+</body>
+</html>

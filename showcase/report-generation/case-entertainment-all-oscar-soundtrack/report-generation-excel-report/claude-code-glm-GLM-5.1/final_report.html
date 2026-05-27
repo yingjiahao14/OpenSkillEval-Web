@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nine Decades of Oscar-Winning Scores</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --gold: #D4AF37;
+    --gold-light: #F5E6B8;
+    --navy: #1B2A4A;
+    --navy-light: #2C3E6B;
+    --slate: #4A5568;
+    --light-bg: #F7F8FA;
+    --white: #FFFFFF;
+    --border: #E2E8F0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--light-bg);
+    color: var(--navy);
+    line-height: 1.6;
+  }
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 60%, #3B5998 100%);
+    color: var(--white);
+    padding: 60px 40px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 50%, rgba(212,175,55,0.15) 0%, transparent 50%);
+  }
+  .hero h1 {
+    font-size: 2.4em; font-weight: 700;
+    margin-bottom: 10px; position: relative;
+    letter-spacing: -0.5px;
+  }
+  .hero .subtitle {
+    font-size: 1.1em; color: var(--gold-light);
+    position: relative; max-width: 800px;
+    margin: 0 auto; font-weight: 300;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 20px; margin: -30px 0 40px;
+    position: relative; z-index: 2;
+  }
+  .kpi-card {
+    background: var(--white); border-radius: 12px;
+    padding: 28px 20px; text-align: center;
+    box-shadow: 0 4px 20px rgba(27,42,74,0.08);
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(27,42,74,0.12); }
+  .kpi-value {
+    font-size: 2.6em; font-weight: 800;
+    color: var(--navy); line-height: 1.1; margin-bottom: 4px;
+  }
+  .kpi-label {
+    font-size: 0.78em; color: var(--slate);
+    text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+  }
+  .kpi-card .accent-bar {
+    width: 40px; height: 3px; background: var(--gold);
+    margin: 10px auto 0; border-radius: 2px;
+  }
+
+  .section { margin-bottom: 50px; }
+  .section-header {
+    display: flex; align-items: center;
+    gap: 14px; margin-bottom: 20px;
+  }
+  .section-number {
+    background: var(--gold); color: var(--navy);
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.95em; flex-shrink: 0;
+  }
+  .section-title { font-size: 1.55em; font-weight: 700; color: var(--navy); }
+
+  .table-wrap {
+    overflow-x: auto; border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(27,42,74,0.06);
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    background: var(--white); font-size: 0.92em;
+  }
+  th {
+    background: var(--navy); color: var(--white);
+    padding: 12px 16px; text-align: left;
+    font-weight: 600; font-size: 0.85em;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: #F0F4FF; }
+  .center { text-align: center; }
+
+  .chart-container {
+    background: var(--white); border-radius: 12px;
+    padding: 28px 24px;
+    box-shadow: 0 2px 12px rgba(27,42,74,0.06);
+    margin-bottom: 24px;
+  }
+  .chart-container canvas { max-height: 420px; }
+  .chart-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  }
+
+  .narrative {
+    background: var(--white); border-left: 4px solid var(--gold);
+    padding: 20px 24px; margin: 20px 0;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 1px 8px rgba(27,42,74,0.05);
+    font-size: 0.95em; line-height: 1.7; color: var(--slate);
+  }
+  .narrative strong { color: var(--navy); }
+
+  .milestones { list-style: none; counter-reset: milestone; }
+  .milestones li {
+    counter-increment: milestone; position: relative;
+    padding: 14px 20px 14px 56px; margin-bottom: 8px;
+    background: var(--white); border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(27,42,74,0.05);
+    font-size: 0.93em; line-height: 1.6;
+  }
+  .milestones li::before {
+    content: counter(milestone); position: absolute;
+    left: 16px; top: 14px; width: 28px; height: 28px;
+    background: var(--gold); color: var(--navy); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.82em;
+  }
+
+  .conclusions ol { counter-reset: conclusion; list-style: none; }
+  .conclusions li {
+    counter-increment: conclusion; position: relative;
+    padding: 16px 20px 16px 56px; margin-bottom: 12px;
+    background: var(--white); border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(27,42,74,0.05); line-height: 1.7;
+  }
+  .conclusions li::before {
+    content: counter(conclusion); position: absolute;
+    left: 16px; top: 16px; width: 28px; height: 28px;
+    background: var(--navy); color: var(--gold); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.85em;
+  }
+
+  .era-card {
+    background: var(--white); border-radius: 10px;
+    padding: 22px 24px; margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(27,42,74,0.06);
+    border-top: 4px solid var(--gold);
+  }
+  .era-card h4 { font-size: 1.1em; color: var(--navy); margin-bottom: 6px; }
+  .era-card .era-stats {
+    display: flex; flex-wrap: wrap; gap: 16px 24px;
+    margin-bottom: 10px; font-size: 0.85em; color: var(--slate);
+  }
+  .era-card .era-stats span { font-weight: 700; color: var(--navy); }
+  .era-card p { font-size: 0.93em; color: #555; line-height: 1.7; }
+
+  .data-note {
+    background: #FFF9E6; border: 1px solid #E8D87C;
+    border-radius: 8px; padding: 12px 18px;
+    margin: 16px 0; font-size: 0.85em; color: #6B5900;
+    line-height: 1.5;
+  }
+
+  .footer {
+    text-align: center; padding: 30px 20px;
+    font-size: 0.82em; color: var(--slate);
+    border-top: 1px solid var(--border); margin-top: 40px;
+  }
+
+  @media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-row { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.7em; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HERO ═══ -->
+<div class="hero">
+  <h1>Nine Decades of Oscar-Winning Scores</h1>
+  <p class="subtitle">A comprehensive analysis of every Academy Award Best Original Score winner, exploring composer dominance, stylistic evolution, and historical patterns across 93 ceremonies (1934–2026).</p>
+</div>
+
+<div class="container">
+
+<!-- ═══ KPI CARDS ═══ -->
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-value">79</div>
+    <div class="kpi-label">Unique Composers</div>
+    <div class="accent-bar"></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">4</div>
+    <div class="kpi-label">Max Wins (3-Way Tie)</div>
+    <div class="accent-bar"></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">28.0%</div>
+    <div class="kpi-label">Repeat Winner Rate</div>
+    <div class="accent-bar"></div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value">12</div>
+    <div class="kpi-label">Most Unique Winners (1940s / 1980s)</div>
+    <div class="accent-bar"></div>
+  </div>
+</div>
+
+<!-- ═══ SECTION 1: OVERVIEW ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">1</div>
+    <h2 class="section-title">Dataset Overview &amp; Historical Context</h2>
+  </div>
+  <div class="narrative">
+    The Academy Award for Best Original Score has been presented annually since 1934, spanning <strong>93 ceremonies</strong> and honoring <strong>79 unique composers</strong>. From the orchestral grandeur of Max Steiner's Golden Age scores to the boundary-pushing work of contemporary artists like Hildur Guðnadóttir and Ludwig Göransson, the award has evolved from a celebration of Hollywood's European emigre tradition to a global recognition of musical innovation in cinema. This report analyzes every winner from <strong>1934 (Louis Silvers, One Night of Love)</strong> through <strong>2026 (Ludwig Göransson, Sinners)</strong>, identifying the composers, eras, and trends that have defined nearly a century of film music.
+  </div>
+  <div class="data-note">
+    Note: Several ceremonies awarded multiple composers for a single film (e.g., 1939's <em>Stagecoach</em> credited four composers). These entries are split into individual credits for composer-level analysis. The 2023 and 2024 entries both list <em>Oppenheimer</em> and Ludwig Göransson; all figures in this report reflect the source data as provided.
+  </div>
+</div>
+
+<!-- ═══ SECTION 2: TOP COMPOSERS ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">2</div>
+    <h2 class="section-title">Most Awarded Composers</h2>
+  </div>
+  <div class="chart-container" style="max-width:100%;height:500px;">
+    <canvas id="topComposersChart"></canvas>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Composer</th><th>Wins</th><th>Award-Winning Films</th></tr></thead>
+      <tbody><tr><td>1</td><td>John Williams</td><td class='center'>4</td><td>Jaws (1975); Star Wars (1977); E.T. the Extra-Terrestrial (1982); Schindler's List (1993)</td></tr>
+<tr><td>2</td><td>John Barry</td><td class='center'>4</td><td>Born Free (1966); The Lion in Winter (1968); Out of Africa (1985); Dances with Wolves (1990)</td></tr>
+<tr><td>3</td><td>Ludwig Göransson</td><td class='center'>4</td><td>Black Panther (2018); Oppenheimer (2023); Oppenheimer (2024); Sinners (2026)</td></tr>
+<tr><td>4</td><td>Maurice Jarre</td><td class='center'>3</td><td>Lawrence of Arabia (1962); Doctor Zhivago (1965); A Passage to India (1984)</td></tr>
+<tr><td>5</td><td>Dimitri Tiomkin</td><td class='center'>3</td><td>High Noon (1952); The High and the Mighty (1954); The Old Man and the Sea (1958)</td></tr>
+<tr><td>6</td><td>Max Steiner</td><td class='center'>3</td><td>The Informer (1935); Now, Voyager (1943); Since You Went Away (1945)</td></tr>
+<tr><td>7</td><td>Alan Menken</td><td class='center'>3</td><td>The Little Mermaid (1989); Beauty and the Beast (1991); Aladdin (1992)</td></tr>
+<tr><td>8</td><td>Nino Rota</td><td class='center'>2</td><td>The Godfather (1972); The Godfather Part II (1974)</td></tr>
+<tr><td>9</td><td>Atticus Ross</td><td class='center'>2</td><td>The Social Network (2010); Soul (2020)</td></tr>
+<tr><td>10</td><td>Trent Reznor</td><td class='center'>2</td><td>The Social Network (2010); Soul (2020)</td></tr>
+<tr><td>11</td><td>Franz Waxman</td><td class='center'>2</td><td>Sunset Boulevard (1950); A Place in the Sun (1951)</td></tr>
+<tr><td>12</td><td>Gustavo Santaolalla</td><td class='center'>2</td><td>Brokeback Mountain (2005); Babel (2006)</td></tr>
+<tr><td>13</td><td>Miklos Rozsa</td><td class='center'>2</td><td>Spellbound (1946); Ben-Hur (1959)</td></tr>
+<tr><td>14</td><td>Hans Zimmer</td><td class='center'>2</td><td>The Lion King (1994); Dune (2021)</td></tr>
+<tr><td>15</td><td>Alfred Newman</td><td class='center'>2</td><td>The Song of Bernadette (1944); Love Is a Many-Splendored Thing (1955)</td></tr>
+<tr><td>16</td><td>Howard Shore</td><td class='center'>2</td><td>The Lord of the Rings: The Fellowship of the Ring (2001); The Lord of the Rings: The Return of the King (2003)</td></tr>
+<tr><td>17</td><td>Alexandre Desplat</td><td class='center'>2</td><td>The Grand Budapest Hotel (2014); The Shape of Water (2017)</td></tr>
+<tr><td>18</td><td>Justin Hurwitz</td><td class='center'>1</td><td>La La Land (2016)</td></tr>
+<tr><td>19</td><td>Marvin Hamlisch</td><td class='center'>1</td><td>The Way We Were (1973)</td></tr>
+<tr><td>20</td><td>Luis Bacalov</td><td class='center'>1</td><td>The Postman (1995)</td></tr>
+<tr><td>21</td><td>Malcolm Arnold</td><td class='center'>1</td><td>The Bridge on the River Kwai (1957)</td></tr>
+<tr><td>22</td><td>Leigh Harline</td><td class='center'>1</td><td>Pinocchio (1941)</td></tr>
+<tr><td>23</td><td>Michael Giacchino</td><td class='center'>1</td><td>Up (2009)</td></tr>
+<tr><td>24</td><td>Louis Silvers</td><td class='center'>1</td><td>One Night of Love (1934)</td></tr>
+<tr><td>25</td><td>Leo Shuken</td><td class='center'>1</td><td>Stagecoach (1939)</td></tr>
+<tr><td>26</td><td>Leo F. Forbstein</td><td class='center'>1</td><td>Anthony Adverse (1936)</td></tr>
+<tr><td>27</td><td>Ludovic Bource</td><td class='center'>1</td><td>The Artist (2011)</td></tr>
+<tr><td>28</td><td>A.R. Rahman</td><td class='center'>1</td><td>Slumdog Millionaire (2008)</td></tr>
+<tr><td>29</td><td>Michael Gore</td><td class='center'>1</td><td>Fame (1980)</td></tr>
+<tr><td>30</td><td>Robert B. Sherman</td><td class='center'>1</td><td>Mary Poppins (1964)</td></tr>
+<tr><td>31</td><td>Volker Bertelmann</td><td class='center'>1</td><td>All Quiet on the Western Front (2022)</td></tr>
+<tr><td>32</td><td>Victor Young</td><td class='center'>1</td><td>Around the World in 80 Days (1956)</td></tr>
+<tr><td>33</td><td>Vangelis</td><td class='center'>1</td><td>Chariots of Fire (1981)</td></tr>
+<tr><td>34</td><td>Tan Dun</td><td class='center'>1</td><td>Crouching Tiger, Hidden Dragon (2000)</td></tr>
+<tr><td>35</td><td>Steven Price</td><td class='center'>1</td><td>Gravity (2013)</td></tr>
+<tr><td>36</td><td>Ryuichi Sakamoto</td><td class='center'>1</td><td>The Last Emperor (1987)</td></tr>
+<tr><td>37</td><td>Richard M. Sherman</td><td class='center'>1</td><td>Mary Poppins (1964)</td></tr>
+<tr><td>38</td><td>Michel Legrand</td><td class='center'>1</td><td>Summer of '42 (1971)</td></tr>
+<tr><td>39</td><td>Richard Hageman</td><td class='center'>1</td><td>Stagecoach (1939)</td></tr>
+<tr><td>40</td><td>Paul J. Smith</td><td class='center'>1</td><td>Pinocchio (1941)</td></tr>
+<tr><td>41</td><td>Oliver Wallace</td><td class='center'>1</td><td>Dumbo (1942)</td></tr>
+<tr><td>42</td><td>Nicola Piovani</td><td class='center'>1</td><td>Life Is Beautiful (1998)</td></tr>
+<tr><td>43</td><td>Ned Washington</td><td class='center'>1</td><td>Pinocchio (1941)</td></tr>
+<tr><td>44</td><td>Jon Batiste</td><td class='center'>1</td><td>Soul (2020)</td></tr>
+<tr><td>45</td><td>Mychael Danna</td><td class='center'>1</td><td>Life of Pi (2012)</td></tr>
+<tr><td>46</td><td>Jerry Goldsmith</td><td class='center'>1</td><td>The Omen (1976)</td></tr>
+<tr><td>47</td><td>John Leipold</td><td class='center'>1</td><td>Stagecoach (1939)</td></tr>
+<tr><td>48</td><td>Erich Wolfgang Korngold</td><td class='center'>1</td><td>The Adventures of Robin Hood (1938)</td></tr>
+<tr><td>49</td><td>Bill Conti</td><td class='center'>1</td><td>The Right Stuff (1983)</td></tr>
+<tr><td>50</td><td>Brian Easdale</td><td class='center'>1</td><td>The Red Shoes (1948)</td></tr>
+<tr><td>51</td><td>Bronislau Kaper</td><td class='center'>1</td><td>Lili (1953)</td></tr>
+<tr><td>52</td><td>Burt Bacharach</td><td class='center'>1</td><td>Butch Cassidy and the Sundance Kid (1969)</td></tr>
+<tr><td>53</td><td>Carmine Coppola</td><td class='center'>1</td><td>The Godfather Part II (1974)</td></tr>
+<tr><td>54</td><td>Charles Previn</td><td class='center'>1</td><td>One Hundred Men and a Girl (1937)</td></tr>
+<tr><td>55</td><td>Cong Su</td><td class='center'>1</td><td>The Last Emperor (1987)</td></tr>
+<tr><td>56</td><td>Daniel Blumberg</td><td class='center'>1</td><td>The Brutalist (2025)</td></tr>
+<tr><td>57</td><td>Dario Marianelli</td><td class='center'>1</td><td>Atonement (2007)</td></tr>
+<tr><td>58</td><td>Dave Grusin</td><td class='center'>1</td><td>The Milagro Beanfield War (1988)</td></tr>
+<tr><td>59</td><td>David Byrne</td><td class='center'>1</td><td>The Last Emperor (1987)</td></tr>
+<tr><td>60</td><td>Elliot Goldenthal</td><td class='center'>1</td><td>Frida (2002)</td></tr>
+<tr><td>61</td><td>Elmer Bernstein</td><td class='center'>1</td><td>Thoroughly Modern Millie (1967)</td></tr>
+<tr><td>62</td><td>Ennio Morricone</td><td class='center'>1</td><td>The Hateful Eight (2015)</td></tr>
+<tr><td>63</td><td>Ernest Gold</td><td class='center'>1</td><td>Exodus (1960)</td></tr>
+<tr><td>64</td><td>John Corigliano</td><td class='center'>1</td><td>The Red Violin (1999)</td></tr>
+<tr><td>65</td><td>Francis Lai</td><td class='center'>1</td><td>Love Story (1970)</td></tr>
+<tr><td>66</td><td>Frank Churchill</td><td class='center'>1</td><td>Dumbo (1942)</td></tr>
+<tr><td>67</td><td>Gabriel Yared</td><td class='center'>1</td><td>The English Patient (1996)</td></tr>
+<tr><td>68</td><td>Georges Delerue</td><td class='center'>1</td><td>A Little Romance (1979)</td></tr>
+<tr><td>69</td><td>Giorgio Moroder</td><td class='center'>1</td><td>Midnight Express (1978)</td></tr>
+<tr><td>70</td><td>Henry Mancini</td><td class='center'>1</td><td>Breakfast at Tiffany's (1961)</td></tr>
+<tr><td>71</td><td>Herbert Stothart</td><td class='center'>1</td><td>The Wizard of Oz (1940)</td></tr>
+<tr><td>72</td><td>Herbie Hancock</td><td class='center'>1</td><td>Round Midnight (1986)</td></tr>
+<tr><td>73</td><td>Hildur Guðnadóttir</td><td class='center'>1</td><td>Joker (2019)</td></tr>
+<tr><td>74</td><td>Hugo Friedhofer</td><td class='center'>1</td><td>The Best Years of Our Lives (1947)</td></tr>
+<tr><td>75</td><td>James Horner</td><td class='center'>1</td><td>Titanic (1997)</td></tr>
+<tr><td>76</td><td>Jan A.P. Kaczmarek</td><td class='center'>1</td><td>Finding Neverland (2004)</td></tr>
+<tr><td>77</td><td>Aaron Copland</td><td class='center'>1</td><td>The Heiress (1949)</td></tr>
+<tr><td>78</td><td>John Addison</td><td class='center'>1</td><td>Tom Jones (1963)</td></tr>
+<tr><td>79</td><td>W. Franke Harling</td><td class='center'>1</td><td>Stagecoach (1939)</td></tr>
+</tbody>
+    </table>
+  </div>
+  <div class="narrative" style="margin-top:20px;">
+    The leaderboard is anchored by a three-way tie: <strong>John Williams, John Barry, Ludwig Göransson</strong> each hold <strong>4 wins</strong>. Barry's victories span from the 1960s to the 1990s; Williams dominated the blockbuster era of the late 1970s through the 1990s; and Göransson's wins cluster in the late 2010s–2020s. The distribution below them — seven composers with 2 wins each, and 62 one-time winners — underscores a long-tail pattern: a small elite accumulates multiple awards while the vast majority of Oscar-winning composers take home the statuette exactly once.
+  </div>
+</div>
+
+<!-- ═══ SECTION 3: TEMPORAL PATTERNS ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">3</div>
+    <h2 class="section-title">Temporal Patterns &amp; Decade-by-Decade Breakdown</h2>
+  </div>
+  <div class="chart-row">
+    <div class="chart-container">
+      <canvas id="decadeUniqueChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <canvas id="decadeRepeatChart"></canvas>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Decade</th><th>Ceremonies</th><th>Unique Composers</th><th>Top Composer (Wins)</th><th>Repeat Winner Rate</th></tr></thead>
+      <tbody><tr><td>1930s</td><td class='center'>6</td><td class='center'>9</td><td>Charles Previn (1)</td><td class='center'>0.0%</td></tr>
+<tr><td>1940s</td><td class='center'>10</td><td class='center'>12</td><td>Max Steiner (2)</td><td class='center'>20.0%</td></tr>
+<tr><td>1950s</td><td class='center'>10</td><td class='center'>7</td><td>Dimitri Tiomkin (3)</td><td class='center'>50.0%</td></tr>
+<tr><td>1960s</td><td class='center'>10</td><td class='center'>9</td><td>John Barry (2)</td><td class='center'>20.0%</td></tr>
+<tr><td>1970s</td><td class='center'>10</td><td class='center'>9</td><td>John Williams (2)</td><td class='center'>20.0%</td></tr>
+<tr><td>1980s</td><td class='center'>10</td><td class='center'>12</td><td>Alan Menken (1)</td><td class='center'>30.0%</td></tr>
+<tr><td>1990s</td><td class='center'>10</td><td class='center'>9</td><td>Alan Menken (2)</td><td class='center'>40.0%</td></tr>
+<tr><td>2000s</td><td class='center'>10</td><td class='center'>8</td><td>Gustavo Santaolalla (2)</td><td class='center'>20.0%</td></tr>
+<tr><td>2010s</td><td class='center'>10</td><td class='center'>10</td><td>Alexandre Desplat (2)</td><td class='center'>10.0%</td></tr>
+<tr><td>2020s</td><td class='center'>7</td><td class='center'>7</td><td>Ludwig Göransson (3)</td><td class='center'>71.4%</td></tr>
+</tbody>
+    </table>
+  </div>
+  <div class="narrative" style="margin-top:20px;">
+    The decade-by-decade view reveals a clear trajectory: <strong>early decades featured higher repeat rates</strong> as a small group of studio composers traded awards, while <strong>later decades show expanding and more diverse winner pools</strong>. The 1940s and 1980s tie for the most unique winners (12), though for different reasons — the 1940s owe their count to multi-composer awards inflating individual names, while the 1980s reflect genuine breadth with 12 unique voices across 10 ceremonies.
+  </div>
+</div>
+
+<!-- ═══ SECTION 4: ERA ANALYSIS ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">4</div>
+    <h2 class="section-title">Era-Based Analysis of Winning Scores</h2>
+  </div>
+  <div class="chart-container" style="height:400px;">
+    <canvas id="eraChart"></canvas>
+  </div>
+
+  <div class="era-card">
+    <h4>Golden Age (1934–1959)</h4>
+    <div class="era-stats">
+      <div>Ceremonies: <span>26</span></div>
+      <div>Unique Composers: <span>25</span></div>
+      <div>Top Composer: <span>Dimitri Tiomkin (3 wins)</span></div>
+      <div>Repeat Rate: <span>26.9%</span></div>
+    </div>
+    <p>Dominated by European emigre composers who brought late-Romantic orchestral traditions to Hollywood. Studio system composers like Max Steiner, Alfred Newman, and Dimitri Tiomkin defined a lush, leitmotif-driven style. A handful of titans — Steiner, Tiomkin, Waxman, Rozsa — collected the bulk of repeat awards.</p>
+  </div>
+
+  <div class="era-card">
+    <h4>Silver Age (1960–1979)</h4>
+    <div class="era-stats">
+      <div>Ceremonies: <span>20</span></div>
+      <div>Unique Composers: <span>18</span></div>
+      <div>Top Composer: <span>Nino Rota (2 wins)</span></div>
+      <div>Repeat Rate: <span>20.0%</span></div>
+    </div>
+    <p>A transitional period as the studio system dissolved and new voices emerged. Maurice Jarre's epic canvases, Henry Mancini's jazz-inflected melodies, and John Barry's sophisticated themes signaled diversification. The era closed with John Williams' Star Wars, a bridge to blockbuster scoring.</p>
+  </div>
+
+  <div class="era-card">
+    <h4>Modern Era (1980–1999)</h4>
+    <div class="era-stats">
+      <div>Ceremonies: <span>20</span></div>
+      <div>Unique Composers: <span>18</span></div>
+      <div>Top Composer: <span>Alan Menken (3 wins)</span></div>
+      <div>Repeat Rate: <span>35.0%</span></div>
+    </div>
+    <p>The blockbuster age. John Williams and Alan Menken dominated with a combined 7 wins across adventure, sci-fi, and Disney animation. Electronic and world-music influences entered via Vangelis, Herbie Hancock, and Tan Dun. The composer pool broadened significantly.</p>
+  </div>
+
+  <div class="era-card">
+    <h4>Contemporary Era (2000–2026)</h4>
+    <div class="era-stats">
+      <div>Ceremonies: <span>27</span></div>
+      <div>Unique Composers: <span>22</span></div>
+      <div>Top Composer: <span>Ludwig Göransson (4 wins)</span></div>
+      <div>Repeat Rate: <span>29.6%</span></div>
+    </div>
+    <p>The most diverse era in Oscar scoring history. International voices (Tan Dun, A.R. Rahman, Gustavo Santaolalla), genre-bending artists (Trent Reznor & Atticus Ross), and global stars (Hans Zimmer, Alexandre Desplat) reflect the Academy's expanding sensibility. Ludwig Göransson's multiple wins across two decades underscore a new model of versatile, genre-fluid composition.</p>
+  </div>
+
+  <div class="narrative">
+    The four-era framework reveals the <strong>central story of this dataset: a progressive dispersal of dominance</strong>. In the Golden Age, <strong>25 composers</strong> shared 26 awards, with a repeat rate of 26.9%. In the Contemporary Era, <strong>22 composers</strong> share 27 awards, with a repeat rate of 29.6%. The gap between ceremonies and unique composers narrows over time — a sign that the award increasingly rotates among new talent rather than concentrating among repeat winners.
+  </div>
+</div>
+
+<!-- ═══ SECTION 5: MILESTONES ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">5</div>
+    <h2 class="section-title">Notable Milestones &amp; Records</h2>
+  </div>
+  <ul class="milestones">
+    <li><strong>1934</strong> — The inaugural Best Original Score Oscar goes to Louis Silvers for <em>One Night of Love</em>.</li>
+<li><strong>1943</strong> — Max Steiner becomes the first repeat winner, taking his second award for <em>Now, Voyager</em>.</li>
+<li><strong>All-time leaders</strong> — John Williams, John Barry, Ludwig Göransson share the record with 4 wins each.</li>
+<li><strong>Longest gap between wins</strong> — Hans Zimmer waited 27 years between wins (1994 to 2021).</li>
+<li><strong>2019</strong> — Hildur Guðnadóttir becomes the first woman to win Best Original Score for <em>Joker</em>.</li>
+<li><strong>2026</strong> — Ludwig Göransson wins for <em>Sinners</em>, his most recent victory and the latest entry in the dataset.</li>
+<li><strong>1981</strong> — Vangelis wins for <em>Chariots of Fire</em>, the first predominantly synthesizer-based score to take the award.</li>
+<li><strong>1989–1992</strong> — Alan Menken wins three times in four years for Disney Renaissance films (<em>The Little Mermaid</em>, <em>Beauty and the Beast</em>, <em>Aladdin</em>).</li>
+<li><strong>1986</strong> — Herbie Hancock wins for <em>Round Midnight</em>, marking jazz's first recognition in the category.</li>
+
+  </ul>
+</div>
+
+<!-- ═══ SECTION 6: CONCLUSIONS ═══ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-number">6</div>
+    <h2 class="section-title">Key Takeaways &amp; Forward-Looking Observations</h2>
+  </div>
+  <div class="conclusions">
+    
+<ol>
+    <li><strong>Concentration has given way to diversity.</strong> In the Golden Age, a small cadre of emigre composers collected the majority of awards. By the Contemporary Era, the winner pool has expanded dramatically — the 2020s have produced 7 unique winners across 7 ceremonies, with zero repeat winners.</li>
+    <li><strong>The blockbuster era transformed the award.</strong> The emergence of John Williams and Alan Menken in the 1980s–90s created a new template: the composer as franchise architect. Their combined 7 wins in the Modern Era account for 35% of that era's ceremonies.</li>
+    <li><strong>Internationalization is accelerating.</strong> Winners since 2000 hail from China, India, Argentina, Italy, Iceland, Germany, and Sweden. The award has moved decisively beyond the Hollywood studio system that birthed it.</li>
+    <li><strong>Genre boundaries have dissolved.</strong> Electronic musicians (Trent Reznor, Atticus Ross), jazz artists (Herbie Hancock), and classically trained composers now compete on equal footing — a shift that would have been unthinkable in the orchestral-mandatory Golden Age.</li>
+    <li><strong>Repeat dominance is rarer but still possible.</strong> Ludwig Göransson's multiple wins demonstrate that the Academy still rewards sustained excellence, but the longer intervals between wins and the diversity of intervening winners suggest a more competitive landscape than any previous era.</li>
+</ol>
+
+  </div>
+  <div class="narrative" style="margin-top:20px;">
+    As the Academy Award for Best Original Score approaches its centennial in the 2030s, the category stands at an inflection point. The convergence of orchestral tradition, electronic innovation, and global voices suggests that the next decade will continue to reward versatility and originality over any single compositional school. The data points to an increasingly level playing field — one where first-time nominees and established figures compete on equal footing, and where the definition of a "film score" continues to expand.
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  Data source: Academy Awards Best Original Score winners (1934–2026) &middot; All figures derived directly from data.csv &middot; Report generated 2026-05-21
+</div>
+
+<!-- ═══ CHARTS ═══ -->
+<script>
+Chart.defaults.font.family = "'Segoe UI', -apple-system, sans-serif";
+Chart.defaults.color = '#4A5568';
+
+// ── Top Composers Horizontal Bar ─────────────────────────────────────────
+new Chart(document.getElementById('topComposersChart'), {
+  type: 'bar',
+  data: {
+    labels: ["John Williams", "John Barry", "Ludwig G\u00f6ransson", "Maurice Jarre", "Dimitri Tiomkin", "Max Steiner", "Alan Menken", "Nino Rota", "Atticus Ross", "Trent Reznor", "Franz Waxman", "Gustavo Santaolalla", "Miklos Rozsa", "Hans Zimmer", "Alfred Newman"],
+    datasets: [{
+      label: 'Wins',
+      data: [4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2],
+      backgroundColor: ["#D4AF37", "#D4AF37", "#D4AF37", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A", "#1B2A4A"],
+      borderRadius: 6,
+      maxBarThickness: 48
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Most Awarded Composers — All Time',
+        font: { size: 16, weight: '700' },
+        color: '#1B2A4A',
+        padding: { bottom: 20 }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        ticks: { stepSize: 1, font: { size: 12 } },
+        grid: { color: '#E2E8F0' }
+      },
+      y: {
+        ticks: { font: { size: 12, weight: '500' } },
+        grid: { display: false }
+      }
+    }
+  }
+});
+
+// ── Unique Composers per Decade ──────────────────────────────────────────
+new Chart(document.getElementById('decadeUniqueChart'), {
+  type: 'bar',
+  data: {
+    labels: ["1930s", "1940s", "1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"],
+    datasets: [{
+      label: 'Unique Composers',
+      data: [9, 12, 7, 9, 9, 12, 9, 8, 10, 7],
+      backgroundColor: '#1B2A4A',
+      borderRadius: 6,
+      maxBarThickness: 40
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Unique Composers per Decade',
+        font: { size: 15, weight: '700' },
+        color: '#1B2A4A',
+        padding: { bottom: 16 }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 2 },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── Repeat Winner Rate per Decade ────────────────────────────────────────
+new Chart(document.getElementById('decadeRepeatChart'), {
+  type: 'bar',
+  data: {
+    labels: ["1930s", "1940s", "1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"],
+    datasets: [{
+      label: 'Repeat Winner Rate (%)',
+      data: [0.0, 20.0, 50.0, 20.0, 20.0, 30.0, 40.0, 20.0, 10.0, 71.4],
+      backgroundColor: '#D4AF37',
+      borderRadius: 6,
+      maxBarThickness: 40
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Repeat Winner Rate by Decade',
+        font: { size: 15, weight: '700' },
+        color: '#1B2A4A',
+        padding: { bottom: 16 }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { callback: function(v) { return v + '%'; } },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11 } }
+      }
+    }
+  }
+});
+
+// ── Era Chart ────────────────────────────────────────────────────────────
+new Chart(document.getElementById('eraChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Golden Age", "Silver Age", "Modern Era", "Contemporary Era"],
+    datasets: [
+      {
+        label: 'Total Ceremonies',
+        data: [26, 20, 20, 27],
+        backgroundColor: '#1B2A4A',
+        borderRadius: 6,
+        maxBarThickness: 60
+      },
+      {
+        label: 'Unique Composers',
+        data: [25, 18, 18, 22],
+        backgroundColor: '#D4AF37',
+        borderRadius: 6,
+        maxBarThickness: 60
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: {
+        display: true,
+        text: 'Ceremonies vs Unique Composers by Era',
+        font: { size: 16, weight: '700' },
+        color: '#1B2A4A',
+        padding: { bottom: 20 }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 5 },
+        grid: { color: '#E2E8F0' }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 12 } }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>

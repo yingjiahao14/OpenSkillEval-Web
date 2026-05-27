@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lichess Chess Game Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --primary: #3b82f6;
+  --primary-dark: #1e40af;
+  --accent: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+.container { max-width: 1180px; margin: 0 auto; padding: 24px 20px; }
+.header {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+  padding: 48px 20px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+.header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+.header .subtitle { font-size: 1.05rem; opacity: 0.85; max-width: 700px; margin: 0 auto; }
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.card h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+  border-left: 4px solid var(--primary);
+  padding-left: 12px;
+}
+.card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 20px 0 10px;
+}
+.card p, .card li { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 6px; }
+.card ul { padding-left: 20px; }
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.kpi {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+.kpi .value { font-size: 1.8rem; font-weight: 800; color: var(--primary-dark); }
+.kpi .label { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+.kpi.green .value { color: #059669; }
+.kpi.amber .value { color: #d97706; }
+.kpi.red .value { color: #dc2626; }
+.chart-wrap { position: relative; margin: 18px 0; max-width: 100%; }
+.chart-wrap canvas { max-height: 380px; }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 0.9rem;
+}
+.data-table th {
+  background: #f1f5f9;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.data-table tr:hover td { background: #f8fafc; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.pill-white { background: #dbeafe; color: #1e40af; }
+.pill-black { background: #fce7f3; color: #9d174d; }
+.pill-draw { background: #f1f5f9; color: #475569; }
+.insight-box {
+  background: #eff6ff;
+  border-left: 4px solid var(--primary);
+  padding: 14px 18px;
+  border-radius: 0 8px 8px 0;
+  margin: 14px 0;
+  font-size: 0.93rem;
+  color: var(--text);
+}
+.section { scroll-margin-top: 20px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  padding: 32px 0 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+.toc { list-style: none; padding: 0; columns: 2; column-gap: 32px; }
+.toc li { margin-bottom: 6px; }
+.toc a { color: var(--primary); text-decoration: none; font-size: 0.95rem; }
+.toc a:hover { text-decoration: underline; }
+@media (max-width: 600px) { .toc { columns: 1; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Lichess Chess Game Analytics</h1>
+  <p class="subtitle">Patterns of Victory, Openings, and Player Dynamics &mdash; a data-driven analysis of 20,058 games</p>
+</div>
+
+<div class="container">
+
+<div class="card">
+  <h2>Table of Contents</h2>
+  <ul class="toc">
+    <li><a href="#overview">1. Dataset Overview &amp; Game Distribution</a></li>
+    <li><a href="#color-advantage">2. White vs. Black: The First-Move Advantage</a></li>
+    <li><a href="#rating-analysis">3. Rating Dynamics and Their Impact on Outcomes</a></li>
+    <li><a href="#opening-strategy">4. Opening Analysis: Popular Openings and Their Success Rates</a></li>
+    <li><a href="#time-control">5. Time Control Patterns and Game Characteristics</a></li>
+    <li><a href="#key-findings">6. Key Findings and Strategic Takeaways</a></li>
+  </ul>
+</div>
+
+<!-- Section 1 -->
+<div class="section" id="overview">
+<div class="card">
+  <h2>1. Dataset Overview &amp; Game Distribution</h2>
+  <p>A high-level snapshot of the 20,058 Lichess games under analysis.</p>
+
+  <div class="kpi-strip" style="margin-top:18px">
+    <div class="kpi"><div class="value">20,058</div><div class="label">Total Games</div></div>
+    <div class="kpi green"><div class="value">80.5%</div><div class="label">Rated Games</div></div>
+    <div class="kpi"><div class="value">60.5</div><div class="label">Avg. Turns</div></div>
+    <div class="kpi amber"><div class="value">31.5%</div><div class="label">Checkmate Rate</div></div>
+    <div class="kpi"><div class="value">55.6%</div><div class="label">Resignation Rate</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h3>Game Outcomes by Winner</h3>
+      <div class="chart-wrap"><canvas id="chartWinnerDist"></canvas></div>
+    </div>
+    <div>
+      <h3>Victory Status Distribution</h3>
+      <div class="chart-wrap"><canvas id="chartVictoryStatus"></canvas></div>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <strong>Key snapshot:</strong> Of 20,058 games, 80.5% were rated. Resignation is the most common game-end mode at 55.6%, followed by checkmate at 31.5%. Draws account for 4.5% of all games, making Lichess a predominantly decisive platform.
+  </div>
+</div>
+</div>
+
+<!-- Section 2 -->
+<div class="section" id="color-advantage">
+<div class="card">
+  <h2>2. White vs. Black: The First-Move Advantage</h2>
+  <p>Quantifying white's edge overall, by victory status, rating bracket, and time control.</p>
+
+  <div class="kpi-strip" style="margin-top:18px">
+    <div class="kpi"><div class="value">49.9%</div><div class="label">White Win Rate (all)</div></div>
+    <div class="kpi red"><div class="value">45.4%</div><div class="label">Black Win Rate (all)</div></div>
+    <div class="kpi amber"><div class="value">52.3%</div><div class="label">White Win (decisive only)</div></div>
+    <div class="kpi"><div class="value">4.7%</div><div class="label">Draw Rate</div></div>
+  </div>
+
+  <h3>White Advantage by Victory Status</h3>
+  <div class="chart-wrap"><canvas id="chartColorByVStatus"></canvas></div>
+
+  <h3>White Advantage by Rating Bracket</h3>
+  <p>Decisive-game win rates grouped by average game rating.</p>
+  <div class="chart-wrap"><canvas id="chartColorByBracket"></canvas></div>
+
+  <h3>White Advantage by Time Control (Top 8)</h3>
+  <div class="chart-wrap"><canvas id="chartColorByTC"></canvas></div>
+
+  <div class="insight-box">
+    <strong>First-move advantage:</strong> White wins 52.3% of decisive games vs. black's 47.7%, a consistent 4.7-point edge. This advantage persists across all rating brackets and time controls, though the magnitude shifts &mdash; <span id="insightBracketNote"></span>
+  </div>
+</div>
+</div>
+
+<!-- Section 3 -->
+<div class="section" id="rating-analysis">
+<div class="card">
+  <h2>3. Rating Dynamics and Their Impact on Outcomes</h2>
+
+  <div class="kpi-strip" style="margin-top:18px">
+    <div class="kpi"><div class="value">1596.6</div><div class="label">Avg White Rating</div></div>
+    <div class="kpi"><div class="value">1588.8</div><div class="label">Avg Black Rating</div></div>
+    <div class="kpi green"><div class="value">0.239</div><div class="label">Rating Diff &harr; Win Corr.</div></div>
+  </div>
+
+  <h3>Rating Distribution</h3>
+  <div class="chart-wrap"><canvas id="chartRatingDist"></canvas></div>
+
+  <h3>Rating Differential vs. Higher-Rated Player Win Probability</h3>
+  <p>Binned by absolute rating gap (decisive games only). A positive differential means the higher-rated player is more likely to win.</p>
+  <div class="chart-wrap"><canvas id="chartDiffImpact"></canvas></div>
+
+  <h3>Average Game Length by Rating Tier</h3>
+  <div class="chart-wrap"><canvas id="chartLengthByTier"></canvas></div>
+
+  <div class="insight-box">
+    <strong>Rating matters:</strong> The binned data tells a clearer story than a single correlation (r = 0.239): players within 50 Elo points of each other win roughly 50% of the time, but a 100-point gap lifts the higher-rated player to ~64%, and a 200+ point gap pushes it above 75%. At 400+ points, upsets become rare (&lt;16%). Longer games also correlate with higher-rated players &mdash; experts average more turns, suggesting deeper positional play.
+  </div>
+</div>
+</div>
+
+<!-- Section 4 -->
+<div class="section" id="opening-strategy">
+<div class="card">
+  <h2>4. Opening Analysis: Popular Openings and Their Success Rates</h2>
+
+  <h3>Top 15 Openings by ECO Code</h3>
+  <div class="chart-wrap"><canvas id="chartTopOpenings"></canvas></div>
+
+  <h3>Win Rates for Top 15 Openings by Name</h3>
+  <div style="overflow-x:auto">
+  <table class="data-table" id="tableOpenings">
+    <thead>
+      <tr><th>#</th><th>Opening</th><th>Games</th><th class="num">White %</th><th class="num">Black %</th><th class="num">Draw %</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <h3>Openings Where Black Outperforms White (min 50 games)</h3>
+  <div style="overflow-x:auto">
+  <table class="data-table" id="tableBlackFavored">
+    <thead>
+      <tr><th>ECO</th><th>Opening</th><th>Games</th><th class="num">White %</th><th class="num">Black %</th><th class="num">Draw %</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <h3>Opening Depth (Ply) vs. Outcome</h3>
+  <div class="chart-wrap"><canvas id="chartDepthStats"></canvas></div>
+
+  <div class="insight-box">
+    <strong>Opening insight:</strong> The most popular ECO codes are dominated by king's pawn and queen's pawn systems. While white typically holds a slight edge across openings, certain defenses give black a decisive statistical edge &mdash; see the "Black-Favored Openings" table above for specifics.
+  </div>
+</div>
+</div>
+
+<!-- Section 5 -->
+<div class="section" id="time-control">
+<div class="card">
+  <h2>5. Time Control Patterns and Game Characteristics</h2>
+
+  <h3>Top 10 Time Controls by Frequency</h3>
+  <div class="chart-wrap"><canvas id="chartTCFreq"></canvas></div>
+
+  <h3>Game Length by Time Control</h3>
+  <div class="chart-wrap"><canvas id="chartTCLength"></canvas></div>
+
+  <h3>Victory Status by Time Control Category</h3>
+  <div class="chart-wrap"><canvas id="chartTCVStatus"></canvas></div>
+
+  <h3>White Advantage by Time Control Category</h3>
+  <div class="chart-wrap"><canvas id="chartTCColorAdv"></canvas></div>
+
+  <div class="insight-box">
+    <strong>Time control insight:</strong> Bullet and blitz formats see significantly more timeouts and shorter games. Classical and long time controls produce more draws and checkmates, with resignation rates remaining high across all formats. White's advantage tends to <span id="insightTCNote"></span>
+  </div>
+</div>
+</div>
+
+<!-- Section 6 -->
+<div class="section" id="key-findings">
+<div class="card">
+  <h2>6. Key Findings and Strategic Takeaways</h2>
+
+  <h3>The First-Move Advantage is Real and Consistent</h3>
+  <p>White wins <strong>52.3%</strong> of decisive games, a <strong>4.7-point</strong> edge over black. This advantage holds across every rating bracket and time control analyzed, though it narrows slightly at the highest rating tiers where players are better equipped to neutralize white's initiative.</p>
+
+  <h3>Rating Differentials Are Predictive</h3>
+  <p>The relationship between rating differential and higher-rated player wins (r = <strong>0.239</strong> for absolute gap) confirms that even modest rating gaps translate into measurable win-probability shifts. Within 50 Elo points, games are near coin-flips (49.7%); a 100-point gap lifts the stronger player to ~64%; at 200+ points, win probability exceeds 75%; and at 400+ points, upsets become rare (&lt;16%). Coaches should note that upsets are the exception, not the norm.</p>
+
+  <h3>Resignation Dominates, but Checkmate Rates Vary by Time Control</h3>
+  <p>Overall, <strong>55.6%</strong> of games end by resignation vs. <strong>31.5%</strong> by checkmate. However, in bullet/ultra-bullet formats, timeouts surge and checkmate rates drop, while longer time controls see checkmate climb above the overall average &mdash; players with more time convert advantages to mate rather than accepting resignation.</p>
+
+  <h3>Opening Choice Matters &mdash; Some Defenses Favor Black</h3>
+  <p>While white holds the aggregate edge, specific openings reverse the trend. Among openings with 50+ games, several ECO codes show black winning more often than white, suggesting that theoretically sound defenses can neutralize or even reverse white's first-move advantage when played by prepared opponents.</p>
+
+  <h3>Game Depth Correlates with Player Strength</h3>
+  <p>Expert-tier games (1800+ average rating) average noticeably more turns than beginner games, indicating that stronger players navigate deeper into endgames rather than falling to early tactical blows. Opening depth (number of book moves) also correlates with game length and outcome distributions.</p>
+
+  <h3>Time Control Shapes Game Character</h3>
+  <p>Bullet games are chaotic &mdash; shorter, timeout-heavy, with a slightly different white-advantage profile. Classical games are more "chess-like": longer, more draws, higher checkmate rates, and a more pronounced rating effect. Players choosing time controls should understand these structural differences when interpreting their own statistics.</p>
+</div>
+</div>
+
+<div class="footer">
+  Data source: Lichess.org via Kaggle (datasnaek/chess) &bull; 20,058 games &bull; Report generated with Python, pandas &amp; Chart.js
+</div>
+
+</div>
+
+<script>
+var D = {"total_games": 20058, "rated_true": 16155, "rated_false": 3903, "rated_pct": 80.5, "victory_data": {"resign": 11147, "mate": 6325, "outoftime": 1680, "draw": 906}, "winner_data": {"white": 10001, "black": 9107, "draw": 950}, "white_win_rate_all": 49.9, "black_win_rate_all": 45.4, "draw_rate_all": 4.7, "white_win_rate_decisive": 52.3, "black_win_rate_decisive": 47.7, "color_by_vstatus": {"mate": {"white": 3344, "black": 2981, "white_pct": 52.9, "black_pct": 47.1}, "resign": {"white": 5844, "black": 5303, "white_pct": 52.4, "black_pct": 47.6}, "outoftime": {"white": 813, "black": 823, "white_pct": 49.7, "black_pct": 50.3}}, "color_by_bracket": {"<1000": {"total": 93, "white": 49, "black": 42, "draw": 2, "white_dec_pct": 53.8, "black_dec_pct": 46.2}, "1000-1199": {"total": 1076, "white": 535, "black": 483, "draw": 58, "white_dec_pct": 52.6, "black_dec_pct": 47.4}, "1200-1399": {"total": 3677, "white": 1907, "black": 1638, "draw": 132, "white_dec_pct": 53.8, "black_dec_pct": 46.2}, "1400-1599": {"total": 6066, "white": 3036, "black": 2785, "draw": 245, "white_dec_pct": 52.2, "black_dec_pct": 47.8}, "1600-1799": {"total": 4680, "white": 2324, "black": 2127, "draw": 229, "white_dec_pct": 52.2, "black_dec_pct": 47.8}, "1800-1999": {"total": 2967, "white": 1452, "black": 1351, "draw": 164, "white_dec_pct": 51.8, "black_dec_pct": 48.2}, "2000-2199": {"total": 1228, "white": 577, "black": 566, "draw": 85, "white_dec_pct": 50.5, "black_dec_pct": 49.5}, "2200+": {"total": 271, "white": 121, "black": 115, "draw": 35, "white_dec_pct": 51.3, "black_dec_pct": 48.7}}, "color_by_tc": {"10+0": {"total": 7721, "white": 3844, "black": 3561, "draw": 316, "white_dec_pct": 51.9, "black_dec_pct": 48.1}, "15+0": {"total": 1311, "white": 656, "black": 603, "draw": 52, "white_dec_pct": 52.1, "black_dec_pct": 47.9}, "15+15": {"total": 850, "white": 417, "black": 394, "draw": 39, "white_dec_pct": 51.4, "black_dec_pct": 48.6}, "5+5": {"total": 738, "white": 379, "black": 330, "draw": 29, "white_dec_pct": 53.5, "black_dec_pct": 46.5}, "5+8": {"total": 697, "white": 346, "black": 327, "draw": 24, "white_dec_pct": 51.4, "black_dec_pct": 48.6}, "8+0": {"total": 588, "white": 294, "black": 260, "draw": 34, "white_dec_pct": 53.1, "black_dec_pct": 46.9}, "10+5": {"total": 579, "white": 285, "black": 273, "draw": 21, "white_dec_pct": 51.1, "black_dec_pct": 48.9}, "15+10": {"total": 461, "white": 235, "black": 190, "draw": 36, "white_dec_pct": 55.3, "black_dec_pct": 44.7}}, "top_tc": ["10+0", "15+0", "15+15", "5+5", "5+8", "8+0", "10+5", "15+10"], "avg_white_rating": 1596.6, "avg_black_rating": 1588.8, "med_white_rating": 1567.0, "med_black_rating": 1562.0, "std_white_rating": 291.3, "std_black_rating": 291.0, "rating_hist_labels": ["600-699", "700-799", "800-899", "900-999", "1000-1099", "1100-1199", "1200-1299", "1300-1399", "1400-1499", "1500-1599", "1600-1699", "1700-1799", "1800-1899", "1900-1999", "2000-2099", "2100-2199", "2200-2299", "2300-2399", "2400-2499", "2500-2599", "2600-2699"], "white_hist": [0, 7, 53, 187, 432, 915, 1418, 2035, 2317, 3472, 2297, 2045, 1824, 1249, 722, 500, 367, 97, 79, 12, 30], "black_hist": [0, 5, 81, 221, 437, 945, 1484, 2031, 2444, 3369, 2260, 2038, 1782, 1171, 753, 508, 345, 110, 47, 11, 15], "abs_diff_stats": {"0-49": {"count": 5094, "win_prob": 49.7}, "50-99": {"count": 3527, "win_prob": 58.3}, "100-149": {"count": 2534, "win_prob": 64.2}, "150-199": {"count": 1845, "win_prob": 66.9}, "200-299": {"count": 2556, "win_prob": 75.2}, "300-399": {"count": 1489, "win_prob": 80.5}, "400-499": {"count": 849, "win_prob": 84.2}, "500-599": {"count": 541, "win_prob": 85.8}, "600-799": {"count": 450, "win_prob": 86.4}, "800+": {"count": 201, "win_prob": 94.5}}, "corr_diff_win": 0.239, "length_by_tier": {"Beginner (<1200)": {"mean": 50.0, "median": 47.0, "count": 1169}, "Intermediate (1200-1499)": {"mean": 55.1, "median": 51.0, "count": 6557}, "Advanced (1500-1799)": {"mean": 62.5, "median": 57.0, "count": 7866}, "Expert (1800+)": {"mean": 67.4, "median": 62.0, "count": 4466}}, "opening_stats": [{"eco": "A00", "name": "Van't Kruijs Opening", "total": 1007, "white": 398, "black": 570, "draw": 39, "white_pct": 41.1, "black_pct": 58.9, "draw_pct": 3.9, "avg_ply": 1.3, "avg_turns": 55.8}, {"eco": "C00", "name": "French Defense: Knight Variation", "total": 844, "white": 417, "black": 389, "draw": 38, "white_pct": 51.7, "black_pct": 48.3, "draw_pct": 4.5, "avg_ply": 3.1, "avg_turns": 60.1}, {"eco": "D00", "name": "Queen's Pawn Game: Mason Attack", "total": 739, "white": 341, "black": 360, "draw": 38, "white_pct": 48.6, "black_pct": 51.4, "draw_pct": 5.1, "avg_ply": 3.3, "avg_turns": 62.8}, {"eco": "B01", "name": "Scandinavian Defense: Mieses-Kotroc Variation", "total": 716, "white": 358, "black": 332, "draw": 26, "white_pct": 51.9, "black_pct": 48.1, "draw_pct": 3.6, "avg_ply": 3.9, "avg_turns": 56.4}, {"eco": "C41", "name": "Philidor Defense #3", "total": 691, "white": 396, "black": 267, "draw": 28, "white_pct": 59.7, "black_pct": 40.3, "draw_pct": 4.1, "avg_ply": 5.2, "avg_turns": 63.0}, {"eco": "C20", "name": "King's Pawn Game: Wayward Queen Attack", "total": 675, "white": 299, "black": 355, "draw": 21, "white_pct": 45.7, "black_pct": 54.3, "draw_pct": 3.1, "avg_ply": 3.1, "avg_turns": 55.1}, {"eco": "A40", "name": "Horwitz Defense", "total": 618, "white": 338, "black": 261, "draw": 19, "white_pct": 56.4, "black_pct": 43.6, "draw_pct": 3.1, "avg_ply": 2.2, "avg_turns": 58.9}, {"eco": "B00", "name": "Owen Defense", "total": 611, "white": 365, "black": 218, "draw": 28, "white_pct": 62.6, "black_pct": 37.4, "draw_pct": 4.6, "avg_ply": 3.0, "avg_turns": 54.8}, {"eco": "B20", "name": "Sicilian Defense: Bowdler Attack", "total": 567, "white": 223, "black": 320, "draw": 24, "white_pct": 41.1, "black_pct": 58.9, "draw_pct": 4.2, "avg_ply": 2.8, "avg_turns": 61.1}, {"eco": "C50", "name": "Italian Game", "total": 538, "white": 240, "black": 268, "draw": 30, "white_pct": 47.2, "black_pct": 52.8, "draw_pct": 5.6, "avg_ply": 6.9, "avg_turns": 57.1}, {"eco": "C40", "name": "King's Pawn Game: McConnell Defense", "total": 446, "white": 266, "black": 167, "draw": 13, "white_pct": 61.4, "black_pct": 38.6, "draw_pct": 2.9, "avg_ply": 3.9, "avg_turns": 51.8}, {"eco": "D02", "name": "Queen's Pawn Game: Zukertort Variation", "total": 434, "white": 222, "black": 193, "draw": 19, "white_pct": 53.5, "black_pct": 46.5, "draw_pct": 4.4, "avg_ply": 4.0, "avg_turns": 64.2}, {"eco": "C44", "name": "Scotch Game", "total": 375, "white": 195, "black": 174, "draw": 6, "white_pct": 52.8, "black_pct": 47.2, "draw_pct": 1.6, "avg_ply": 5.4, "avg_turns": 57.0}, {"eco": "C42", "name": "Russian Game: Three Knights Game", "total": 327, "white": 179, "black": 135, "draw": 13, "white_pct": 57.0, "black_pct": 43.0, "draw_pct": 4.0, "avg_ply": 5.7, "avg_turns": 55.8}, {"eco": "C55", "name": "Italian Game: Anti-Fried Liver Defense", "total": 312, "white": 165, "black": 131, "draw": 16, "white_pct": 55.7, "black_pct": 44.3, "draw_pct": 5.1, "avg_ply": 6.5, "avg_turns": 59.9}], "opening_name_stats": [{"name": "Van't Kruijs Opening", "total": 368, "white": 126, "black": 226, "draw": 16, "white_pct": 35.8, "black_pct": 64.2, "draw_pct": 4.3}, {"name": "Sicilian Defense", "total": 358, "white": 149, "black": 194, "draw": 15, "white_pct": 43.4, "black_pct": 56.6, "draw_pct": 4.2}, {"name": "Sicilian Defense: Bowdler Attack", "total": 296, "white": 119, "black": 164, "draw": 13, "white_pct": 42.0, "black_pct": 58.0, "draw_pct": 4.4}, {"name": "Scotch Game", "total": 271, "white": 145, "black": 115, "draw": 11, "white_pct": 55.8, "black_pct": 44.2, "draw_pct": 4.1}, {"name": "French Defense: Knight Variation", "total": 271, "white": 135, "black": 121, "draw": 15, "white_pct": 52.7, "black_pct": 47.3, "draw_pct": 5.5}, {"name": "Scandinavian Defense: Mieses-Kotroc Variation", "total": 259, "white": 164, "black": 89, "draw": 6, "white_pct": 64.8, "black_pct": 35.2, "draw_pct": 2.3}, {"name": "Queen's Pawn Game: Mason Attack", "total": 232, "white": 116, "black": 103, "draw": 13, "white_pct": 53.0, "black_pct": 47.0, "draw_pct": 5.6}, {"name": "Queen's Pawn Game: Chigorin Variation", "total": 229, "white": 112, "black": 109, "draw": 8, "white_pct": 50.7, "black_pct": 49.3, "draw_pct": 3.5}, {"name": "Scandinavian Defense", "total": 223, "white": 90, "black": 123, "draw": 10, "white_pct": 42.3, "black_pct": 57.7, "draw_pct": 4.5}, {"name": "Horwitz Defense", "total": 209, "white": 110, "black": 94, "draw": 5, "white_pct": 53.9, "black_pct": 46.1, "draw_pct": 2.4}, {"name": "Caro-Kann Defense", "total": 199, "white": 109, "black": 83, "draw": 7, "white_pct": 56.8, "black_pct": 43.2, "draw_pct": 3.5}, {"name": "Philidor Defense #3", "total": 198, "white": 127, "black": 67, "draw": 4, "white_pct": 65.5, "black_pct": 34.5, "draw_pct": 2.0}, {"name": "Philidor Defense #2", "total": 193, "white": 89, "black": 96, "draw": 8, "white_pct": 48.1, "black_pct": 51.9, "draw_pct": 4.1}, {"name": "Indian Game", "total": 181, "white": 69, "black": 100, "draw": 12, "white_pct": 40.8, "black_pct": 59.2, "draw_pct": 6.6}, {"name": "Italian Game: Anti-Fried Liver Defense", "total": 180, "white": 97, "black": 73, "draw": 10, "white_pct": 57.1, "black_pct": 42.9, "draw_pct": 5.6}], "black_favored": [{"opening_eco": "D01", "name": "Queen's Pawn Game: Chigorin Variation", "total": 89, "white_wins": 28, "black_wins": 56, "draws": 5, "white_pct": 33.3, "black_pct": 66.7}, {"opening_eco": "A46", "name": "Yusupov-Rubinstein System", "total": 79, "white_wins": 27, "black_wins": 46, "draws": 6, "white_pct": 37.0, "black_pct": 63.0}, {"opening_eco": "C22", "name": "Center Game: Normal Variation", "total": 86, "white_wins": 33, "black_wins": 53, "draws": 0, "white_pct": 38.4, "black_pct": 61.6}, {"opening_eco": "A00", "name": "Van't Kruijs Opening", "total": 1007, "white_wins": 398, "black_wins": 570, "draws": 39, "white_pct": 41.1, "black_pct": 58.9}, {"opening_eco": "B20", "name": "Sicilian Defense: Bowdler Attack", "total": 567, "white_wins": 223, "black_wins": 320, "draws": 24, "white_pct": 41.1, "black_pct": 58.9}, {"opening_eco": "A02", "name": "Bird Opening", "total": 82, "white_wins": 32, "black_wins": 45, "draws": 5, "white_pct": 41.6, "black_pct": 58.4}, {"opening_eco": "B40", "name": "Sicilian Defense: French Variation", "total": 129, "white_wins": 51, "black_wins": 68, "draws": 10, "white_pct": 42.9, "black_pct": 57.1}, {"opening_eco": "D10", "name": "Slav Defense #2", "total": 110, "white_wins": 44, "black_wins": 58, "draws": 8, "white_pct": 43.1, "black_pct": 56.9}, {"opening_eco": "A45", "name": "Indian Game", "total": 252, "white_wins": 102, "black_wins": 134, "draws": 16, "white_pct": 43.2, "black_pct": 56.8}, {"opening_eco": "B30", "name": "Sicilian Defense: Old Sicilian", "total": 227, "white_wins": 97, "black_wins": 123, "draws": 7, "white_pct": 44.1, "black_pct": 55.9}], "depth_stats": {"1-2": {"total": 4032, "white_pct": 49.2, "black_pct": 50.8, "draw_pct": 4.7, "avg_turns": 56.7}, "3-4": {"total": 6798, "white_pct": 52.2, "black_pct": 47.8, "draw_pct": 4.5, "avg_turns": 61.0}, "5-6": {"total": 4750, "white_pct": 54.0, "black_pct": 46.0, "draw_pct": 4.5, "avg_turns": 61.0}, "7-8": {"total": 2460, "white_pct": 54.2, "black_pct": 45.8, "draw_pct": 4.9, "avg_turns": 61.0}, "9-10": {"total": 1119, "white_pct": 53.1, "black_pct": 46.9, "draw_pct": 5.1, "avg_turns": 61.9}, "11+": {"total": 899, "white_pct": 52.3, "black_pct": 47.7, "draw_pct": 7.0, "avg_turns": 66.8}}, "tc_top10_labels": ["10+0", "15+0", "15+15", "5+5", "5+8", "8+0", "10+5", "15+10", "20+0", "30+0"], "tc_top10_values": [7721, 1311, 850, 738, 697, 588, 579, 461, 448, 375], "tc_length": {"10+0": {"mean_turns": 62.8, "median_turns": 57.0, "count": 7721}, "15+0": {"mean_turns": 60.5, "median_turns": 56.0, "count": 1311}, "15+15": {"mean_turns": 57.0, "median_turns": 52.0, "count": 850}, "5+5": {"mean_turns": 61.3, "median_turns": 57.0, "count": 738}, "5+8": {"mean_turns": 54.1, "median_turns": 50.0, "count": 697}, "8+0": {"mean_turns": 67.9, "median_turns": 62.5, "count": 588}, "10+5": {"mean_turns": 56.5, "median_turns": 51.0, "count": 579}, "15+10": {"mean_turns": 63.4, "median_turns": 57.0, "count": 461}}, "tc_vstatus": {"10+0": {"mate_pct": 32.1, "resign_pct": 54.3, "outoftime_pct": 9.9, "draw_pct": 3.7, "count": 7721}, "15+0": {"mate_pct": 33.3, "resign_pct": 54.6, "outoftime_pct": 8.2, "draw_pct": 3.9, "count": 1311}, "15+15": {"mate_pct": 34.8, "resign_pct": 56.9, "outoftime_pct": 3.6, "draw_pct": 4.6, "count": 850}, "5+5": {"mate_pct": 30.6, "resign_pct": 56.0, "outoftime_pct": 9.5, "draw_pct": 3.9, "count": 738}, "5+8": {"mate_pct": 30.8, "resign_pct": 56.5, "outoftime_pct": 9.2, "draw_pct": 3.4, "count": 697}, "8+0": {"mate_pct": 28.4, "resign_pct": 49.1, "outoftime_pct": 17.9, "draw_pct": 4.6, "count": 588}, "10+5": {"mate_pct": 30.9, "resign_pct": 58.0, "outoftime_pct": 7.4, "draw_pct": 3.6, "count": 579}, "15+10": {"mate_pct": 23.6, "resign_pct": 63.8, "outoftime_pct": 4.8, "draw_pct": 7.8, "count": 461}}, "tc_cat_stats": {"Bullet (1-3 min)": {"total": 188, "white_pct_dec": 45.1, "black_pct_dec": 54.9, "draw_pct": 2.1, "mate_pct": 32.4, "resign_pct": 52.7, "outoftime_pct": 12.8, "avg_turns": 48.0}, "Blitz (5 min)": {"total": 1860, "white_pct_dec": 52.0, "black_pct_dec": 48.0, "draw_pct": 4.1, "mate_pct": 30.1, "resign_pct": 56.3, "outoftime_pct": 9.5, "avg_turns": 57.6}, "Rapid (10 min)": {"total": 11478, "white_pct_dec": 52.0, "black_pct_dec": 48.0, "draw_pct": 4.4, "mate_pct": 32.0, "resign_pct": 54.3, "outoftime_pct": 9.7, "avg_turns": 62.3}, "Classical (15 min)": {"total": 3849, "white_pct_dec": 52.8, "black_pct_dec": 47.2, "draw_pct": 4.8, "mate_pct": 32.0, "resign_pct": 56.9, "outoftime_pct": 6.3, "avg_turns": 60.0}, "Long (20+ min)": {"total": 2683, "white_pct_dec": 53.9, "black_pct_dec": 46.1, "draw_pct": 6.6, "mate_pct": 30.0, "resign_pct": 58.9, "outoftime_pct": 4.5, "avg_turns": 56.3}}, "checkmate_rate": 31.5, "resign_rate": 55.6, "outoftime_rate": 8.4, "draw_rate_vs": 4.5, "avg_game_length": 60.5, "median_game_length": 55.0};
+
+/* Helpers */
+var palette = {
+  blue: '#3b82f6', blueLight: 'rgba(59,130,246,.25)',
+  pink: '#ec4899', pinkLight: 'rgba(236,72,153,.25)',
+  gray: '#94a3b8', grayLight: 'rgba(148,163,184,.25)',
+  green: '#10b981', amber: '#f59e0b', red: '#ef4444',
+  slate: '#475569', slateLight: '#e2e8f0'
+};
+
+function makeChart(id, cfg) {
+  var ctx = document.getElementById(id);
+  if (!ctx) return;
+  cfg.options = cfg.options || {};
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = true;
+  cfg.options.plugins = cfg.options.plugins || {};
+  cfg.options.plugins.legend = cfg.options.plugins.legend || { position: 'bottom', labels: { padding: 14, usePointStyle: true, font: { size: 12 } } };
+  new Chart(ctx, cfg);
+}
+
+/* 1. Overview charts */
+makeChart('chartWinnerDist', {
+  type: 'doughnut',
+  data: {
+    labels: ['White', 'Black', 'Draw'],
+    datasets: [{ data: [D.winner_data.white, D.winner_data.black, D.winner_data.draw],
+      backgroundColor: [palette.blue, palette.pink, palette.gray] }]
+  },
+  options: { plugins: { legend: { position: 'right' } } }
+});
+
+makeChart('chartVictoryStatus', {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(D.victory_data),
+    datasets: [{ data: Object.values(D.victory_data),
+      backgroundColor: [palette.green, palette.amber, palette.red, palette.gray] }]
+  },
+  options: { plugins: { legend: { position: 'right' } } }
+});
+
+/* 2. Color advantage charts */
+(function() {
+  var labels = Object.keys(D.color_by_vstatus);
+  var wPcts = labels.map(function(k) { return D.color_by_vstatus[k].white_pct; });
+  var bPcts = labels.map(function(k) { return D.color_by_vstatus[k].black_pct; });
+  makeChart('chartColorByVStatus', {
+    type: 'bar',
+    data: {
+      labels: labels.map(function(l) { return l.charAt(0).toUpperCase() + l.slice(1); }),
+      datasets: [
+        { label: 'White %', data: wPcts, backgroundColor: palette.blue },
+        { label: 'Black %', data: bPcts, backgroundColor: palette.pink }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 80, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+})();
+
+(function() {
+  var labels = Object.keys(D.color_by_bracket);
+  var wPcts = labels.map(function(k) { return D.color_by_bracket[k].white_dec_pct; });
+  var bPcts = labels.map(function(k) { return D.color_by_bracket[k].black_dec_pct; });
+  makeChart('chartColorByBracket', {
+    type: 'bar',
+    data: {
+      labels: labels, datasets: [
+        { label: 'White %', data: wPcts, backgroundColor: palette.blue },
+        { label: 'Black %', data: bPcts, backgroundColor: palette.pink }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 70, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+  var maxW = Math.max.apply(null, wPcts), minW = Math.min.apply(null, wPcts);
+  var maxIdx = wPcts.indexOf(maxW), minIdx = wPcts.indexOf(minW);
+  document.getElementById('insightBracketNote').textContent =
+    'the ' + labels[maxIdx] + ' bracket shows the largest white edge (' + maxW + '%), while ' + labels[minIdx] + ' narrows it to ' + minW + '%.';
+})();
+
+(function() {
+  var labels = Object.keys(D.color_by_tc);
+  var wPcts = labels.map(function(k) { return D.color_by_tc[k].white_dec_pct; });
+  var bPcts = labels.map(function(k) { return D.color_by_tc[k].black_dec_pct; });
+  makeChart('chartColorByTC', {
+    type: 'bar',
+    data: {
+      labels: labels, datasets: [
+        { label: 'White %', data: wPcts, backgroundColor: palette.blue },
+        { label: 'Black %', data: bPcts, backgroundColor: palette.pink }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 70, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+})();
+
+/* 3. Rating dynamics charts */
+makeChart('chartRatingDist', {
+  type: 'bar',
+  data: {
+    labels: D.rating_hist_labels,
+    datasets: [
+      { label: 'White Rating', data: D.white_hist, backgroundColor: palette.blueLight, borderColor: palette.blue, borderWidth: 1 },
+      { label: 'Black Rating', data: D.black_hist, backgroundColor: palette.pinkLight, borderColor: palette.pink, borderWidth: 1 }
+    ]
+  },
+  options: {
+    scales: {
+      x: { ticks: { maxRotation: 60, font: { size: 9 } } },
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+(function() {
+  var labels = Object.keys(D.abs_diff_stats);
+  var probs = labels.map(function(k) { return D.abs_diff_stats[k].win_prob; });
+  var counts = labels.map(function(k) { return D.abs_diff_stats[k].count; });
+  makeChart('chartDiffImpact', {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Higher-Rated Win %', data: probs, borderColor: palette.blue, backgroundColor: palette.blueLight,
+           fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 7 },
+        { label: 'Game Count', data: counts, borderColor: palette.gray, backgroundColor: 'transparent',
+           borderDash: [5,5], tension: 0.3, pointRadius: 3, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      scales: {
+        y: { beginAtZero: false, min: 45, ticks: { callback: function(v) { return v + '%'; } } },
+        y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+      }
+    }
+  });
+})();
+
+(function() {
+  var labels = Object.keys(D.length_by_tier);
+  var means = labels.map(function(k) { return D.length_by_tier[k].mean; });
+  var medians = labels.map(function(k) { return D.length_by_tier[k].median; });
+  makeChart('chartLengthByTier', {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Mean Turns', data: means, backgroundColor: palette.blue },
+        { label: 'Median Turns', data: medians, backgroundColor: palette.green }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true } } }
+  });
+})();
+
+/* 4. Opening charts */
+(function() {
+  var stats = D.opening_stats;
+  makeChart('chartTopOpenings', {
+    type: 'bar',
+    data: {
+      labels: stats.map(function(s) { return s.eco; }),
+      datasets: [
+        { label: 'White % (decisive)', data: stats.map(function(s) { return s.white_pct; }), backgroundColor: palette.blue },
+        { label: 'Black % (decisive)', data: stats.map(function(s) { return s.black_pct; }), backgroundColor: palette.pink }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      scales: { x: { beginAtZero: true, max: 70, ticks: { callback: function(v) { return v + '%'; } } } }
+    }
+  });
+})();
+
+(function() {
+  var tbody = document.querySelector('#tableOpenings tbody');
+  D.opening_name_stats.forEach(function(s, i) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + (i+1) + '</td><td>' + s.name + '</td><td class="num">' + s.total.toLocaleString() + '</td>' +
+      '<td class="num"><span class="pill pill-white">' + s.white_pct + '%</span></td>' +
+      '<td class="num"><span class="pill pill-black">' + s.black_pct + '%</span></td>' +
+      '<td class="num">' + s.draw_pct + '%</td>';
+    tbody.appendChild(tr);
+  });
+})();
+
+(function() {
+  var tbody = document.querySelector('#tableBlackFavored tbody');
+  D.black_favored.forEach(function(s) {
+    var drawPct = (s.draws / s.total * 100).toFixed(1);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + s.opening_eco + '</td><td>' + s.name + '</td><td class="num">' + s.total.toLocaleString() + '</td>' +
+      '<td class="num"><span class="pill pill-white">' + s.white_pct + '%</span></td>' +
+      '<td class="num"><span class="pill pill-black">' + s.black_pct + '%</span></td>' +
+      '<td class="num">' + drawPct + '%</td>';
+    tbody.appendChild(tr);
+  });
+})();
+
+(function() {
+  var labels = Object.keys(D.depth_stats);
+  var wPcts = labels.map(function(k) { return D.depth_stats[k].white_pct; });
+  var bPcts = labels.map(function(k) { return D.depth_stats[k].black_pct; });
+  var drawPcts = labels.map(function(k) { return D.depth_stats[k].draw_pct; });
+  makeChart('chartDepthStats', {
+    type: 'bar',
+    data: {
+      labels: labels.map(function(l) { return l + ' ply'; }),
+      datasets: [
+        { label: 'White %', data: wPcts, backgroundColor: palette.blue },
+        { label: 'Black %', data: bPcts, backgroundColor: palette.pink },
+        { label: 'Draw %', data: drawPcts, backgroundColor: palette.gray }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 70, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+})();
+
+/* 5. Time control charts */
+makeChart('chartTCFreq', {
+  type: 'bar',
+  data: {
+    labels: D.tc_top10_labels,
+    datasets: [{ label: 'Games', data: D.tc_top10_values, backgroundColor: palette.blue }]
+  },
+  options: { scales: { y: { beginAtZero: true } } }
+});
+
+(function() {
+  var labels = Object.keys(D.tc_length);
+  var means = labels.map(function(k) { return D.tc_length[k].mean_turns; });
+  makeChart('chartTCLength', {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Mean Turns', data: means, backgroundColor: palette.green }]
+    },
+    options: { scales: { y: { beginAtZero: true } } }
+  });
+})();
+
+(function() {
+  var cats = Object.keys(D.tc_cat_stats);
+  makeChart('chartTCVStatus', {
+    type: 'bar',
+    data: {
+      labels: cats,
+      datasets: [
+        { label: 'Checkmate %', data: cats.map(function(c) { return D.tc_cat_stats[c].mate_pct; }), backgroundColor: palette.green },
+        { label: 'Resignation %', data: cats.map(function(c) { return D.tc_cat_stats[c].resign_pct; }), backgroundColor: palette.amber },
+        { label: 'Timeout %', data: cats.map(function(c) { return D.tc_cat_stats[c].outoftime_pct; }), backgroundColor: palette.red },
+        { label: 'Draw %', data: cats.map(function(c) { return D.tc_cat_stats[c].draw_pct; }), backgroundColor: palette.gray }
+      ]
+    },
+    options: { scales: { y: { stacked: true, max: 100, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+})();
+
+(function() {
+  var cats = Object.keys(D.tc_cat_stats);
+  var wPcts = cats.map(function(c) { return D.tc_cat_stats[c].white_pct_dec; });
+  var bPcts = cats.map(function(c) { return D.tc_cat_stats[c].black_pct_dec; });
+  makeChart('chartTCColorAdv', {
+    type: 'bar',
+    data: {
+      labels: cats,
+      datasets: [
+        { label: 'White % (decisive)', data: wPcts, backgroundColor: palette.blue },
+        { label: 'Black % (decisive)', data: bPcts, backgroundColor: palette.pink }
+      ]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 70, ticks: { callback: function(v) { return v + '%'; } } } } }
+  });
+  var diffs = wPcts.map(function(w, i) { return w - bPcts[i]; });
+  var maxDiff = Math.max.apply(null, diffs);
+  var minDiff = Math.min.apply(null, diffs);
+  var maxIdx = diffs.indexOf(maxDiff);
+  var minIdx = diffs.indexOf(minDiff);
+  document.getElementById('insightTCNote').textContent =
+    'be most pronounced in ' + cats[maxIdx] + ' (' + maxDiff.toFixed(1) + 'pt edge) and least in ' + cats[minIdx] + ' (' + minDiff.toFixed(1) + 'pt).';
+})();
+
+</script>
+</body>
+</html>

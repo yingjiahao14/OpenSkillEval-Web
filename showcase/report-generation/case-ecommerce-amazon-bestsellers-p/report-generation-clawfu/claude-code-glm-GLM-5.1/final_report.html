@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon Bestselling Books: Price vs. User Rating Trend Analysis (2009-2019)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --navy: #1a2744;
+  --teal: #2a9d8f;
+  --coral: #e76f51;
+  --gold: #e9c46a;
+  --slate: #264653;
+  --light: #f8f9fa;
+  --border: #dee2e6;
+  --text: #212529;
+  --muted: #6c757d;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f0f2f5;
+  color: var(--text);
+  line-height: 1.6;
+}
+.report-header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--slate) 100%);
+  color: white;
+  padding: 48px 40px;
+  text-align: center;
+}
+.report-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+.report-header p { font-size: 14px; opacity: 0.8; }
+.container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+.section {
+  background: white;
+  border-radius: 12px;
+  padding: 36px;
+  margin-bottom: 28px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.section h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--teal);
+  display: inline-block;
+}
+.section .subtitle {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.kpi-card {
+  background: var(--light);
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+  border-left: 4px solid var(--teal);
+}
+.kpi-card.coral { border-left-color: var(--coral); }
+.kpi-card.navy { border-left-color: var(--navy); }
+.kpi-card.gold { border-left-color: var(--gold); }
+.kpi-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+.kpi-card .value { font-size: 26px; font-weight: 700; color: var(--navy); }
+.kpi-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.chart-wrap { position: relative; margin: 24px 0; width: 100%; }
+.chart-wrap canvas { width: 100% !important; }
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14px;
+}
+.comparison-table th {
+  background: var(--navy);
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+}
+.comparison-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.comparison-table tr:hover { background: var(--light); }
+.insight-box {
+  background: #edf7f6;
+  border-left: 4px solid var(--teal);
+  padding: 16px 20px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+  font-size: 14px;
+}
+.insight-box strong { color: var(--teal); }
+.inflection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.inflection-card {
+  padding: 14px 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 13px;
+}
+.inflection-card.up { background: #ffebee; border: 1px solid #ef9a9a; }
+.inflection-card.down { background: #e8f5e9; border: 1px solid #a5d6a7; }
+.inflection-card.neutral { background: #f5f5f5; border: 1px solid #e0e0e0; }
+.inflection-card .year { font-size: 18px; font-weight: 700; color: var(--navy); }
+.inflection-card .change { font-weight: 600; margin-top: 4px; }
+.rec-list { list-style: none; padding: 0; }
+.rec-list li {
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  background: var(--light);
+  border-radius: 8px;
+  border-left: 4px solid var(--teal);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.rec-list li .rec-title { font-weight: 700; color: var(--navy); display: block; margin-bottom: 4px; }
+.rec-list li .rec-evidence { color: var(--muted); font-size: 13px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <h1>Amazon Bestselling Books</h1>
+  <p>Price vs. User Rating Trend Analysis &middot; 2009&ndash;2019</p>
+</div>
+
+<div class="container">
+
+<!-- Section 1: Market Overview -->
+<div class="section">
+  <h2>Bestseller Market Overview (2009&ndash;2019)</h2>
+  <p class="subtitle">High-level summary of the dataset across the full decade</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">Total Records</div>
+      <div class="value">550</div>
+      <div class="sub">351 unique titles</div>
+    </div>
+    <div class="kpi-card coral">
+      <div class="label">Avg Price</div>
+      <div class="value">$13.10</div>
+      <div class="sub">Median: $11.0</div>
+    </div>
+    <div class="kpi-card navy">
+      <div class="label">Avg Rating</div>
+      <div class="value">4.62</div>
+      <div class="sub">Range: 3.3 - 4.9</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="label">Avg Reviews</div>
+      <div class="value">11,953</div>
+      <div class="sub">Total: 6,574,305</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Unique Authors</div>
+      <div class="value">248</div>
+    </div>
+    <div class="kpi-card coral">
+      <div class="label">Free Titles ($0)</div>
+      <div class="value">12</div>
+      <div class="sub">2.2% of records</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">Fiction Records</div>
+      <div class="value">240</div>
+      <div class="sub">43.6% of total</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Non Fiction Records</div>
+      <div class="value">310</div>
+      <div class="sub">56.4% of total</div>
+    </div>
+  </div>
+
+  <div class="insight-box">
+    <strong>Key Observation:</strong> The dataset contains 550 bestseller entries (351 unique titles by 248 authors). Non Fiction dominates with 56.4% of records. Average ratings are clustered high (4.62/5), consistent with these being market-validated bestsellers.
+  </div>
+</div>
+
+<!-- Section 2: Price-Rating Correlation -->
+<div class="section">
+  <h2>Price vs. User Rating: Correlation Analysis</h2>
+  <p class="subtitle">Quantifying the relationship between what customers pay and how they rate bestselling books</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card navy">
+      <div class="label">Pearson Correlation (All)</div>
+      <div class="value">-0.133</div>
+      <div class="sub">Weak negative</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Correlation (Fiction)</div>
+      <div class="value">-0.103</div>
+    </div>
+    <div class="kpi-card coral">
+      <div class="label">Correlation (Non Fiction)</div>
+      <div class="value">-0.135</div>
+    </div>
+  </div>
+
+  <div class="chart-wrap" style="height:420px">
+    <canvas id="scatterChart"></canvas>
+  </div>
+
+  <h3 style="margin-top:28px;font-size:16px;color:var(--navy)">Price Segment Analysis</h3>
+  <table class="comparison-table">
+    <tr>
+      <th>Price Segment</th>
+      <th>Count</th>
+      <th>Avg Price</th>
+      <th>Avg Rating</th>
+      <th>Avg Reviews</th>
+    </tr>
+    <tr>
+      <td>Free ($0)</td>
+      <td>12</td>
+      <td>$0.00</td>
+      <td>4.77</td>
+      <td>11,124</td>
+    </tr>    <tr>
+      <td>Budget ($1-$10)</td>
+      <td>254</td>
+      <td>$6.89</td>
+      <td>4.67</td>
+      <td>12,477</td>
+    </tr>    <tr>
+      <td>Mid-Range ($11-$20)</td>
+      <td>216</td>
+      <td>$14.50</td>
+      <td>4.55</td>
+      <td>12,838</td>
+    </tr>    <tr>
+      <td>Premium ($21-$30)</td>
+      <td>42</td>
+      <td>$24.57</td>
+      <td>4.68</td>
+      <td>7,401</td>
+    </tr>    <tr>
+      <td>High-End ($31+)</td>
+      <td>26</td>
+      <td>$49.69</td>
+      <td>4.54</td>
+      <td>7,219</td>
+    </tr>
+  </table>
+
+  <div class="insight-box">
+    <strong>Correlation Finding:</strong> The Pearson coefficient of <strong>-0.133</strong> indicates a weak negative relationship between price and rating. Higher prices do not translate into higher satisfaction. The segment analysis confirms this: Budget and free titles achieve ratings comparable to or higher than premium-priced books, suggesting that perceived value in the bestseller market is driven by content quality rather than price point.
+  </div>
+</div>
+
+<!-- Section 3: Genre Comparison -->
+<div class="section">
+  <h2>Fiction vs. Non-Fiction: Pricing and Rating Strategies</h2>
+  <p class="subtitle">Side-by-side comparison of the two genres across key metrics</p>
+
+  <div class="two-col">
+    <div class="chart-wrap" style="height:300px">
+      <canvas id="genrePriceChart"></canvas>
+    </div>
+    <div class="chart-wrap" style="height:300px">
+      <canvas id="genreRatingChart"></canvas>
+    </div>
+  </div>
+
+  <table class="comparison-table" style="margin-top:24px">
+    <tr>
+      <th>Metric</th>
+      <th>Fiction</th>
+      <th>Non Fiction</th>
+      <th>Difference</th>
+    </tr>
+    <tr>
+      <td>Record Count</td>
+      <td>240</td>
+      <td>310</td>
+      <td>70 more Non Fiction</td>
+    </tr>
+    <tr>
+      <td>Average Price</td>
+      <td>$10.85</td>
+      <td>$14.84</td>
+      <td>$3.99 lower for Non Fiction</td>
+    </tr>
+    <tr>
+      <td>Average Rating</td>
+      <td>4.65</td>
+      <td>4.60</td>
+      <td>0.05 higher for Fiction</td>
+    </tr>
+    <tr>
+      <td>Average Reviews</td>
+      <td>15,683</td>
+      <td>9,065</td>
+      <td>6,618 more for Fiction</td>
+    </tr>
+  </table>
+
+  <div class="insight-box">
+    <strong>Genre Insight:</strong> Fiction books achieve higher average ratings (4.65 vs. 4.60) despite lower average pricing ($10.85 vs. $14.84). Fiction titles generate more reviews on average, indicating higher reader engagement. This suggests that Fiction delivers stronger perceived value per dollar on the bestseller list.
+  </div>
+</div>
+
+<!-- Section 4: Temporal Trends -->
+<div class="section">
+  <h2>Year-over-Year Trends in Pricing and Ratings</h2>
+  <p class="subtitle">Tracking annual shifts in pricing strategy and customer sentiment &mdash; the most critical dimension for strategic planning</p>
+
+  <div class="chart-wrap" style="height:400px">
+    <canvas id="trendPriceChart"></canvas>
+  </div>
+
+  <div class="chart-wrap" style="height:400px">
+    <canvas id="trendRatingChart"></canvas>
+  </div>
+
+  <div class="chart-wrap" style="height:360px">
+    <canvas id="trendReviewChart"></canvas>
+  </div>
+
+  <h3 style="margin-top:28px;font-size:16px;color:var(--navy)">Year-over-Year Price Changes</h3>
+  <div class="inflection-grid">
+    <div class="inflection-card down">
+      <div class="year">2010</div>
+      <div class="change">-1.92</div>
+      <div>$15.40 &rarr; $13.48</div>
+    </div>    <div class="inflection-card up">
+      <div class="year">2011</div>
+      <div class="change">+1.62</div>
+      <div>$13.48 &rarr; $15.10</div>
+    </div>    <div class="inflection-card up">
+      <div class="year">2012</div>
+      <div class="change">+0.20</div>
+      <div>$15.10 &rarr; $15.30</div>
+    </div>    <div class="inflection-card down">
+      <div class="year">2013</div>
+      <div class="change">-0.70</div>
+      <div>$15.30 &rarr; $14.60</div>
+    </div>    <div class="inflection-card up">
+      <div class="year">2014</div>
+      <div class="change">+0.04</div>
+      <div>$14.60 &rarr; $14.64</div>
+    </div>    <div class="inflection-card down">
+      <div class="year">2015</div>
+      <div class="change">-4.22</div>
+      <div>$14.64 &rarr; $10.42</div>
+    </div>    <div class="inflection-card up">
+      <div class="year">2016</div>
+      <div class="change">+2.76</div>
+      <div>$10.42 &rarr; $13.18</div>
+    </div>    <div class="inflection-card down">
+      <div class="year">2017</div>
+      <div class="change">-1.80</div>
+      <div>$13.18 &rarr; $11.38</div>
+    </div>    <div class="inflection-card down">
+      <div class="year">2018</div>
+      <div class="change">-0.86</div>
+      <div>$11.38 &rarr; $10.52</div>
+    </div>    <div class="inflection-card down">
+      <div class="year">2019</div>
+      <div class="change">-0.44</div>
+      <div>$10.52 &rarr; $10.08</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:28px;font-size:16px;color:var(--navy)">Annual Data Summary</h3>
+  <table class="comparison-table">
+    <tr>
+      <th>Year</th>
+      <th>Avg Price</th>
+      <th>Avg Rating</th>
+      <th>Avg Reviews</th>
+      <th>Fiction Avg Price</th>
+      <th>Non Fiction Avg Price</th>
+    </tr>
+    <tr>
+      <td><strong>2009</strong></td>
+      <td>$15.40</td>
+      <td>4.58</td>
+      <td>4,710</td>
+      <td>$15.58</td>
+      <td>$15.23</td>
+    </tr>    <tr>
+      <td><strong>2010</strong></td>
+      <td>$13.48</td>
+      <td>4.56</td>
+      <td>5,479</td>
+      <td>$9.70</td>
+      <td>$16.00</td>
+    </tr>    <tr>
+      <td><strong>2011</strong></td>
+      <td>$15.10</td>
+      <td>4.56</td>
+      <td>8,100</td>
+      <td>$11.62</td>
+      <td>$17.62</td>
+    </tr>    <tr>
+      <td><strong>2012</strong></td>
+      <td>$15.30</td>
+      <td>4.53</td>
+      <td>13,090</td>
+      <td>$12.29</td>
+      <td>$17.48</td>
+    </tr>    <tr>
+      <td><strong>2013</strong></td>
+      <td>$14.60</td>
+      <td>4.55</td>
+      <td>13,098</td>
+      <td>$10.71</td>
+      <td>$18.19</td>
+    </tr>    <tr>
+      <td><strong>2014</strong></td>
+      <td>$14.64</td>
+      <td>4.62</td>
+      <td>15,859</td>
+      <td>$10.17</td>
+      <td>$20.81</td>
+    </tr>    <tr>
+      <td><strong>2015</strong></td>
+      <td>$10.42</td>
+      <td>4.65</td>
+      <td>14,233</td>
+      <td>$9.35</td>
+      <td>$10.97</td>
+    </tr>    <tr>
+      <td><strong>2016</strong></td>
+      <td>$13.18</td>
+      <td>4.68</td>
+      <td>14,196</td>
+      <td>$12.63</td>
+      <td>$13.52</td>
+    </tr>    <tr>
+      <td><strong>2017</strong></td>
+      <td>$11.38</td>
+      <td>4.66</td>
+      <td>12,888</td>
+      <td>$8.83</td>
+      <td>$13.73</td>
+    </tr>    <tr>
+      <td><strong>2018</strong></td>
+      <td>$10.52</td>
+      <td>4.67</td>
+      <td>13,930</td>
+      <td>$8.76</td>
+      <td>$11.79</td>
+    </tr>    <tr>
+      <td><strong>2019</strong></td>
+      <td>$10.08</td>
+      <td>4.74</td>
+      <td>15,898</td>
+      <td>$9.35</td>
+      <td>$10.57</td>
+    </tr>
+  </table>
+
+  <div class="insight-box">
+    <strong>Inflection Point &mdash; Pricing:</strong> Average bestseller prices trended downward over the decade. The sharpest single-year shift was in 2015 ($14.64 &rarr; $10.42, a -4.22 change). This compression suggests a market shift toward lower-priced bestsellers, likely driven by the growth of e-book and Kindle editions.
+  </div>
+  <div class="insight-box">
+    <strong>Inflection Point &mdash; Ratings:</strong> Ratings have remained remarkably stable (4.53&ndash;4.74), but ticked upward from 2017 onward, suggesting that even as prices fell, the market maintained its quality threshold for bestseller status.
+  </div>
+  <div class="insight-box">
+    <strong>Inflection Point &mdash; Reviews:</strong> Review volumes have surged dramatically, from an average of 4,710 reviews in 2009 to 15,898 in 2019. This reflects Amazon's expanding customer base and the growing cultural norm of leaving online reviews.
+  </div>
+</div>
+
+<!-- Section 5: Top Authors -->
+<div class="section">
+  <h2>Dominant Authors on the Bestseller List</h2>
+  <p class="subtitle">Authors with the most bestseller appearances across the decade and their pricing/rating patterns</p>
+
+  <div class="chart-wrap" style="height:380px">
+    <canvas id="authorChart"></canvas>
+  </div>
+
+  <table class="comparison-table" style="margin-top:20px">
+    <tr>
+      <th>Author</th>
+      <th>Appearances</th>
+      <th>Avg Rating</th>
+      <th>Avg Price</th>
+      <th>Avg Reviews</th>
+    </tr>
+    <tr>
+      <td><strong>Jeff Kinney</strong></td>
+      <td>12</td>
+      <td>4.80</td>
+      <td>$9.25</td>
+      <td>5,623</td>
+    </tr>    <tr>
+      <td><strong>Suzanne Collins</strong></td>
+      <td>11</td>
+      <td>4.66</td>
+      <td>$13.36</td>
+      <td>25,302</td>
+    </tr>    <tr>
+      <td><strong>Rick Riordan</strong></td>
+      <td>11</td>
+      <td>4.77</td>
+      <td>$9.91</td>
+      <td>4,015</td>
+    </tr>    <tr>
+      <td><strong>Gary Chapman</strong></td>
+      <td>11</td>
+      <td>4.74</td>
+      <td>$17.18</td>
+      <td>13,268</td>
+    </tr>    <tr>
+      <td><strong>American Psychological Association</strong></td>
+      <td>10</td>
+      <td>4.50</td>
+      <td>$46.00</td>
+      <td>8,580</td>
+    </tr>    <tr>
+      <td><strong>Dr. Seuss</strong></td>
+      <td>9</td>
+      <td>4.88</td>
+      <td>$8.67</td>
+      <td>19,616</td>
+    </tr>    <tr>
+      <td><strong>Gallup</strong></td>
+      <td>9</td>
+      <td>4.00</td>
+      <td>$17.00</td>
+      <td>5,069</td>
+    </tr>    <tr>
+      <td><strong>Rob Elliott</strong></td>
+      <td>8</td>
+      <td>4.56</td>
+      <td>$4.00</td>
+      <td>5,746</td>
+    </tr>    <tr>
+      <td><strong>Stephenie Meyer</strong></td>
+      <td>7</td>
+      <td>4.66</td>
+      <td>$19.86</td>
+      <td>6,294</td>
+    </tr>    <tr>
+      <td><strong>Dav Pilkey</strong></td>
+      <td>7</td>
+      <td>4.90</td>
+      <td>$6.29</td>
+      <td>7,356</td>
+    </tr>    <tr>
+      <td><strong>Bill O'Reilly</strong></td>
+      <td>7</td>
+      <td>4.64</td>
+      <td>$10.57</td>
+      <td>9,112</td>
+    </tr>    <tr>
+      <td><strong>Stephen R. Covey</strong></td>
+      <td>7</td>
+      <td>4.64</td>
+      <td>$20.57</td>
+      <td>7,353</td>
+    </tr>
+  </table>
+
+  <div class="insight-box">
+    <strong>Author Pattern:</strong> The most frequent bestseller authors cluster in the $8&ndash;$16 price range, well below the dataset's overall average of $13.10. Jeff Kinney leads with 12 appearances at an average rating of 4.80 and average price of $9.25. This reinforces the finding that sustained bestseller status is achieved through accessible pricing and high reader satisfaction, not premium pricing.
+  </div>
+</div>
+
+<!-- Section 6: Strategic Recommendations -->
+<div class="section">
+  <h2>Strategic Recommendations</h2>
+  <p class="subtitle">Data-grounded insights for pricing strategy and catalog curation</p>
+
+  <ul class="rec-list">
+    <li>
+      <span class="rec-title">1. Target the $8&ndash;$15 Price Window for New Titles</span>
+      The data shows that the most commercially successful bestsellers &mdash; and the authors with the most repeated appearances &mdash; cluster in the $8&ndash;$15 range. The Pearson correlation of -0.133 confirms no positive price-rating relationship. Pricing above $20 does not yield higher ratings and reduces the likelihood of sustained bestseller status.
+      <div class="rec-evidence">Evidence: Top authors under $20 average $11.61 per appearance; Budget segment achieves 4.67 avg rating.</div>
+    </li>
+    <li>
+      <span class="rec-title">2. Invest in Fiction for Higher Engagement and Perceived Value</span>
+      Fiction achieves higher ratings at lower prices than the other genre, with more review engagement (15,683 vs. 9,065 avg reviews). For catalog curation, Fiction titles offer better value-per-rating returns.
+      <div class="rec-evidence">Evidence: Fiction avg rating 4.65 at $10.85; Non Fiction avg rating 4.60 at $14.84.</div>
+    </li>
+    <li>
+      <span class="rec-title">3. Capitalize on the Downward Pricing Trend</span>
+      Average bestseller prices declined from $15.40 in 2009 to $10.08 in 2019, while ratings remained stable or improved. This signals market acceptance of lower price points. New titles should enter at competitive prices rather than premium positions.
+      <div class="rec-evidence">Evidence: 2019 avg price $10.08 vs. 2009 avg price $15.40; ratings held at 4.74.</div>
+    </li>
+    <li>
+      <span class="rec-title">4. Leverage Free and Low-Price Titles as List-Building Tools</span>
+      12 free titles appear in the bestseller dataset. Free and budget-priced books achieve ratings comparable to mid-range titles, suggesting they can be used to build audience and drive reviews for an author's broader catalog.
+      <div class="rec-evidence">Evidence: Free titles ($0) and Budget ($1&ndash;$10) segment avg ratings remain above 4.67.</div>
+    </li>
+    <li>
+      <span class="rec-title">5. Prioritize Review Volume as a Leading Indicator</span>
+      Review counts have surged across the decade while prices declined. High review volume correlates with repeated bestseller appearances. Marketing investment should focus on generating early reviews rather than defending price points.
+      <div class="rec-evidence">Evidence: Avg reviews grew from 4,710 (2009) to 15,898 (2019).</div>
+    </li>
+  </ul>
+</div>
+
+</div>
+
+<div class="footer">
+  Amazon Bestselling Books: Price vs. User Rating Trend Analysis &middot; Data: 2009&ndash;2019 &middot; Generated May 21, 2026
+</div>
+
+<!-- Charts -->
+<script>
+var TEAL = '#2a9d8f';
+var CORAL = '#e76f51';
+var NAVY = '#1a2744';
+var GOLD = '#e9c46a';
+var SLATE = '#264653';
+
+// Scatter: Price vs Rating
+(function() {
+  var allData = [{"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 22, "y": 4.6, "genre": "Fiction"}, {"x": 15, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.4, "genre": "Fiction"}, {"x": 30, "y": 4.7, "genre": "Fiction"}, {"x": 15, "y": 4.7, "genre": "Fiction"}, {"x": 3, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 2, "y": 4.6, "genre": "Non Fiction"}, {"x": 32, "y": 4.6, "genre": "Non Fiction"}, {"x": 5, "y": 4.5, "genre": "Fiction"}, {"x": 17, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.5, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.4, "genre": "Non Fiction"}, {"x": 8, "y": 4.5, "genre": "Non Fiction"}, {"x": 13, "y": 4.8, "genre": "Non Fiction"}, {"x": 14, "y": 4.6, "genre": "Fiction"}, {"x": 14, "y": 4.6, "genre": "Fiction"}, {"x": 13, "y": 3.9, "genre": "Fiction"}, {"x": 9, "y": 4.6, "genre": "Non Fiction"}, {"x": 13, "y": 4.3, "genre": "Fiction"}, {"x": 5, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.2, "genre": "Non Fiction"}, {"x": 5, "y": 4.6, "genre": "Non Fiction"}, {"x": 11, "y": 4.6, "genre": "Non Fiction"}, {"x": 24, "y": 4.8, "genre": "Non Fiction"}, {"x": 21, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Non Fiction"}, {"x": 15, "y": 4.8, "genre": "Non Fiction"}, {"x": 13, "y": 4.7, "genre": "Non Fiction"}, {"x": 13, "y": 4.7, "genre": "Non Fiction"}, {"x": 18, "y": 4.7, "genre": "Non Fiction"}, {"x": 13, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.5, "genre": "Non Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 18, "y": 4.8, "genre": "Non Fiction"}, {"x": 28, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Fiction"}, {"x": 11, "y": 4.7, "genre": "Fiction"}, {"x": 11, "y": 4.7, "genre": "Fiction"}, {"x": 16, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.3, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Non Fiction"}, {"x": 5, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.6, "genre": "Fiction"}, {"x": 11, "y": 4.6, "genre": "Fiction"}, {"x": 10, "y": 4.8, "genre": "Non Fiction"}, {"x": 13, "y": 4.4, "genre": "Non Fiction"}, {"x": 4, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.3, "genre": "Fiction"}, {"x": 4, "y": 4.2, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 17, "y": 4.6, "genre": "Non Fiction"}, {"x": 15, "y": 4.6, "genre": "Non Fiction"}, {"x": 105, "y": 4.5, "genre": "Non Fiction"}, {"x": 105, "y": 4.5, "genre": "Non Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 15, "y": 4.8, "genre": "Fiction"}, {"x": 22, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.6, "genre": "Non Fiction"}, {"x": 15, "y": 4.6, "genre": "Fiction"}, {"x": 15, "y": 4.6, "genre": "Fiction"}, {"x": 6, "y": 4.5, "genre": "Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 13, "y": 4.7, "genre": "Fiction"}, {"x": 12, "y": 4.8, "genre": "Fiction"}, {"x": 6, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 4, "y": 4.9, "genre": "Fiction"}, {"x": 4, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 6, "y": 4.9, "genre": "Fiction"}, {"x": 20, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.6, "genre": "Non Fiction"}, {"x": 16, "y": 4.5, "genre": "Non Fiction"}, {"x": 1, "y": 4.5, "genre": "Non Fiction"}, {"x": 14, "y": 4.3, "genre": "Non Fiction"}, {"x": 9, "y": 4.5, "genre": "Non Fiction"}, {"x": 9, "y": 4.5, "genre": "Non Fiction"}, {"x": 7, "y": 4.7, "genre": "Fiction"}, {"x": 18, "y": 4.7, "genre": "Fiction"}, {"x": 15, "y": 4.7, "genre": "Non Fiction"}, {"x": 15, "y": 4.7, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 15, "y": 4.7, "genre": "Fiction"}, {"x": 2, "y": 4.4, "genre": "Non Fiction"}, {"x": 7, "y": 4.4, "genre": "Fiction"}, {"x": 11, "y": 4.5, "genre": "Fiction"}, {"x": 14, "y": 3.8, "genre": "Fiction"}, {"x": 14, "y": 3.8, "genre": "Fiction"}, {"x": 32, "y": 4.5, "genre": "Fiction"}, {"x": 6, "y": 4.2, "genre": "Non Fiction"}, {"x": 4, "y": 4.7, "genre": "Non Fiction"}, {"x": 4, "y": 4.7, "genre": "Non Fiction"}, {"x": 4, "y": 4.7, "genre": "Non Fiction"}, {"x": 4, "y": 4.7, "genre": "Non Fiction"}, {"x": 4, "y": 4.7, "genre": "Non Fiction"}, {"x": 9, "y": 4.4, "genre": "Non Fiction"}, {"x": 0, "y": 4.7, "genre": "Fiction"}, {"x": 9, "y": 4.4, "genre": "Non Fiction"}, {"x": 5, "y": 4.6, "genre": "Fiction"}, {"x": 5, "y": 4.6, "genre": "Fiction"}, {"x": 5, "y": 4.6, "genre": "Fiction"}, {"x": 20, "y": 4.5, "genre": "Non Fiction"}, {"x": 16, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.6, "genre": "Non Fiction"}, {"x": 12, "y": 4.6, "genre": "Non Fiction"}, {"x": 12, "y": 4.6, "genre": "Non Fiction"}, {"x": 11, "y": 4.6, "genre": "Non Fiction"}, {"x": 19, "y": 3.6, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.0, "genre": "Fiction"}, {"x": 10, "y": 4.0, "genre": "Fiction"}, {"x": 9, "y": 4.0, "genre": "Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 14, "y": 4.5, "genre": "Non Fiction"}, {"x": 14, "y": 4.5, "genre": "Non Fiction"}, {"x": 14, "y": 4.5, "genre": "Non Fiction"}, {"x": 14, "y": 4.5, "genre": "Non Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 7, "y": 4.9, "genre": "Fiction"}, {"x": 7, "y": 4.9, "genre": "Fiction"}, {"x": 10, "y": 4.6, "genre": "Non Fiction"}, {"x": 14, "y": 4.4, "genre": "Fiction"}, {"x": 7, "y": 4.8, "genre": "Non Fiction"}, {"x": 54, "y": 4.9, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Non Fiction"}, {"x": 30, "y": 4.9, "genre": "Fiction"}, {"x": 12, "y": 4.0, "genre": "Fiction"}, {"x": 18, "y": 4.9, "genre": "Fiction"}, {"x": 30, "y": 4.9, "genre": "Fiction"}, {"x": 22, "y": 4.9, "genre": "Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 52, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.4, "genre": "Non Fiction"}, {"x": 14, "y": 4.4, "genre": "Non Fiction"}, {"x": 22, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 16, "y": 4.3, "genre": "Non Fiction"}, {"x": 15, "y": 4.8, "genre": "Non Fiction"}, {"x": 15, "y": 4.8, "genre": "Non Fiction"}, {"x": 17, "y": 4.9, "genre": "Non Fiction"}, {"x": 17, "y": 4.7, "genre": "Non Fiction"}, {"x": 7, "y": 4.8, "genre": "Non Fiction"}, {"x": 7, "y": 4.6, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.3, "genre": "Fiction"}, {"x": 21, "y": 4.4, "genre": "Non Fiction"}, {"x": 14, "y": 4.1, "genre": "Fiction"}, {"x": 20, "y": 4.6, "genre": "Fiction"}, {"x": 13, "y": 4.4, "genre": "Non Fiction"}, {"x": 13, "y": 4.4, "genre": "Non Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Non Fiction"}, {"x": 0, "y": 4.6, "genre": "Fiction"}, {"x": 12, "y": 4.5, "genre": "Fiction"}, {"x": 17, "y": 4.6, "genre": "Non Fiction"}, {"x": 12, "y": 4.5, "genre": "Non Fiction"}, {"x": 25, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 5, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 4, "y": 4.5, "genre": "Non Fiction"}, {"x": 4, "y": 4.5, "genre": "Non Fiction"}, {"x": 4, "y": 4.5, "genre": "Non Fiction"}, {"x": 13, "y": 4.9, "genre": "Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 4, "y": 4.6, "genre": "Non Fiction"}, {"x": 13, "y": 4.5, "genre": "Non Fiction"}, {"x": 21, "y": 4.5, "genre": "Non Fiction"}, {"x": 6, "y": 4.4, "genre": "Non Fiction"}, {"x": 15, "y": 4.8, "genre": "Non Fiction"}, {"x": 18, "y": 4.5, "genre": "Non Fiction"}, {"x": 10, "y": 4.1, "genre": "Fiction"}, {"x": 0, "y": 4.9, "genre": "Fiction"}, {"x": 12, "y": 4.5, "genre": "Fiction"}, {"x": 7, "y": 4.5, "genre": "Fiction"}, {"x": 13, "y": 4.2, "genre": "Non Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 20, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 27, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.4, "genre": "Non Fiction"}, {"x": 10, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.6, "genre": "Non Fiction"}, {"x": 8, "y": 4.5, "genre": "Fiction"}, {"x": 8, "y": 4.5, "genre": "Fiction"}, {"x": 8, "y": 4.5, "genre": "Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Non Fiction"}, {"x": 10, "y": 4.6, "genre": "Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.6, "genre": "Non Fiction"}, {"x": 22, "y": 4.9, "genre": "Non Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 7, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.2, "genre": "Fiction"}, {"x": 13, "y": 4.6, "genre": "Non Fiction"}, {"x": 13, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.5, "genre": "Non Fiction"}, {"x": 13, "y": 4.3, "genre": "Fiction"}, {"x": 11, "y": 4.6, "genre": "Fiction"}, {"x": 20, "y": 4.6, "genre": "Non Fiction"}, {"x": 20, "y": 4.6, "genre": "Non Fiction"}, {"x": 5, "y": 4.7, "genre": "Non Fiction"}, {"x": 5, "y": 4.7, "genre": "Non Fiction"}, {"x": 2, "y": 4.8, "genre": "Fiction"}, {"x": 27, "y": 4.8, "genre": "Fiction"}, {"x": 27, "y": 4.8, "genre": "Fiction"}, {"x": 27, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.7, "genre": "Fiction"}, {"x": 10, "y": 4.3, "genre": "Non Fiction"}, {"x": 10, "y": 4.3, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 46, "y": 4.5, "genre": "Non Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 20, "y": 4.6, "genre": "Non Fiction"}, {"x": 7, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 12, "y": 4.6, "genre": "Fiction"}, {"x": 12, "y": 4.6, "genre": "Fiction"}, {"x": 12, "y": 4.9, "genre": "Fiction"}, {"x": 12, "y": 4.9, "genre": "Fiction"}, {"x": 20, "y": 4.8, "genre": "Non Fiction"}, {"x": 20, "y": 4.8, "genre": "Non Fiction"}, {"x": 10, "y": 4.6, "genre": "Fiction"}, {"x": 6, "y": 4.8, "genre": "Non Fiction"}, {"x": 6, "y": 4.8, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.7, "genre": "Non Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 6, "y": 4.1, "genre": "Non Fiction"}, {"x": 25, "y": 4.7, "genre": "Fiction"}, {"x": 17, "y": 4.6, "genre": "Non Fiction"}, {"x": 20, "y": 4.6, "genre": "Non Fiction"}, {"x": 20, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.9, "genre": "Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 17, "y": 4.0, "genre": "Non Fiction"}, {"x": 18, "y": 4.5, "genre": "Non Fiction"}, {"x": 13, "y": 4.6, "genre": "Non Fiction"}, {"x": 18, "y": 4.5, "genre": "Fiction"}, {"x": 20, "y": 4.4, "genre": "Non Fiction"}, {"x": 20, "y": 4.4, "genre": "Non Fiction"}, {"x": 22, "y": 4.3, "genre": "Non Fiction"}, {"x": 21, "y": 4.3, "genre": "Non Fiction"}, {"x": 28, "y": 4.7, "genre": "Non Fiction"}, {"x": 28, "y": 4.7, "genre": "Non Fiction"}, {"x": 28, "y": 4.7, "genre": "Non Fiction"}, {"x": 28, "y": 4.7, "genre": "Non Fiction"}, {"x": 28, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 8, "y": 4.8, "genre": "Non Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 24, "y": 4.6, "genre": "Non Fiction"}, {"x": 24, "y": 4.6, "genre": "Non Fiction"}, {"x": 24, "y": 4.6, "genre": "Non Fiction"}, {"x": 24, "y": 4.6, "genre": "Non Fiction"}, {"x": 16, "y": 4.7, "genre": "Non Fiction"}, {"x": 16, "y": 4.7, "genre": "Non Fiction"}, {"x": 16, "y": 4.7, "genre": "Non Fiction"}, {"x": 39, "y": 4.7, "genre": "Fiction"}, {"x": 9, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Fiction"}, {"x": 10, "y": 4.7, "genre": "Fiction"}, {"x": 17, "y": 4.7, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Fiction"}, {"x": 14, "y": 4.2, "genre": "Non Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 53, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Fiction"}, {"x": 6, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.8, "genre": "Fiction"}, {"x": 8, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 12, "y": 4.8, "genre": "Non Fiction"}, {"x": 12, "y": 3.3, "genre": "Fiction"}, {"x": 21, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.3, "genre": "Non Fiction"}, {"x": 6, "y": 4.3, "genre": "Non Fiction"}, {"x": 13, "y": 4.3, "genre": "Fiction"}, {"x": 0, "y": 4.8, "genre": "Non Fiction"}, {"x": 11, "y": 4.4, "genre": "Non Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 15, "y": 4.1, "genre": "Non Fiction"}, {"x": 11, "y": 4.0, "genre": "Fiction"}, {"x": 13, "y": 4.7, "genre": "Fiction"}, {"x": 13, "y": 4.7, "genre": "Fiction"}, {"x": 7, "y": 4.7, "genre": "Fiction"}, {"x": 13, "y": 4.7, "genre": "Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.6, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 6, "y": 4.7, "genre": "Non Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 18, "y": 4.1, "genre": "Fiction"}, {"x": 7, "y": 4.1, "genre": "Fiction"}, {"x": 14, "y": 4.7, "genre": "Fiction"}, {"x": 14, "y": 4.7, "genre": "Fiction"}, {"x": 9, "y": 4.7, "genre": "Fiction"}, {"x": 16, "y": 4.7, "genre": "Fiction"}, {"x": 2, "y": 4.4, "genre": "Fiction"}, {"x": 2, "y": 4.4, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 20, "y": 3.9, "genre": "Fiction"}, {"x": 20, "y": 3.9, "genre": "Fiction"}, {"x": 7, "y": 4.4, "genre": "Fiction"}, {"x": 7, "y": 4.4, "genre": "Fiction"}, {"x": 7, "y": 4.4, "genre": "Fiction"}, {"x": 14, "y": 4.5, "genre": "Fiction"}, {"x": 10, "y": 4.7, "genre": "Fiction"}, {"x": 7, "y": 4.3, "genre": "Fiction"}, {"x": 13, "y": 4.6, "genre": "Fiction"}, {"x": 11, "y": 4.8, "genre": "Fiction"}, {"x": 6, "y": 4.8, "genre": "Fiction"}, {"x": 6, "y": 4.8, "genre": "Fiction"}, {"x": 8, "y": 4.8, "genre": "Fiction"}, {"x": 7, "y": 4.8, "genre": "Fiction"}, {"x": 14, "y": 4.8, "genre": "Fiction"}, {"x": 14, "y": 4.7, "genre": "Fiction"}, {"x": 8, "y": 4.7, "genre": "Fiction"}, {"x": 8, "y": 4.7, "genre": "Fiction"}, {"x": 30, "y": 4.8, "genre": "Fiction"}, {"x": 30, "y": 4.8, "genre": "Fiction"}, {"x": 13, "y": 4.7, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 7, "y": 4.3, "genre": "Non Fiction"}, {"x": 7, "y": 4.3, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 7, "y": 4.8, "genre": "Fiction"}, {"x": 7, "y": 4.8, "genre": "Fiction"}, {"x": 20, "y": 4.9, "genre": "Fiction"}, {"x": 13, "y": 4.4, "genre": "Non Fiction"}, {"x": 13, "y": 4.4, "genre": "Non Fiction"}, {"x": 11, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.5, "genre": "Non Fiction"}, {"x": 18, "y": 4.4, "genre": "Fiction"}, {"x": 14, "y": 4.8, "genre": "Fiction"}, {"x": 19, "y": 4.2, "genre": "Fiction"}, {"x": 13, "y": 4.8, "genre": "Non Fiction"}, {"x": 5, "y": 4.9, "genre": "Non Fiction"}, {"x": 10, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.7, "genre": "Fiction"}, {"x": 8, "y": 4.5, "genre": "Fiction"}, {"x": 8, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.6, "genre": "Non Fiction"}, {"x": 11, "y": 4.8, "genre": "Fiction"}, {"x": 11, "y": 4.8, "genre": "Fiction"}, {"x": 40, "y": 4.4, "genre": "Non Fiction"}, {"x": 40, "y": 4.4, "genre": "Non Fiction"}, {"x": 40, "y": 4.4, "genre": "Non Fiction"}, {"x": 40, "y": 4.4, "genre": "Non Fiction"}, {"x": 40, "y": 4.4, "genre": "Non Fiction"}, {"x": 36, "y": 4.3, "genre": "Non Fiction"}, {"x": 16, "y": 4.3, "genre": "Fiction"}, {"x": 17, "y": 4.8, "genre": "Non Fiction"}, {"x": 14, "y": 4.8, "genre": "Non Fiction"}, {"x": 21, "y": 4.8, "genre": "Non Fiction"}, {"x": 18, "y": 4.5, "genre": "Non Fiction"}, {"x": 17, "y": 4.4, "genre": "Non Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 5, "y": 4.8, "genre": "Fiction"}, {"x": 21, "y": 4.6, "genre": "Non Fiction"}, {"x": 18, "y": 4.3, "genre": "Fiction"}, {"x": 18, "y": 4.3, "genre": "Fiction"}, {"x": 12, "y": 4.6, "genre": "Fiction"}, {"x": 14, "y": 4.6, "genre": "Non Fiction"}, {"x": 12, "y": 4.8, "genre": "Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 8, "y": 4.6, "genre": "Fiction"}, {"x": 0, "y": 4.6, "genre": "Fiction"}, {"x": 14, "y": 4.5, "genre": "Fiction"}, {"x": 10, "y": 4.8, "genre": "Fiction"}, {"x": 15, "y": 4.6, "genre": "Non Fiction"}, {"x": 15, "y": 4.6, "genre": "Non Fiction"}, {"x": 15, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 7, "y": 4.7, "genre": "Fiction"}, {"x": 10, "y": 4.7, "genre": "Fiction"}, {"x": 6, "y": 4.4, "genre": "Fiction"}, {"x": 9, "y": 4.4, "genre": "Non Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 82, "y": 4.7, "genre": "Fiction"}, {"x": 12, "y": 4.8, "genre": "Fiction"}, {"x": 10, "y": 4.7, "genre": "Non Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 5, "y": 4.9, "genre": "Fiction"}, {"x": 16, "y": 4.6, "genre": "Non Fiction"}, {"x": 16, "y": 4.6, "genre": "Non Fiction"}, {"x": 16, "y": 4.6, "genre": "Non Fiction"}, {"x": 10, "y": 4.9, "genre": "Fiction"}, {"x": 10, "y": 4.9, "genre": "Fiction"}, {"x": 10, "y": 4.9, "genre": "Fiction"}, {"x": 10, "y": 4.9, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 4, "y": 4.8, "genre": "Fiction"}, {"x": 16, "y": 4.7, "genre": "Non Fiction"}, {"x": 15, "y": 4.7, "genre": "Non Fiction"}, {"x": 19, "y": 4.6, "genre": "Non Fiction"}, {"x": 19, "y": 4.6, "genre": "Non Fiction"}, {"x": 9, "y": 4.5, "genre": "Fiction"}, {"x": 23, "y": 4.5, "genre": "Non Fiction"}, {"x": 11, "y": 4.3, "genre": "Non Fiction"}, {"x": 11, "y": 4.3, "genre": "Non Fiction"}, {"x": 23, "y": 4.6, "genre": "Non Fiction"}, {"x": 23, "y": 4.6, "genre": "Non Fiction"}, {"x": 23, "y": 4.6, "genre": "Non Fiction"}, {"x": 23, "y": 4.6, "genre": "Non Fiction"}, {"x": 12, "y": 4.3, "genre": "Non Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 0, "y": 4.8, "genre": "Fiction"}, {"x": 7, "y": 4.8, "genre": "Fiction"}, {"x": 21, "y": 4.6, "genre": "Non Fiction"}, {"x": 21, "y": 4.8, "genre": "Fiction"}, {"x": 15, "y": 4.5, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Fiction"}, {"x": 5, "y": 4.5, "genre": "Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 13, "y": 4.8, "genre": "Non Fiction"}, {"x": 16, "y": 4.8, "genre": "Non Fiction"}, {"x": 20, "y": 4.3, "genre": "Fiction"}, {"x": 11, "y": 4.9, "genre": "Non Fiction"}, {"x": 4, "y": 4.8, "genre": "Non Fiction"}, {"x": 9, "y": 4.7, "genre": "Non Fiction"}, {"x": 42, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.5, "genre": "Fiction"}, {"x": 18, "y": 4.6, "genre": "Non Fiction"}, {"x": 17, "y": 4.7, "genre": "Non Fiction"}, {"x": 14, "y": 4.7, "genre": "Fiction"}, {"x": 13, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.4, "genre": "Non Fiction"}, {"x": 6, "y": 4.4, "genre": "Non Fiction"}, {"x": 6, "y": 4.4, "genre": "Non Fiction"}, {"x": 14, "y": 4.8, "genre": "Non Fiction"}, {"x": 15, "y": 4.8, "genre": "Fiction"}, {"x": 13, "y": 4.8, "genre": "Fiction"}, {"x": 12, "y": 4.6, "genre": "Non Fiction"}, {"x": 18, "y": 4.4, "genre": "Non Fiction"}, {"x": 15, "y": 4.5, "genre": "Fiction"}, {"x": 11, "y": 4.2, "genre": "Non Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 9, "y": 4.8, "genre": "Fiction"}, {"x": 8, "y": 4.9, "genre": "Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}, {"x": 8, "y": 4.7, "genre": "Non Fiction"}];
+  var ficData = allData.filter(function(d) { return d.genre === 'Fiction'; });
+  var nfData = allData.filter(function(d) { return d.genre === 'Non Fiction'; });
+
+  new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Fiction',
+          data: ficData,
+          backgroundColor: TEAL + '99',
+          borderColor: TEAL,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: 'Non Fiction',
+          data: nfData,
+          backgroundColor: CORAL + '99',
+          borderColor: CORAL,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Price vs. User Rating - All Books', font: { size: 15, weight: 'bold' }, color: NAVY },
+        legend: { position: 'top' }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Price ($)' }, min: 0 },
+        y: { title: { display: true, text: 'User Rating' }, min: 3, max: 5 }
+      }
+    }
+  });
+})();
+
+// Genre Comparison: Price
+new Chart(document.getElementById('genrePriceChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Fiction', 'Non Fiction'],
+    datasets: [{
+      data: [10.85, 14.84],
+      backgroundColor: [TEAL, CORAL],
+      borderRadius: 6,
+      barPercentage: 0.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: { display: true, text: 'Average Price by Genre', font: { size: 14, weight: 'bold' }, color: NAVY },
+      legend: { display: false }
+    },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Price ($)' } }
+    }
+  }
+});
+
+// Genre Comparison: Rating
+new Chart(document.getElementById('genreRatingChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Fiction', 'Non Fiction'],
+    datasets: [{
+      data: [4.65, 4.60],
+      backgroundColor: [TEAL, CORAL],
+      borderRadius: 6,
+      barPercentage: 0.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      title: { display: true, text: 'Average Rating by Genre', font: { size: 14, weight: 'bold' }, color: NAVY },
+      legend: { display: false }
+    },
+    scales: {
+      y: { min: 4.0, max: 5.0, title: { display: true, text: 'User Rating' } }
+    }
+  }
+});
+
+// Temporal: Price Trend
+(function() {
+  var years = [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019];
+  var overall = [15.4, 13.48, 15.1, 15.3, 14.6, 14.64, 10.42, 13.18, 11.38, 10.52, 10.08];
+  var fic = [15.58, 9.7, 11.62, 12.29, 10.71, 10.17, 9.35, 12.63, 8.83, 8.76, 9.35];
+  var nf = [15.23, 16.0, 17.62, 17.48, 18.19, 20.81, 10.97, 13.52, 13.73, 11.79, 10.57];
+
+  new Chart(document.getElementById('trendPriceChart'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Overall', data: overall, borderColor: NAVY, backgroundColor: NAVY + '22', fill: true, tension: 0.3, borderWidth: 3 },
+        { label: 'Fiction', data: fic, borderColor: TEAL, backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5,3] },
+        { label: 'Non Fiction', data: nf, borderColor: CORAL, backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5,3] },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Average Price by Year', font: { size: 15, weight: 'bold' }, color: NAVY },
+        legend: { position: 'top' }
+      },
+      scales: {
+        y: { title: { display: true, text: 'Avg Price ($)' } },
+        x: { title: { display: true, text: 'Year' } }
+      }
+    }
+  });
+})();
+
+// Temporal: Rating Trend
+(function() {
+  var years = [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019];
+  var overall = [4.58, 4.56, 4.56, 4.53, 4.55, 4.62, 4.65, 4.68, 4.66, 4.67, 4.74];
+  var fic = [4.59, 4.62, 4.62, 4.5, 4.55, 4.63, 4.65, 4.72, 4.74, 4.74, 4.82];
+  var nf = [4.58, 4.52, 4.51, 4.56, 4.56, 4.61, 4.65, 4.65, 4.59, 4.62, 4.69];
+
+  new Chart(document.getElementById('trendRatingChart'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        { label: 'Overall', data: overall, borderColor: NAVY, backgroundColor: NAVY + '22', fill: true, tension: 0.3, borderWidth: 3 },
+        { label: 'Fiction', data: fic, borderColor: TEAL, backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5,3] },
+        { label: 'Non Fiction', data: nf, borderColor: CORAL, backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5,3] },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Average Rating by Year', font: { size: 15, weight: 'bold' }, color: NAVY },
+        legend: { position: 'top' }
+      },
+      scales: {
+        y: { min: 4.0, max: 5.0, title: { display: true, text: 'Avg Rating' } },
+        x: { title: { display: true, text: 'Year' } }
+      }
+    }
+  });
+})();
+
+// Temporal: Review Trend
+(function() {
+  var years = [2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019];
+  var overall = [4710.0, 5480.0, 8101.0, 13091.0, 13098.0, 15860.0, 14233.0, 14196.0, 12888.0, 13930.0, 15898.0];
+
+  new Chart(document.getElementById('trendReviewChart'), {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [{
+        label: 'Avg Reviews per Book',
+        data: overall,
+        backgroundColor: GOLD + 'cc',
+        borderColor: GOLD,
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Average Reviews per Book by Year', font: { size: 15, weight: 'bold' }, color: NAVY },
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, title: { display: true, text: 'Avg Reviews' } },
+        x: { title: { display: true, text: 'Year' } }
+      }
+    }
+  });
+})();
+
+// Top Authors
+(function() {
+  var authors = ["Jeff Kinney", "Suzanne Collins", "Rick Riordan", "Gary Chapman", "American Psychological Association", "Dr. Seuss", "Gallup", "Rob Elliott", "Stephenie Meyer", "Dav Pilkey", "Bill O'Reilly", "Stephen R. Covey"];
+  var appearances = [12, 11, 11, 11, 10, 9, 9, 8, 7, 7, 7, 7];
+  var ratings = [4.8, 4.66, 4.77, 4.74, 4.5, 4.88, 4.0, 4.56, 4.66, 4.9, 4.64, 4.64];
+
+  new Chart(document.getElementById('authorChart'), {
+    type: 'bar',
+    data: {
+      labels: authors,
+      datasets: [
+        {
+          label: 'Bestseller Appearances',
+          data: appearances,
+          backgroundColor: TEAL + 'cc',
+          borderColor: TEAL,
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Avg Rating',
+          data: ratings,
+          type: 'line',
+          borderColor: CORAL,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 5,
+          pointBackgroundColor: CORAL,
+          tension: 0.3,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        title: { display: true, text: 'Top Authors: Appearances & Average Rating', font: { size: 15, weight: 'bold' }, color: NAVY },
+        legend: { position: 'top' }
+      },
+      scales: {
+        y: { title: { display: true, text: '' }, ticks: { font: { size: 11 } } },
+        x: { position: 'top', title: { display: true, text: 'Appearances' } },
+        y1: {
+          position: 'right',
+          min: 4.0,
+          max: 5.0,
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Avg Rating' }
+        }
+      }
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

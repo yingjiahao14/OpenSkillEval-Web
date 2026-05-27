@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chocolate Retail Sales Performance Report (2023-2024)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #3b1f0b;
+    --primary-light: #6b3a1f;
+    --accent: #d4a574;
+    --accent-light: #e8c9a0;
+    --bg: #faf8f5;
+    --card-bg: #ffffff;
+    --text: #2d2016;
+    --text-muted: #7a6b5d;
+    --success: #2d7d46;
+    --success-bg: #e8f5e9;
+    --warning: #c27a14;
+    --warning-bg: #fff8e1;
+    --danger: #c0392b;
+    --danger-bg: #fde8e6;
+    --info: #1a6fa0;
+    --info-bg: #e3f2fd;
+    --border: #e8ddd0;
+    --shadow: 0 2px 8px rgba(59,31,11,0.08);
+    --shadow-hover: 0 4px 16px rgba(59,31,11,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; font-size:15px; }
+  .report-container { max-width:1200px; margin:0 auto; padding:20px; }
+  .report-header { background:linear-gradient(135deg,var(--primary) 0%,var(--primary-light) 100%); color:#fff; padding:48px 40px; border-radius:12px; margin-bottom:32px; position:relative; overflow:hidden; }
+  .report-header::before { content:''; position:absolute; top:-50%; right:-20%; width:400px; height:400px; background:radial-gradient(circle,rgba(212,165,116,0.15) 0%,transparent 70%); border-radius:50%; }
+  .report-header h1 { font-size:32px; font-weight:700; margin-bottom:8px; position:relative; }
+  .report-header .subtitle { font-size:18px; opacity:0.85; font-weight:400; position:relative; }
+  .report-header .meta { margin-top:16px; font-size:14px; opacity:0.7; position:relative; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:32px; }
+  .kpi-card { background:var(--card-bg); border-radius:10px; padding:24px 20px; text-align:center; box-shadow:var(--shadow); border-top:4px solid var(--accent); transition:box-shadow 0.2s; }
+  .kpi-card:hover { box-shadow:var(--shadow-hover); }
+  .kpi-card .kpi-label { font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-muted); margin-bottom:8px; font-weight:600; }
+  .kpi-card .kpi-value { font-size:28px; font-weight:700; color:var(--primary); }
+  .kpi-card .kpi-sub { font-size:12px; color:var(--text-muted); margin-top:4px; }
+  .section { background:var(--card-bg); border-radius:10px; padding:32px; margin-bottom:24px; box-shadow:var(--shadow); }
+  .section-title { font-size:22px; font-weight:700; color:var(--primary); margin-bottom:8px; padding-bottom:12px; border-bottom:2px solid var(--accent-light); }
+  .section-objective { font-size:14px; color:var(--text-muted); margin-bottom:24px; font-style:italic; }
+  .chart-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+  .chart-row.full { grid-template-columns:1fr; }
+  .chart-box { background:var(--bg); border-radius:8px; padding:20px; border:1px solid var(--border); }
+  .chart-box h3 { font-size:15px; font-weight:600; color:var(--primary-light); margin-bottom:12px; }
+  .chart-container { position:relative; width:100%; height:320px; }
+  .chart-container.tall { height:400px; }
+  .callout { padding:16px 20px; border-radius:8px; margin:16px 0; font-size:14px; line-height:1.6; }
+  .callout-insight { background:var(--info-bg); border-left:4px solid var(--info); }
+  .callout-success { background:var(--success-bg); border-left:4px solid var(--success); }
+  .callout-warning { background:var(--warning-bg); border-left:4px solid var(--warning); }
+  .callout-danger { background:var(--danger-bg); border-left:4px solid var(--danger); }
+  .callout strong { display:block; margin-bottom:4px; }
+  .data-table { width:100%; border-collapse:collapse; font-size:13px; margin:16px 0; }
+  .data-table th { background:var(--primary); color:#fff; padding:10px 12px; text-align:left; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; }
+  .data-table td { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .data-table tr:nth-child(even) { background:var(--bg); }
+  .data-table tr:hover { background:var(--accent-light); }
+  .data-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; }
+  .badge-up { background:var(--success-bg); color:var(--success); }
+  .badge-down { background:var(--danger-bg); color:var(--danger); }
+  .stat-pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:16px 0; }
+  .stat-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:20px; text-align:center; }
+  .stat-card .stat-label { font-size:13px; color:var(--text-muted); margin-bottom:6px; }
+  .stat-card .stat-value { font-size:24px; font-weight:700; color:var(--primary); }
+  .stat-card .stat-detail { font-size:12px; color:var(--text-muted); margin-top:4px; }
+  .yoy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:16px 0; }
+  .yoy-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:16px; text-align:center; }
+  .yoy-card .yoy-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; }
+  .yoy-card .yoy-2023 { font-size:16px; font-weight:600; color:var(--text-muted); margin-top:4px; }
+  .yoy-card .yoy-2024 { font-size:22px; font-weight:700; color:var(--primary); }
+  .yoy-card .yoy-change { font-size:14px; font-weight:600; margin-top:4px; }
+  .report-footer { text-align:center; padding:24px; color:var(--text-muted); font-size:12px; border-top:1px solid var(--border); margin-top:16px; }
+  @media(max-width:900px) { .kpi-grid{grid-template-columns:repeat(3,1fr);} .chart-row{grid-template-columns:1fr;} .yoy-grid{grid-template-columns:1fr;} }
+  @media(max-width:600px) { .kpi-grid{grid-template-columns:repeat(2,1fr);} .report-header{padding:24px;} .report-header h1{font-size:22px;} .section{padding:20px;} }
+</style>
+</head>
+<body>
+<div class="report-container">
+
+  <div class="report-header">
+    <h1>Chocolate Retail Sales Performance Report</h1>
+    <div class="subtitle">Comprehensive Analysis of 2023-2024 Performance</div>
+    <div class="meta">Reporting Period: January 2023 - December 2024 | Dataset: 50,000 Transactions | Prepared for Retail Management</div>
+  </div>
+
+  <div class="section" id="executive-summary">
+    <h2 class="section-title">Executive Summary</h2>
+    <div class="section-objective">High-level overview of total revenue, profit, order volume, and key highlights across the two-year period.</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value">$1,275,308</div>
+        <div class="kpi-sub">$632,219 (2023) &rarr; $643,089 (2024)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Profit</div>
+        <div class="kpi-value">$510,548</div>
+        <div class="kpi-sub">$253,290 (2023) &rarr; $257,258 (2024)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Profit Margin</div>
+        <div class="kpi-value">40.0%</div>
+        <div class="kpi-sub">Consistent across both years</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Order Value</div>
+        <div class="kpi-value">$25.51</div>
+        <div class="kpi-sub">50,000 total orders</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Discount Utilization</div>
+        <div class="kpi-value">37.5%</div>
+        <div class="kpi-sub">of transactions discounted</div>
+      </div>
+    </div>
+    <div class="yoy-grid">
+      <div class="yoy-card">
+        <div class="yoy-label">Revenue YoY</div>
+        <div class="yoy-2023">$632,219</div>
+        <div class="yoy-2024">$643,089</div>
+        <div class="yoy-change"><span class="badge badge-up">+1.72%</span></div>
+      </div>
+      <div class="yoy-card">
+        <div class="yoy-label">Profit YoY</div>
+        <div class="yoy-2023">$253,290</div>
+        <div class="yoy-2024">$257,258</div>
+        <div class="yoy-change"><span class="badge badge-up">+1.57%</span></div>
+      </div>
+      <div class="yoy-card">
+        <div class="yoy-label">Orders YoY</div>
+        <div class="yoy-2023">24,820</div>
+        <div class="yoy-2024">25,180</div>
+        <div class="yoy-change"><span class="badge badge-up">+1.45%</span></div>
+      </div>
+    </div>
+    <div class="callout callout-insight">
+      <strong>Key Takeaway</strong>
+      The business grew modestly at <strong>+1.7%% revenue YoY</strong>, with profit margin holding steady at ~40%. 
+      Discounting is used in 38%% of transactions but does not erode margins significantly, suggesting well-controlled promotional pricing. 
+      The primary growth lever remains order volume rather than average order value, which declined slightly under discounting.
+    </div>
+  </div>
+
+  <div class="section" id="sales-trends">
+    <h2 class="section-title">Sales Trends Over Time</h2>
+    <div class="section-objective">Monthly and quarterly revenue and order volume trends across 2023 and 2024, identifying seasonality and growth patterns.</div>
+    <div class="chart-row full">
+      <div class="chart-box">
+        <h3>Monthly Revenue &amp; Profit Trend</h3>
+        <div class="chart-container tall"><canvas id="monthlyTrendChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Quarterly Revenue</h3>
+        <div class="chart-container"><canvas id="quarterlyChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Year-over-Year Monthly Revenue Comparison</h3>
+        <div class="chart-container"><canvas id="yoyChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Monthly Order Volume</h3>
+        <div class="chart-container"><canvas id="monthlyOrdersChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Year-over-Year Monthly Revenue Growth (%)</h3>
+        <div class="chart-container"><canvas id="yoyGrowthChart"></canvas></div>
+      </div>
+    </div>
+    <div class="callout callout-insight">
+      <strong>Seasonality &amp; Growth Insights</strong>
+      Revenue shows <strong>modest seasonality</strong>: Q1 tends to be slightly softer (January recovery, February dip), while Q3 (July-September) typically delivers the strongest performance. 
+      2024 showed a positive revenue shift in the first half (+2.8% to +10.4% YoY in Feb-Jun), but the second half was mixed, with September and December declining (-6.3% and -7.5% respectively). 
+      Order volume mirrors revenue patterns closely, indicating that growth is driven primarily by transaction count rather than basket size.
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Quarter</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th></tr></thead>
+      <tbody><tr><td>2023-Q1</td><td class="num">$156,367.65</td><td class="num">$62,505.94</td><td class="num">6,081</td></tr><tr><td>2023-Q2</td><td class="num">$155,060.90</td><td class="num">$62,141.98</td><td class="num">6,136</td></tr><tr><td>2023-Q3</td><td class="num">$161,058.49</td><td class="num">$64,611.60</td><td class="num">6,312</td></tr><tr><td>2023-Q4</td><td class="num">$159,731.82</td><td class="num">$64,030.14</td><td class="num">6,291</td></tr><tr><td>2024-Q1</td><td class="num">$160,539.23</td><td class="num">$64,251.16</td><td class="num">6,274</td></tr><tr><td>2024-Q2</td><td class="num">$163,383.68</td><td class="num">$65,467.93</td><td class="num">6,343</td></tr><tr><td>2024-Q3</td><td class="num">$161,295.39</td><td class="num">$64,593.89</td><td class="num">6,362</td></tr><tr><td>2024-Q4</td><td class="num">$157,871.18</td><td class="num">$62,945.22</td><td class="num">6,201</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="product-performance">
+    <h2 class="section-title">Product &amp; Category Performance</h2>
+    <div class="section-objective">Which products generate the most revenue and profit, and how does product pricing affect performance.</div>
+    <div class="stat-pair">
+      <div class="stat-card">
+        <div class="stat-label">Unique Products</div>
+        <div class="stat-value">202</div>
+        <div class="stat-detail">Avg Revenue/Product: $6,313</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Revenue Range</div>
+        <div class="stat-value">$5,068 - $7,576</div>
+        <div class="stat-detail">Std Dev: $493</div>
+      </div>
+    </div>
+    <div class="chart-row full">
+      <div class="chart-box">
+        <h3>Top 20 Products by Revenue</h3>
+        <div class="chart-container tall"><canvas id="topProductsChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Top 20 Products - Profit Margin (%)</h3>
+        <div class="chart-container"><canvas id="productMarginChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Revenue Distribution Across All Products</h3>
+        <div class="chart-container"><canvas id="productDistChart"></canvas></div>
+      </div>
+    </div>
+    <div class="callout callout-insight">
+      <strong>Product Performance Insights</strong>
+      Product revenue is <strong>remarkably evenly distributed</strong> - the top product (P0168 at $7,576) generates only ~1.5x the revenue of the median product. 
+      Profit margins are highly consistent across the portfolio (~39-41%), indicating a uniform pricing and costing strategy. 
+      Without brand/category dimension data, we cannot assess category-level dynamics; however, the uniform performance suggests product differentiation is low, and growth would likely require portfolio expansion or pricing innovation rather than concentrating on existing winners.
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Product ID</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th><th class="num">Avg Margin</th><th class="num">Total Qty</th></tr></thead>
+      <tbody><tr><td>P0168</td><td class="num">$7,575.56</td><td class="num">$3,035.84</td><td class="num">285</td><td class="num">40.0%</td><td class="num">891</td></tr><tr><td>P0157</td><td class="num">$7,543.75</td><td class="num">$3,053.64</td><td class="num">288</td><td class="num">40.1%</td><td class="num">870</td></tr><tr><td>P0089</td><td class="num">$7,518.61</td><td class="num">$2,981.04</td><td class="num">276</td><td class="num">39.7%</td><td class="num">848</td></tr><tr><td>P0051</td><td class="num">$7,418.35</td><td class="num">$3,000.15</td><td class="num">292</td><td class="num">40.3%</td><td class="num">858</td></tr><tr><td>P0077</td><td class="num">$7,384.33</td><td class="num">$2,982.19</td><td class="num">271</td><td class="num">40.7%</td><td class="num">843</td></tr><tr><td>P0126</td><td class="num">$7,270.33</td><td class="num">$2,931.91</td><td class="num">286</td><td class="num">40.2%</td><td class="num">867</td></tr><tr><td>P0052</td><td class="num">$7,235.54</td><td class="num">$2,936.63</td><td class="num">273</td><td class="num">40.7%</td><td class="num">837</td></tr><tr><td>P0117</td><td class="num">$7,180.82</td><td class="num">$2,858.10</td><td class="num">269</td><td class="num">39.7%</td><td class="num">830</td></tr><tr><td>P0123</td><td class="num">$7,164.88</td><td class="num">$2,856.85</td><td class="num">275</td><td class="num">39.7%</td><td class="num">825</td></tr><tr><td>P0177</td><td class="num">$7,124.25</td><td class="num">$2,863.98</td><td class="num">276</td><td class="num">39.8%</td><td class="num">851</td></tr><tr><td>P0132</td><td class="num">$7,122.85</td><td class="num">$2,865.51</td><td class="num">270</td><td class="num">40.2%</td><td class="num">812</td></tr><tr><td>P0031</td><td class="num">$7,109.43</td><td class="num">$2,873.04</td><td class="num">259</td><td class="num">40.1%</td><td class="num">815</td></tr><tr><td>P0056</td><td class="num">$7,072.88</td><td class="num">$2,857.82</td><td class="num">278</td><td class="num">40.6%</td><td class="num">822</td></tr><tr><td>P0163</td><td class="num">$7,067.16</td><td class="num">$2,801.85</td><td class="num">282</td><td class="num">39.7%</td><td class="num">847</td></tr><tr><td>P0016</td><td class="num">$7,047.81</td><td class="num">$2,785.12</td><td class="num">276</td><td class="num">39.5%</td><td class="num">836</td></tr><tr><td>P0110</td><td class="num">$7,014.57</td><td class="num">$2,795.93</td><td class="num">266</td><td class="num">39.9%</td><td class="num">805</td></tr><tr><td>P0116</td><td class="num">$7,012.76</td><td class="num">$2,799.34</td><td class="num">260</td><td class="num">40.0%</td><td class="num">819</td></tr><tr><td>P0096</td><td class="num">$7,008.32</td><td class="num">$2,802.76</td><td class="num">278</td><td class="num">39.7%</td><td class="num">848</td></tr><tr><td>P0176</td><td class="num">$7,001.71</td><td class="num">$2,807.26</td><td class="num">249</td><td class="num">40.2%</td><td class="num">790</td></tr><tr><td>P0152</td><td class="num">$6,973.98</td><td class="num">$2,752.88</td><td class="num">259</td><td class="num">39.6%</td><td class="num">793</td></tr></tbody>
+    </table>
+    <h3 style="margin-top:24px;font-size:16px;color:var(--primary-light);">Bottom 10 Products</h3>
+    <table class="data-table">
+      <thead><tr><th>Product ID</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th><th class="num">Avg Margin</th></tr></thead>
+      <tbody><tr><td>P0011</td><td class="num">$5,530.35</td><td class="num">$2,243.79</td><td class="num">230</td><td class="num">40.3%</td></tr><tr><td>P0128</td><td class="num">$5,508.74</td><td class="num">$2,211.62</td><td class="num">217</td><td class="num">39.8%</td></tr><tr><td>P0029</td><td class="num">$5,491.10</td><td class="num">$2,179.49</td><td class="num">238</td><td class="num">39.9%</td></tr><tr><td>P0040</td><td class="num">$5,389.73</td><td class="num">$2,167.01</td><td class="num">223</td><td class="num">40.3%</td></tr><tr><td>P0120</td><td class="num">$5,379.07</td><td class="num">$2,174.03</td><td class="num">220</td><td class="num">40.3%</td></tr><tr><td>P0098</td><td class="num">$5,366.39</td><td class="num">$2,101.50</td><td class="num">212</td><td class="num">39.4%</td></tr><tr><td>P0100</td><td class="num">$5,346.68</td><td class="num">$2,112.96</td><td class="num">223</td><td class="num">39.3%</td></tr><tr><td>P0146</td><td class="num">$5,309.69</td><td class="num">$2,139.07</td><td class="num">222</td><td class="num">40.1%</td></tr><tr><td>P0184</td><td class="num">$5,278.61</td><td class="num">$2,103.13</td><td class="num">216</td><td class="num">39.6%</td></tr><tr><td>P0043</td><td class="num">$5,068.16</td><td class="num">$2,054.59</td><td class="num">202</td><td class="num">40.6%</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="store-analysis">
+    <h2 class="section-title">Store &amp; Geographic Performance</h2>
+    <div class="section-objective">Sales performance across stores to identify top-performing and underperforming locations.</div>
+    <div class="stat-pair">
+      <div class="stat-card">
+        <div class="stat-label">Unique Stores</div>
+        <div class="stat-value">100</div>
+        <div class="stat-detail">Avg Revenue/Store: $12,753</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Revenue Range</div>
+        <div class="stat-value">$10,996 - $14,276</div>
+        <div class="stat-detail">Std Dev: $671</div>
+      </div>
+    </div>
+    <div class="chart-row full">
+      <div class="chart-box">
+        <h3>Top 20 Stores by Revenue</h3>
+        <div class="chart-container tall"><canvas id="topStoresChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Top 20 Stores - Profit Margin (%)</h3>
+        <div class="chart-container"><canvas id="storeMarginChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Store Revenue Distribution</h3>
+        <div class="chart-container"><canvas id="storeDistChart"></canvas></div>
+      </div>
+    </div>
+    <div class="callout callout-warning">
+      <strong>Store Performance Insights</strong>
+      Store revenue follows a <strong>tight distribution</strong> (std dev $671 around a $12,753 mean), with the top store (S075 at $14,276) outperforming the bottom (S057 at $10,996) by only ~30%. 
+      Margins are consistent across stores (~39.5-40.9%), indicating standardized operations. Without city/country/store-type dimension data, geographic or format-level analysis cannot be performed. The narrow spread suggests all stores are similarly productive - differentiation may require local assortment or promotional strategies.
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Store ID</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th><th class="num">Avg Margin</th></tr></thead>
+      <tbody><tr><td>S075</td><td class="num">$14,275.70</td><td class="num">$5,728.61</td><td class="num">522</td><td class="num">40.2%</td></tr><tr><td>S076</td><td class="num">$14,214.20</td><td class="num">$5,641.32</td><td class="num">555</td><td class="num">39.8%</td></tr><tr><td>S094</td><td class="num">$14,088.11</td><td class="num">$5,608.14</td><td class="num">565</td><td class="num">39.8%</td></tr><tr><td>S088</td><td class="num">$14,035.42</td><td class="num">$5,610.15</td><td class="num">540</td><td class="num">39.9%</td></tr><tr><td>S021</td><td class="num">$14,033.59</td><td class="num">$5,579.43</td><td class="num">534</td><td class="num">39.7%</td></tr><tr><td>S074</td><td class="num">$13,935.82</td><td class="num">$5,627.56</td><td class="num">526</td><td class="num">40.4%</td></tr><tr><td>S016</td><td class="num">$13,878.92</td><td class="num">$5,561.94</td><td class="num">523</td><td class="num">39.9%</td></tr><tr><td>S080</td><td class="num">$13,865.65</td><td class="num">$5,607.20</td><td class="num">509</td><td class="num">40.4%</td></tr><tr><td>S013</td><td class="num">$13,742.99</td><td class="num">$5,450.28</td><td class="num">515</td><td class="num">39.7%</td></tr><tr><td>S038</td><td class="num">$13,738.28</td><td class="num">$5,430.03</td><td class="num">506</td><td class="num">39.8%</td></tr><tr><td>S035</td><td class="num">$13,735.45</td><td class="num">$5,493.27</td><td class="num">526</td><td class="num">40.0%</td></tr><tr><td>S065</td><td class="num">$13,724.57</td><td class="num">$5,488.66</td><td class="num">512</td><td class="num">40.2%</td></tr><tr><td>S027</td><td class="num">$13,672.80</td><td class="num">$5,492.72</td><td class="num">550</td><td class="num">40.3%</td></tr><tr><td>S064</td><td class="num">$13,576.61</td><td class="num">$5,438.03</td><td class="num">538</td><td class="num">39.8%</td></tr><tr><td>S098</td><td class="num">$13,475.28</td><td class="num">$5,403.24</td><td class="num">525</td><td class="num">40.1%</td></tr><tr><td>S004</td><td class="num">$13,474.13</td><td class="num">$5,335.57</td><td class="num">514</td><td class="num">39.7%</td></tr><tr><td>S005</td><td class="num">$13,460.80</td><td class="num">$5,392.31</td><td class="num">526</td><td class="num">40.3%</td></tr><tr><td>S067</td><td class="num">$13,350.16</td><td class="num">$5,405.16</td><td class="num">506</td><td class="num">40.6%</td></tr><tr><td>S025</td><td class="num">$13,293.50</td><td class="num">$5,360.60</td><td class="num">497</td><td class="num">40.3%</td></tr><tr><td>S012</td><td class="num">$13,266.86</td><td class="num">$5,238.49</td><td class="num">512</td><td class="num">39.5%</td></tr></tbody>
+    </table>
+    <h3 style="margin-top:24px;font-size:16px;color:var(--primary-light);">Bottom 10 Stores</h3>
+    <table class="data-table">
+      <thead><tr><th>Store ID</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th><th class="num">Avg Margin</th></tr></thead>
+      <tbody><tr><td>S060</td><td class="num">$11,838.64</td><td class="num">$4,764.21</td><td class="num">475</td><td class="num">40.2%</td></tr><tr><td>S078</td><td class="num">$11,795.76</td><td class="num">$4,677.64</td><td class="num">468</td><td class="num">39.6%</td></tr><tr><td>S077</td><td class="num">$11,780.44</td><td class="num">$4,663.17</td><td class="num">472</td><td class="num">39.7%</td></tr><tr><td>S008</td><td class="num">$11,710.40</td><td class="num">$4,800.36</td><td class="num">485</td><td class="num">40.9%</td></tr><tr><td>S019</td><td class="num">$11,679.34</td><td class="num">$4,685.40</td><td class="num">471</td><td class="num">40.2%</td></tr><tr><td>S022</td><td class="num">$11,674.13</td><td class="num">$4,676.69</td><td class="num">469</td><td class="num">39.7%</td></tr><tr><td>S096</td><td class="num">$11,620.52</td><td class="num">$4,657.10</td><td class="num">469</td><td class="num">40.0%</td></tr><tr><td>S051</td><td class="num">$11,599.38</td><td class="num">$4,642.95</td><td class="num">459</td><td class="num">39.9%</td></tr><tr><td>S009</td><td class="num">$11,436.02</td><td class="num">$4,543.19</td><td class="num">475</td><td class="num">40.1%</td></tr><tr><td>S057</td><td class="num">$10,996.33</td><td class="num">$4,419.02</td><td class="num">439</td><td class="num">39.9%</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="discount-profitability">
+    <h2 class="section-title">Discount Impact &amp; Profitability Analysis</h2>
+    <div class="section-objective">How discount levels affect revenue, profit margins, and order quantities to evaluate promotional effectiveness.</div>
+    <div class="stat-pair">
+      <div class="stat-card">
+        <div class="stat-label">No-Discount Avg Order Value</div>
+        <div class="stat-value">$27.15</div>
+        <div class="stat-detail">Margin: 40.0% | Avg Qty: 3.0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Discounted Avg Order Value</div>
+        <div class="stat-value">$22.78</div>
+        <div class="stat-detail">Margin: 40.0% | Avg Qty: 3.0</div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Revenue &amp; Profit by Discount Level</h3>
+        <div class="chart-container"><canvas id="discountRevChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Avg Profit Margin by Discount Level</h3>
+        <div class="chart-container"><canvas id="discountMarginChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Order Count by Discount Level</h3>
+        <div class="chart-container"><canvas id="discountOrdersChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Avg Revenue per Order by Discount Level</h3>
+        <div class="chart-container"><canvas id="discountAovChart"></canvas></div>
+      </div>
+    </div>
+    <div class="callout callout-warning">
+      <strong>Discount Effectiveness: Margins Hold, But Revenue per Order Drops</strong>
+      Discounted transactions show <strong>virtually identical profit margins (~40%)</strong> compared to non-discounted ones, indicating that cost structures adjust proportionally. However, the <strong>average order value declines from $27.15 (no discount) to $22.78 (discounted)</strong>, a 16.1%% reduction. 
+      Critically, discounting does <strong>not drive higher quantities</strong> per order (3.0 vs 3.0 units), meaning discounts reduce per-transaction revenue without a volume uplift. 
+      The three active discount tiers (6-10%, 11-15%, 16-20%) show progressively lower per-order revenue with no margin benefit, suggesting that promotional discounting is a <strong>revenue-neutral to revenue-negative strategy</strong> unless it drives incremental store traffic not captured at the transaction level.
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Discount Level</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Orders</th><th class="num">Avg Margin</th><th class="num">Avg Qty</th><th class="num">Avg Order Value</th></tr></thead>
+      <tbody><tr><td>0%</td><td class="num">$847,686.19</td><td class="num">$339,312.68</td><td class="num">31,226</td><td class="num">40.0%</td><td class="num">3.0</td><td class="num">$27.15</td></tr><tr><td>1-5%</td><td class="num" colspan="6" style="text-align:center;color:#7a6b5d">No transactions in this range</td></tr><tr><td>6-10%</td><td class="num">$149,264.01</td><td class="num">$59,811.97</td><td class="num">6,245</td><td class="num">40.0%</td><td class="num">3.0</td><td class="num">$23.90</td></tr><tr><td>11-15%</td><td class="num">$144,697.33</td><td class="num">$57,897.84</td><td class="num">6,296</td><td class="num">40.0%</td><td class="num">3.0</td><td class="num">$22.98</td></tr><tr><td>16-20%</td><td class="num">$133,660.81</td><td class="num">$53,525.37</td><td class="num">6,233</td><td class="num">40.0%</td><td class="num">3.0</td><td class="num">$21.44</td></tr><tr><td>20%+</td><td class="num" colspan="6" style="text-align:center;color:#7a6b5d">No transactions in this range</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="customer-insights">
+    <h2 class="section-title">Customer Behavior &amp; Loyalty Insights</h2>
+    <div class="section-objective">Purchasing patterns by customer segments and repeat purchase behavior to identify high-value segments.</div>
+    <div class="stat-pair">
+      <div class="stat-card">
+        <div class="stat-label">Unique Customers</div>
+        <div class="stat-value">31,531</div>
+        <div class="stat-detail">Avg 1.59 orders/customer</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Repeat Purchase Rate</div>
+        <div class="stat-value">42.0%</div>
+        <div class="stat-detail">Avg Rev/Customer: $40.45</div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Revenue by Customer Segment</h3>
+        <div class="chart-container"><canvas id="segmentRevChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Customer Count by Segment</h3>
+        <div class="chart-container"><canvas id="segmentCountChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>Customer Order Frequency Distribution</h3>
+        <div class="chart-container"><canvas id="freqChart"></canvas></div>
+      </div>
+      <div class="chart-box">
+        <h3>Profit by Customer Segment</h3>
+        <div class="chart-container"><canvas id="segmentProfitChart"></canvas></div>
+      </div>
+    </div>
+    <div class="callout callout-insight">
+      <strong>Customer Behavior Insights</strong>
+      The customer base is predominantly <strong>one-time buyers (58.0%%)</strong>, with only 42.0%% making repeat purchases. 
+      The <strong>Low-frequency segment (2-3 orders)</strong> contributes the largest revenue share ($707,386), despite representing ~39% of customers. 
+      Medium and High-frequency customers are rare (0.9% combined) but deliver disproportionately higher per-customer revenue. 
+      The low repeat rate represents a <strong>significant growth opportunity</strong>: converting even a small portion of one-time buyers into repeat customers could substantially increase lifetime value.
+    </div>
+    <div class="callout callout-warning">
+      <strong>Data Limitation</strong>
+      The dataset does not include customer demographic fields (age, gender, loyalty membership) or store geographic attributes (city, country, store type). Analysis of loyalty member vs. non-member purchasing behavior and demographic segmentation cannot be performed with the available data. Enrichment with customer and store dimension tables would enable deeper insight.
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Segment</th><th class="num">Customers</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Avg Orders</th></tr></thead>
+      <tbody><tr><td>One-time (1)</td><td class="num">18,294</td><td class="num">$465,362.31</td><td class="num">$186,253.70</td><td class="num">1.0</td></tr><tr><td>Low (2-3)</td><td class="num">12,300</td><td class="num">$707,385.82</td><td class="num">$282,969.01</td><td class="num">2.3</td></tr><tr><td>Medium (4-5)</td><td class="num">904</td><td class="num">$97,334.27</td><td class="num">$39,235.35</td><td class="num">4.2</td></tr><tr><td>High (6-9)</td><td class="num">33</td><td class="num">$5,225.94</td><td class="num">$2,089.80</td><td class="num">6.1</td></tr><tr><td>VIP (10+)</td><td class="num">0</td><td class="num">$0.00</td><td class="num">$0.00</td><td class="num">nan</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="recommendations">
+    <h2 class="section-title">Strategic Recommendations</h2>
+    <div class="section-objective">Actionable recommendations based on the analysis findings.</div>
+    <div class="callout callout-success">
+      <strong>1. Invest in Customer Retention Programs</strong>
+      With 58%% of customers being one-time buyers and a repeat rate of only 42.0%%, loyalty and re-engagement initiatives (e.g., personalized follow-ups, loyalty rewards, win-back campaigns) represent the single largest growth lever. Even a 5-point increase in repeat rate could add significant incremental revenue.
+    </div>
+    <div class="callout callout-warning">
+      <strong>2. Re-evaluate Discount Strategy</strong>
+      Discounts reduce average order value by ~16%% without increasing quantities per order or improving margins. Consider shifting from blanket percentage discounts to targeted promotions (e.g., bundle deals, minimum-spend thresholds) that protect per-transaction revenue while incentivizing larger baskets.
+    </div>
+    <div class="callout callout-insight">
+      <strong>3. Address Q4 Softening in 2024</strong>
+      September and December 2024 saw notable YoY declines (-6.3% and -7.5%). Investigate root causes - competitive pressure, inventory issues, or demand shifts - and develop targeted Q4 2025 campaigns to recover momentum during these historically softer months.
+    </div>
+    <div class="callout callout-insight">
+      <strong>4. Leverage Top Stores as Benchmarks</strong>
+      The top-performing stores (S075, S076, S094) generate ~30% more revenue than the bottom. Conduct operational audits to identify replicable practices (staffing, layout, local marketing) that can be transferred to underperforming locations.
+    </div>
+    <div class="callout callout-warning">
+      <strong>5. Enrich Data for Deeper Analysis</strong>
+      Critical dimension data (product categories, store geographies, customer demographics, loyalty status) is unavailable in the current dataset. Investing in data integration with the product, store, and customer dimension tables would unlock category-level, geographic, and loyalty-based insights essential for strategic planning.
+    </div>
+  </div>
+
+  <div class="report-footer">
+    Chocolate Retail Sales Performance Report | Data Source: 50,000 transactions, Jan 2023 - Dec 2024 | Generated for Retail Management
+  </div>
+</div>
+
+<script>
+const PRIMARY = '#3b1f0b';
+const PRIMARY_LIGHT = '#6b3a1f';
+const ACCENT = '#d4a574';
+const ACCENT_LIGHT = '#e8c9a0';
+const MUTED = '#7a6b5d';
+const SUCCESS = '#2d7d46';
+const WARNING = '#c27a14';
+const DANGER = '#c0392b';
+
+Chart.defaults.font.family = "'Segoe UI',-apple-system,sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#2d2016';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+
+const fmt$ = (v) => '$' + v.toLocaleString(undefined, {minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtK = (v) => '$' + (v/1000).toFixed(0) + 'K';
+
+// Monthly Revenue & Profit Trend
+new Chart(document.getElementById('monthlyTrendChart'), {
+  type: 'line',
+  data: {
+    labels: ["2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12"],
+    datasets: [
+      { label:'Revenue', data:[55656.48, 48258.66, 52452.51, 52268.52, 52069.46, 50722.92, 55276.07, 51546.3, 54236.12, 51926.9, 52822.25, 54982.67, 54365.25, 51001.89, 55172.09, 53893.79, 53510.1, 55979.79, 54760.03, 55727.44, 50807.92, 53857.29, 53156.19, 50857.7], borderColor:PRIMARY, backgroundColor:'rgba(59,31,11,0.08)', fill:true, tension:0.3, pointRadius:3, pointHoverRadius:6, borderWidth:2.5 },
+      { label:'Profit', data:[22217.35, 19311.11, 20977.48, 20933.52, 20876.33, 20332.13, 22253.35, 20701.44, 21656.81, 20798.83, 21233.3, 21998.01, 21738.15, 20431.1, 22081.91, 21676.65, 21346.97, 22444.31, 21860.48, 22374.34, 20359.07, 21486.16, 21233.91, 20225.15], borderColor:ACCENT, backgroundColor:'rgba(212,165,116,0.08)', fill:true, tension:0.3, pointRadius:3, pointHoverRadius:6, borderWidth:2.5 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, scales:{y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}} }
+});
+
+// Quarterly Revenue
+new Chart(document.getElementById('quarterlyChart'), {
+  type: 'bar',
+  data: {
+    labels: ["2023-Q1", "2023-Q2", "2023-Q3", "2023-Q4", "2024-Q1", "2024-Q2", "2024-Q3", "2024-Q4"],
+    datasets: [
+      { label:'Revenue', data:[156367.65, 155060.9, 161058.49, 159731.82, 160539.23, 163383.68, 161295.39, 157871.18], backgroundColor:PRIMARY, borderRadius:4, barPercentage:0.6 },
+      { label:'Profit', data:[62505.94, 62141.98, 64611.6, 64030.14, 64251.16, 65467.93, 64593.89, 62945.22], backgroundColor:ACCENT, borderRadius:4, barPercentage:0.6 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}} }
+});
+
+// YoY Monthly Comparison
+new Chart(document.getElementById('yoyChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    datasets: [
+      { label:'2023', data:[55656.48, 48258.66, 52452.51, 52268.52, 52069.46, 50722.92, 55276.07, 51546.3, 54236.12, 51926.9, 52822.25, 54982.67], backgroundColor:MUTED, borderRadius:3, barPercentage:0.7 },
+      { label:'2024', data:[54365.25, 51001.89, 55172.09, 53893.79, 53510.1, 55979.79, 54760.03, 55727.44, 50807.92, 53857.29, 53156.19, 50857.7], backgroundColor:PRIMARY, borderRadius:3, barPercentage:0.7 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}} }
+});
+
+// Monthly Orders
+new Chart(document.getElementById('monthlyOrdersChart'), {
+  type: 'line',
+  data: {
+    labels: ["2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12"],
+    datasets: [{ label:'Orders', data:[2119, 1875, 2087, 2056, 2074, 2006, 2140, 2040, 2132, 2071, 2092, 2128, 2120, 1961, 2193, 2078, 2107, 2158, 2130, 2197, 2035, 2141, 2059, 2001], borderColor:SUCCESS, backgroundColor:'rgba(45,125,70,0.08)', fill:true, tension:0.3, pointRadius:2, pointHoverRadius:5, borderWidth:2 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>v.toLocaleString()}}} }
+});
+
+// YoY Growth
+const yoyGrowthData = [-2.32, 5.68, 5.18, 3.11, 2.77, 10.36, -0.93, 8.11, -6.32, 3.72, 0.63, -7.5];
+const yoyGrowthColors = yoyGrowthData.map(v => v >= 0 ? SUCCESS : DANGER);
+new Chart(document.getElementById('yoyGrowthChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    datasets: [{ label:'YoY Growth %', data:yoyGrowthData, backgroundColor:yoyGrowthColors, borderRadius:3, barPercentage:0.6 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>v+'%'}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(2)+'%'}}} }
+});
+
+// Top 20 Products
+new Chart(document.getElementById('topProductsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["P0168", "P0157", "P0089", "P0051", "P0077", "P0126", "P0052", "P0117", "P0123", "P0177", "P0132", "P0031", "P0056", "P0163", "P0016", "P0110", "P0116", "P0096", "P0176", "P0152"],
+    datasets: [
+      { label:'Revenue', data:[7575.56, 7543.75, 7518.61, 7418.35, 7384.33, 7270.33, 7235.54, 7180.82, 7164.88, 7124.25, 7122.85, 7109.43, 7072.88, 7067.16, 7047.81, 7014.57, 7012.76, 7008.32, 7001.71, 6973.98], backgroundColor:PRIMARY, borderRadius:3, barPercentage:0.6 },
+      { label:'Profit', data:[3035.84, 3053.64, 2981.04, 3000.15, 2982.19, 2931.91, 2936.63, 2858.1, 2856.85, 2863.98, 2865.51, 2873.04, 2857.82, 2801.85, 2785.12, 2795.93, 2799.34, 2802.76, 2807.26, 2752.88], backgroundColor:ACCENT, borderRadius:3, barPercentage:0.6 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{x:{ticks:{callback:v=>'$'+(v/1000).toFixed(1)+'K'}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.x)}}} }
+});
+
+// Product Margins
+new Chart(document.getElementById('productMarginChart'), {
+  type: 'bar',
+  data: {
+    labels: ["P0168", "P0157", "P0089", "P0051", "P0077", "P0126", "P0052", "P0117", "P0123", "P0177", "P0132", "P0031", "P0056", "P0163", "P0016", "P0110", "P0116", "P0096", "P0176", "P0152"],
+    datasets: [{ label:'Avg Margin %', data:[40.03, 40.15, 39.69, 40.3, 40.71, 40.22, 40.7, 39.7, 39.66, 39.8, 40.15, 40.14, 40.61, 39.74, 39.54, 39.91, 39.97, 39.66, 40.18, 39.61], backgroundColor:ACCENT, borderRadius:3, barPercentage:0.6 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{x:{min:38,max:42,ticks:{callback:v=>v+'%'}}} }
+});
+
+// Product Revenue Distribution
+const prodRevData = [5068.16, 5278.61, 5309.69, 5346.68, 5366.39, 5379.07, 5389.73, 5491.1, 5508.74, 5530.35, 5540.89, 5545.51, 5547.06, 5555.22, 5601.92, 5603.83, 5634.86, 5649.68, 5651.16, 5682.14, 5682.38, 5683.43, 5696.32, 5736.56, 5737.1, 5738.85, 5751.63, 5771.1, 5771.15, 5789.33, 5815.05, 5815.79, 5820.02, 5825.9, 5830.34, 5843.31, 5844.53, 5848.44, 5849.79, 5855.15, 5875.49, 5884.07, 5897.0, 5900.33, 5904.69, 5910.52, 5915.55, 5930.36, 5934.87, 5937.93, 5942.95, 5955.18, 5971.64, 5979.53, 5982.72, 5985.19, 5987.45, 5996.36, 5998.59, 6023.72, 6036.78, 6038.75, 6042.54, 6042.64, 6044.83, 6049.21, 6057.37, 6060.16, 6069.27, 6081.13, 6087.53, 6100.75, 6111.93, 6119.9, 6126.45, 6127.04, 6131.4, 6147.06, 6161.43, 6167.27, 6176.14, 6180.72, 6183.79, 6184.83, 6190.03, 6192.9, 6193.19, 6199.37, 6203.29, 6208.15, 6210.17, 6231.7, 6239.95, 6248.45, 6250.36, 6252.96, 6278.62, 6287.17, 6295.69, 6318.83, 6326.39, 6326.81, 6335.92, 6340.89, 6366.29, 6373.61, 6387.29, 6389.41, 6389.8, 6396.61, 6396.81, 6400.95, 6416.51, 6417.54, 6420.92, 6430.33, 6434.83, 6437.15, 6453.19, 6456.47, 6457.52, 6465.69, 6473.14, 6479.75, 6498.18, 6499.96, 6510.01, 6513.11, 6515.96, 6516.6, 6517.95, 6522.81, 6533.21, 6537.44, 6548.11, 6548.23, 6552.61, 6555.88, 6556.61, 6564.5, 6567.74, 6567.96, 6573.27, 6577.28, 6579.08, 6580.02, 6587.28, 6591.73, 6594.35, 6604.61, 6605.05, 6605.19, 6606.13, 6633.23, 6635.25, 6639.5, 6680.94, 6693.79, 6696.87, 6698.51, 6707.6, 6728.91, 6733.91, 6749.3, 6756.86, 6771.22, 6777.86, 6777.93, 6783.13, 6794.79, 6813.65, 6832.72, 6842.97, 6867.73, 6878.01, 6880.47, 6886.58, 6893.36, 6911.78, 6933.39, 6956.43, 6968.23, 6973.98, 7001.71, 7008.32, 7012.76, 7014.57, 7047.81, 7067.16, 7072.88, 7109.43, 7122.85, 7124.25, 7164.88, 7180.82, 7235.54, 7270.33, 7384.33, 7418.35, 7518.61, 7543.75, 7575.56];
+new Chart(document.getElementById('productDistChart'), {
+  type: 'bar',
+  data: {
+    labels: prodRevData.map((v,i)=>'P'+(i+1)),
+    datasets: [{ label:'Revenue', data:prodRevData, backgroundColor:ACCENT_LIGHT, borderColor:ACCENT, borderWidth:1, borderRadius:2 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{x:{display:false},y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>fmt$(ctx.parsed.y)}}} }
+});
+
+// Top 20 Stores
+new Chart(document.getElementById('topStoresChart'), {
+  type: 'bar',
+  data: {
+    labels: ["S075", "S076", "S094", "S088", "S021", "S074", "S016", "S080", "S013", "S038", "S035", "S065", "S027", "S064", "S098", "S004", "S005", "S067", "S025", "S012"],
+    datasets: [
+      { label:'Revenue', data:[14275.7, 14214.2, 14088.11, 14035.42, 14033.59, 13935.82, 13878.92, 13865.65, 13742.99, 13738.28, 13735.45, 13724.57, 13672.8, 13576.61, 13475.28, 13474.13, 13460.8, 13350.16, 13293.5, 13266.86], backgroundColor:PRIMARY, borderRadius:3, barPercentage:0.6 },
+      { label:'Profit', data:[5728.61, 5641.32, 5608.14, 5610.15, 5579.43, 5627.56, 5561.94, 5607.2, 5450.28, 5430.03, 5493.27, 5488.66, 5492.72, 5438.03, 5403.24, 5335.57, 5392.31, 5405.16, 5360.6, 5238.49], backgroundColor:ACCENT, borderRadius:3, barPercentage:0.6 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{x:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.x)}}} }
+});
+
+// Store Margins
+new Chart(document.getElementById('storeMarginChart'), {
+  type: 'bar',
+  data: {
+    labels: ["S075", "S076", "S094", "S088", "S021", "S074", "S016", "S080", "S013", "S038", "S035", "S065", "S027", "S064", "S098", "S004", "S005", "S067", "S025", "S012"],
+    datasets: [{ label:'Avg Margin %', data:[40.19, 39.82, 39.79, 39.88, 39.74, 40.36, 39.94, 40.36, 39.65, 39.83, 40.03, 40.16, 40.3, 39.76, 40.06, 39.73, 40.26, 40.56, 40.33, 39.53], backgroundColor:ACCENT, borderRadius:3, barPercentage:0.6 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{x:{min:38,max:42,ticks:{callback:v=>v+'%'}}} }
+});
+
+// Store Revenue Distribution
+const storeRevData = [10996.33, 11436.02, 11599.38, 11620.52, 11674.13, 11679.34, 11710.4, 11780.44, 11795.76, 11838.64, 11894.57, 11926.91, 11984.45, 12000.68, 12039.71, 12079.57, 12105.43, 12144.63, 12173.05, 12182.51, 12204.04, 12209.02, 12231.9, 12261.83, 12269.91, 12328.8, 12338.43, 12344.51, 12357.74, 12371.64, 12393.45, 12455.03, 12491.02, 12505.41, 12531.0, 12560.81, 12566.64, 12595.46, 12608.76, 12636.55, 12638.01, 12639.1, 12639.34, 12642.6, 12668.54, 12669.74, 12677.85, 12684.22, 12705.24, 12708.33, 12720.54, 12738.95, 12741.59, 12755.31, 12763.22, 12767.68, 12771.02, 12831.34, 12847.85, 12883.56, 12886.18, 12917.09, 12960.99, 12968.72, 12984.97, 12985.08, 12998.31, 13013.87, 13018.89, 13021.2, 13059.19, 13072.46, 13076.92, 13112.6, 13132.2, 13153.78, 13163.05, 13164.01, 13169.19, 13192.35, 13266.86, 13293.5, 13350.16, 13460.8, 13474.13, 13475.28, 13576.61, 13672.8, 13724.57, 13735.45, 13738.28, 13742.99, 13865.65, 13878.92, 13935.82, 14033.59, 14035.42, 14088.11, 14214.2, 14275.7];
+new Chart(document.getElementById('storeDistChart'), {
+  type: 'bar',
+  data: {
+    labels: storeRevData.map((v,i)=>'S'+(i+1)),
+    datasets: [{ label:'Revenue', data:storeRevData, backgroundColor:ACCENT_LIGHT, borderColor:ACCENT, borderWidth:1, borderRadius:2 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{x:{display:false},y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>fmt$(ctx.parsed.y)}}} }
+});
+
+// Discount Revenue & Profit
+new Chart(document.getElementById('discountRevChart'), {
+  type: 'bar',
+  data: {
+    labels: ["0%", "6-10%", "11-15%", "16-20%"],
+    datasets: [
+      { label:'Revenue', data:[847686.19, 149264.01, 144697.33, 133660.81], backgroundColor:PRIMARY, borderRadius:3, barPercentage:0.6 },
+      { label:'Profit', data:[339312.68, 59811.97, 57897.84, 53525.37], backgroundColor:ACCENT, borderRadius:3, barPercentage:0.6 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}} }
+});
+
+// Discount Margin
+new Chart(document.getElementById('discountMarginChart'), {
+  type: 'bar',
+  data: {
+    labels: ["0%", "6-10%", "11-15%", "16-20%"],
+    datasets: [{ label:'Avg Profit Margin %', data:[40.0, 40.05, 40.01, 40.02], backgroundColor:[SUCCESS,WARNING,WARNING,WARNING], borderRadius:3, barPercentage:0.5 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{min:38,max:42,ticks:{callback:v=>v+'%'}}} }
+});
+
+// Discount Orders
+new Chart(document.getElementById('discountOrdersChart'), {
+  type: 'bar',
+  data: {
+    labels: ["0%", "6-10%", "11-15%", "16-20%"],
+    datasets: [{ label:'Orders', data:[31226, 6245, 6296, 6233], backgroundColor:[SUCCESS,WARNING,WARNING,WARNING], borderRadius:3, barPercentage:0.5 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>v.toLocaleString()}}} }
+});
+
+// Discount AOV
+new Chart(document.getElementById('discountAovChart'), {
+  type: 'bar',
+  data: {
+    labels: ["0%", "6-10%", "11-15%", "16-20%"],
+    datasets: [{ label:'Avg Revenue per Order', data:[27.15, 23.9, 22.98, 21.44], backgroundColor:[SUCCESS,DANGER,DANGER,DANGER], borderRadius:3, barPercentage:0.5 }]
+  },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>'$'+v}}} }
+});
+
+// Customer Segment Revenue
+const segColors = ['#3b1f0b','#6b3a1f','#d4a574','#e8c9a0','#f5e6d0'];
+new Chart(document.getElementById('segmentRevChart'), {
+  type: 'doughnut',
+  data: { labels:["One-time (1)", "Low (2-3)", "Medium (4-5)", "High (6-9)", "VIP (10+)"], datasets:[{ data:[465362.31, 707385.82, 97334.27, 5225.94, 0.0], backgroundColor:segColors, borderWidth:2, borderColor:'#fff' }] },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmt$(ctx.parsed)}}} }
+});
+
+// Customer Segment Count
+new Chart(document.getElementById('segmentCountChart'), {
+  type: 'doughnut',
+  data: { labels:["One-time (1)", "Low (2-3)", "Medium (4-5)", "High (6-9)", "VIP (10+)"], datasets:[{ data:[18294, 12300, 904, 33, 0], backgroundColor:segColors, borderWidth:2, borderColor:'#fff' }] },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.parsed.toLocaleString()+' customers'}}} }
+});
+
+// Frequency Distribution
+new Chart(document.getElementById('freqChart'), {
+  type: 'bar',
+  data: { labels:["1", "2", "3", "4", "5", "6", "7"], datasets:[{ label:'Customers', data:[18294, 9165, 3135, 751, 153, 29, 4], backgroundColor:PRIMARY, borderRadius:3, barPercentage:0.7 }] },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{type:'logarithmic',ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}} }
+});
+
+// Segment Profit
+new Chart(document.getElementById('segmentProfitChart'), {
+  type: 'bar',
+  data: { labels:["One-time (1)", "Low (2-3)", "Medium (4-5)", "High (6-9)", "VIP (10+)"], datasets:[{ label:'Profit', data:[186253.7, 282969.01, 39235.35, 2089.8, 0.0], backgroundColor:segColors, borderRadius:4, barPercentage:0.6 }] },
+  options: { responsive:true, maintainAspectRatio:false, scales:{y:{ticks:{callback:v=>fmtK(v)}}}, plugins:{tooltip:{callbacks:{label:ctx=>'Profit: '+fmt$(ctx.parsed.y)}}} }
+});
+</script>
+</body>
+</html>

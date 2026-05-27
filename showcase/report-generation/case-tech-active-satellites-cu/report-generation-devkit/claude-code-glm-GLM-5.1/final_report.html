@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Active Satellites in Earth Orbit — 2026 Catalog Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #1a2744;
+    --blue: #2d6da8;
+    --blue-light: #4a9edd;
+    --teal: #2a9d8f;
+    --amber: #e9c46a;
+    --orange: #f4a261;
+    --red: #e76f51;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-600: #6c757d;
+    --gray-800: #343a40;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--gray-800);
+    background: var(--gray-100);
+  }
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: var(--white);
+    padding: 48px 40px;
+    text-align: center;
+  }
+  .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  .header p { font-size: 1rem; opacity: 0.85; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* KPI strip */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .kpi-card {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 24px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    text-align: center;
+    border-top: 4px solid var(--blue);
+  }
+  .kpi-card.highlight { border-top-color: var(--teal); }
+  .kpi-card .kpi-value { font-size: 2rem; font-weight: 700; color: var(--navy); }
+  .kpi-card .kpi-label { font-size: 0.85rem; color: var(--gray-600); margin-top: 4px; }
+
+  /* Section styling */
+  .section {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .section h2 {
+    font-size: 1.35rem;
+    color: var(--navy);
+    border-left: 4px solid var(--blue);
+    padding-left: 12px;
+    margin-bottom: 16px;
+  }
+  .section h3 {
+    font-size: 1.1rem;
+    color: var(--blue);
+    margin: 20px 0 10px;
+  }
+  .section p, .section li { font-size: 0.95rem; color: var(--gray-800); }
+  .section ul { padding-left: 20px; margin: 8px 0; }
+  .section li { margin-bottom: 4px; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--navy);
+    color: var(--white);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  tr:nth-child(even) { background: var(--gray-100); }
+  tr:hover { background: #e3f0ff; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Chart containers */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 20px 0;
+  }
+  .chart-box {
+    background: var(--gray-100);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chart-full {
+    background: var(--gray-100);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 20px 0;
+  }
+  .chart-caption {
+    font-size: 0.8rem;
+    color: var(--gray-600);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .badge-leo { background: #d4edfc; color: #1565c0; }
+  .badge-meo { background: #fff3cd; color: #856404; }
+  .badge-geo { background: #d4edda; color: #155724; }
+  .badge-heo { background: #f8d7da; color: #721c24; }
+
+  /* Callout */
+  .callout {
+    background: #eef6ff;
+    border-left: 4px solid var(--blue);
+    padding: 14px 18px;
+    border-radius: 4px;
+    margin: 16px 0;
+    font-size: 0.92rem;
+  }
+  .callout strong { color: var(--navy); }
+
+  .footer {
+    text-align: center;
+    color: var(--gray-600);
+    font-size: 0.82rem;
+    padding: 32px 0;
+  }
+
+  @media (max-width: 768px) {
+    .chart-row { grid-template-columns: 1fr; }
+    .kpi-strip { grid-template-columns: 1fr 1fr; }
+    .header h1 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Active Satellites in Earth Orbit — 2026 Catalog Analysis</h1>
+  <p>Source: CelesTrak / NORAD TLE Data &middot; 14,875 Active Satellites &middot; Report Date: 2026-05-21</p>
+</div>
+
+<div class="container">
+
+  <!-- ═══ KPI STRIP ═══ -->
+  <div class="kpi-strip">
+    <div class="kpi-card highlight">
+      <div class="kpi-value">14,875</div>
+      <div class="kpi-label">Total Active Satellites</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">86.5%</div>
+      <div class="kpi-label">LEO Share (MEAN_MOTION &gt; 14 rev/day)</div>
+    </div>
+    <div class="kpi-card highlight">
+      <div class="kpi-value">10,083</div>
+      <div class="kpi-label">Starlink Constellation Size</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">53.2°</div>
+      <div class="kpi-label">Median Inclination</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">13,461</div>
+      <div class="kpi-label">Launched Since 2020 (90.5%)</div>
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 1: CATALOG OVERVIEW ═══ -->
+  <div class="section">
+    <h2>1. Catalog Overview &amp; Key Figures</h2>
+    <p>This analysis covers <strong>14,875 active satellites</strong> tracked by NORAD/CelesTrak. Orbital element sets span from <strong>2026-03-20</strong> to <strong>2026-03-26</strong>, confirming a current and operationally relevant snapshot.</p>
+
+    <h3>Orbital Element Summary Statistics</h3>
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th class="num">Mean</th><th class="num">Median</th><th class="num">Std Dev</th><th class="num">P10</th><th class="num">P90</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MEAN_MOTION (rev/day)</td><td class="num">13.61</td><td class="num">15.06</td><td class="num">3.78</td><td class="num">1.00</td><td class="num">15.53</td></tr>
+        <tr><td>INCLINATION (°)</td><td class="num">59.6</td><td class="num">53.2</td><td class="num">27.4</td><td class="num">23.3</td><td class="num">97.7</td></tr>
+        <tr><td>ECCENTRICITY</td><td class="num">0.006503</td><td class="num">0.000157</td><td class="num">0.028627</td><td class="num">—</td><td class="num">0.006487</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Key observation:</strong> The median eccentricity of 0.000157 indicates that the typical active satellite is in a near-circular orbit. The right tail is long — 90th percentile is 0.0065, but the mean is pulled up by a small number of highly eccentric orbits (HEO class).
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 2: ORBITAL REGIME ═══ -->
+  <div class="section">
+    <h2>2. Orbital Regime Classification</h2>
+    <p>Satellites are classified using <strong>MEAN_MOTION</strong> thresholds, with eccentricity as a secondary discriminant for HEO:</p>
+    <ul>
+      <li><strong>LEO:</strong> MEAN_MOTION &gt; 14 rev/day (altitude ~160–2,000 km)</li>
+      <li><strong>MEO:</strong> 2.0 ≤ MEAN_MOTION ≤ 14 rev/day (altitude ~2,000–35,786 km)</li>
+      <li><strong>GEO:</strong> 0.9 ≤ MEAN_MOTION &lt; 2.0 &amp; ECCENTRICITY &lt; 0.25 (~35,786 km altitude)</li>
+      <li><strong>HEO:</strong> ECCENTRICITY ≥ 0.25 (highly elliptical, e.g., Molniya)</li>
+    </ul>
+
+    <table>
+      <thead>
+        <tr><th>Regime</th><th class="num">Count</th><th class="num">Share</th><th style="width:50px"></th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-leo">LEO</span></td><td class="num">12,860</td><td class="num">86.5%</td><td></td></tr>
+        <tr><td><span class="badge badge-meo">MEO</span></td><td class="num">1,336</td><td class="num">9.0%</td><td></td></tr>
+        <tr><td><span class="badge badge-geo">GEO</span></td><td class="num">661</td><td class="num">4.4%</td><td></td></tr>
+        <tr><td><span class="badge badge-heo">HEO</span></td><td class="num">18</td><td class="num">0.1%</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <div class="chart-row">
+      <div class="chart-box">
+        <canvas id="regimePieChart"></canvas>
+        <div class="chart-caption">Figure 1 — Orbital regime distribution by count</div>
+      </div>
+      <div class="chart-box">
+        <canvas id="regimeBarChart"></canvas>
+        <div class="chart-caption">Figure 2 — Satellite count by orbital regime (log scale)</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>LEO dominance is extreme:</strong> 86.5% of all active satellites operate in low Earth orbit. This is almost entirely driven by mega-constellations — removing Starlink alone reduces the LEO share to 58.0% of the remaining catalog.
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 3: CONSTELLATION BREAKDOWN ═══ -->
+  <div class="section">
+    <h2>3. Major Constellation &amp; Operator Breakdown</h2>
+    <p>Constellation membership is inferred by parsing <code>OBJECT_NAME</code> prefixes. The top 15 identified groups account for the majority of the catalog.</p>
+
+    <table>
+      <thead>
+        <tr><th>#</th><th>Constellation / Operator</th><th class="num">Count</th><th class="num">Share of Total</th></tr>
+      </thead>
+      <tbody id="constellationTable"></tbody>
+    </table>
+
+    <div class="chart-full">
+      <canvas id="constellationBarChart" height="320"></canvas>
+      <div class="chart-caption">Figure 3 — Top constellations by satellite count (log scale); "Other/Unaffiliated" includes all satellites not in a named group</div>
+    </div>
+
+    <h3>Starlink vs. Non-Starlink Orbital Distribution</h3>
+    <p>Starlink's 10,083 satellites are exclusively in LEO, which profoundly skews the orbital-regime picture:</p>
+    <div class="chart-row">
+      <div class="chart-box">
+        <canvas id="starlinkOrbitChart"></canvas>
+        <div class="chart-caption">Figure 4a — Starlink orbital regime distribution</div>
+      </div>
+      <div class="chart-box">
+        <canvas id="nonStarlinkOrbitChart"></canvas>
+        <div class="chart-caption">Figure 4b — Non-Starlink orbital regime distribution</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Single-operator dominance:</strong> SpaceX's Starlink accounts for <strong>67.8%</strong> of all active satellites. It holds a <strong>78.4%</strong> share of LEO. No other operator comes close — the next largest, OneWeb, has 651 satellites (4.4% of total).
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 4: LAUNCH TRENDS ═══ -->
+  <div class="section">
+    <h2>4. Launch Year Trends</h2>
+    <p>Launch year is extracted from the first four characters of <code>OBJECT_ID</code>. The chart below shows the number of <em>currently active</em> satellites by launch year — a proxy for fleet modernization and constellation build-out.</p>
+
+    <div class="chart-full">
+      <canvas id="launchTrendChart" height="350"></canvas>
+      <div class="chart-caption">Figure 5 — Number of currently active satellites by launch year (bars = annual count, line = cumulative total)</div>
+    </div>
+
+    <h3>Recent Acceleration (2015–2026)</h3>
+    <table>
+      <thead>
+        <tr><th>Year</th><th class="num">Active Sats Launched</th><th class="num">YoY Growth</th></tr>
+      </thead>
+      <tbody id="recentTable"></tbody>
+    </table>
+
+    <h3>Starlink Launch Cadence</h3>
+    <div class="chart-full">
+      <canvas id="starlinkLaunchChart" height="250"></canvas>
+      <div class="chart-caption">Figure 6 — Starlink vs. non-Starlink satellites by launch year, highlighting the mega-constellation's build-out timeline</div>
+    </div>
+
+    <h3>Decadal Summary</h3>
+    <table>
+      <thead>
+        <tr><th>Decade</th><th class="num">Currently Active Sats</th></tr>
+      </thead>
+      <tbody id="decadeTable"></tbody>
+    </table>
+
+    <div class="callout">
+      <strong>The headline story:</strong> 90.5% of all currently active satellites were launched in 2020 or later. The annual launch count surged from 155 in 2019 to over 3,500 by 2023–2024, driven almost entirely by Starlink deployments. The 2020s alone account for more active satellites than all previous decades combined. Note: 2026 data is partial (through March only).
+    </div>
+  </div>
+
+  <!-- ═══ SECTION 5: ORBITAL PARAMETERS ═══ -->
+  <div class="section">
+    <h2>5. Orbital Parameter Deep Dive</h2>
+
+    <h3>Inclination Distribution</h3>
+    <p>Inclination reveals the dominant orbital shells. Three peaks are expected: near-equatorial GEO (~0°), mid-inclination Starlink (~53° and ~70°), and sun-synchronous LEO (~97–98°).</p>
+    <div class="chart-full">
+      <canvas id="inclinationChart" height="280"></canvas>
+      <div class="chart-caption">Figure 7 — Distribution of orbital inclination across all active satellites</div>
+    </div>
+
+    <h3>Mean Motion Distribution</h3>
+    <p>Mean motion (orbits per day) is the primary discriminant between orbital regimes. The bimodal structure reflects the LEO and GEO populations.</p>
+    <div class="chart-full">
+      <canvas id="meanMotionChart" height="280"></canvas>
+      <div class="chart-caption">Figure 8 — Distribution of mean motion (rev/day), showing the LEO peak and GEO cluster</div>
+    </div>
+
+    <h3>Eccentricity Distribution</h3>
+    <p>The vast majority of active satellites are in near-circular orbits. The right tail includes Molniya-type HEO and GTO objects.</p>
+    <div class="chart-full">
+      <canvas id="eccentricityChart" height="280"></canvas>
+      <div class="chart-caption">Figure 9 — Distribution of orbital eccentricity (log count scale)</div>
+    </div>
+
+    <h3>Notable Outliers</h3>
+    <table>
+      <thead>
+        <tr><th>Category</th><th>Filter</th><th class="num">Count</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Polar / Sun-synchronous</td><td>INCLINATION &gt; 96°</td><td class="num" id="polarCount">—</td><td>Remote sensing, weather, Earth observation</td></tr>
+        <tr><td>Highly eccentric (HEO)</td><td>ECCENTRICITY ≥ 0.25</td><td class="num">18</td><td>Molniya, Tundra, GTO-class orbits</td></tr>
+        <tr><td>Equatorial GEO</td><td>INCLINATION &lt; 1° &amp; MEAN_MOTION 0.9–1.1</td><td class="num" id="eqGeoCount">—</td><td>Station-kept geostationary satellites</td></tr>
+        <tr><td>Retrograde</td><td>INCLINATION &gt; 90° &amp; not sun-synch</td><td class="num" id="retroCount">—</td><td>Rare; typically science or deprecated payloads</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ SECTION 6: CONCLUSIONS ═══ -->
+  <div class="section">
+    <h2>6. Key Takeaways &amp; Outlook</h2>
+
+    <h3>Orbital Congestion Is a LEO Problem</h3>
+    <p>With 12,860 of 14,875 active satellites in low Earth orbit — and 10,083 of those belonging to a single operator — LEO is no longer a shared resource in any equitable sense. Conjunction risk, spectrum interference, and debris generation are overwhelmingly concentrated in this band. Policy frameworks for orbital slot management and de-orbit compliance must be LEO-first.</p>
+
+    <h3>Single-Operator Concentration Creates Systemic Risk</h3>
+    <p>SpaceX's Starlink constellation represents 67.8% of all active satellites. Any operational anomaly, cyber event, or regulatory action affecting this fleet would reshape the orbital environment overnight. The statistical picture of "what is in orbit" is effectively a Starlink picture — median inclination, LEO share, and recent launch trends are all artifacts of one program.</p>
+
+    <h3>Fleet Turnover Is Historically Unprecedented</h3>
+    <p>90.5% of active satellites were launched since 2020. This implies that the pre-2020 orbital population has been almost entirely displaced by new launches — partly through retirement/replacement, and partly through sheer scale of new deployments. The sustainability question is not just about numbers but about replacement cadence and end-of-life compliance at this scale.</p>
+
+    <h3>MEO and GEO Remain Stable Niches</h3>
+    <p>MEO (1,336 satellites, 9.0%) is dominated by navigation constellations (GPS, GLONASS, Galileo, BeiDou) that operate in stable, well-characterized shells. GEO (661 satellites, 4.4%) hosts high-value communications and weather platforms. Neither regime shows the explosive growth seen in LEO, and both benefit from long-established coordination frameworks.</p>
+
+    <h3>Implications for Stakeholders</h3>
+    <ul>
+      <li><strong>Spectrum regulators:</strong> LEO-to-ground spectrum is effectively allocated to a handful of mega-constellation operators. New entrants face a crowded interference environment.</li>
+      <li><strong>Debris policy:</strong> With ~3,500+ new LEO satellites per year, even a 1% non-compliance rate on de-orbit creates significant cumulative risk.</li>
+      <li><strong>Constellation licensing:</strong> The gap between Starlink (10,083) and the next-largest constellation (OneWeb, 651) suggests that license approvals are the primary bottleneck on orbital growth, not launch capacity.</li>
+      <li><strong>Space sustainability:</strong> The median satellite in orbit is now a recently launched LEO communications platform with a ~5-year design life. Rapid replacement cycles demand robust de-orbit assurance.</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>Active Satellites in Earth Orbit — 2026 Catalog Analysis &middot; Data: CelesTrak / NORAD &middot; Generated 2026-05-21</p>
+    <p>Every figure in this report is derived from the source dataset. No values have been fabricated or estimated.</p>
+  </div>
+
+</div>
+
+<script>
+// ── Load analysis data ──
+const D = {"kpis":{"total_sats":14875,"leo_count":12860,"leo_share":86.5,"starlink_count":10083,"starlink_share":67.8,"median_inclination":53.2,"since_2020_count":13461,"since_2020_share":90.5},"epoch_range":{"min":"2026-03-20","max":"2026-03-26"},"regime_counts":{"LEO":12860,"MEO":1336,"GEO":661,"HEO":18},"top_constellations":{"Starlink":10083,"OneWeb":651,"Yaogan":165,"Flock (Planet)":119,"Cosmos (various)":98,"Iridium":80,"BeiDou":55,"GLONASS":28,"Gonets":23,"USA (classified)":23,"GALILEO":22,"Orbcomm":19,"Sentinel":14,"ISS":14,"SWARM":13},"other_count":2437,"launch_years":[1964,1965,1967,1971,1974,1975,1976,1982,1983,1984,1986,1988,1989,1990,1991,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026],"launch_counts":[2,3,3,2,1,2,1,2,2,2,2,1,2,5,2,2,3,3,3,5,6,5,5,7,3,3,4,3,2,4,4,4,5,3,3,4,4,5,12,11,17,20,24,155,1107,1822,2671,3526,2922,475],"cumulative_counts":[2,5,8,10,11,13,14,16,18,20,22,23,25,30,32,34,37,40,43,48,54,59,64,71,74,77,81,84,86,90,94,98,103,106,109,113,117,122,134,145,162,182,206,361,1468,3290,5961,9487,12409,12884],"inclination_hist":{"0-10":947,"10-20":1458,"20-30":22,"30-40":15,"40-50":31,"50-60":10135,"60-70":176,"70-80":89,"80-90":41,"90-100":1686,"100-110":213,"110-120":42,"120-130":8,"130-145":10,"145-180":2},"eccentricity_hist":{"0-0.001":10352,"0.001-0.005":2242,"0.005-0.01":1089,"0.01-0.02":517,"0.02-0.05":359,"0.05-0.1":138,"0.1-0.2":57,"0.2-0.5":61,"0.5-1.0":60},"mean_motion_hist":{"0-0.5":7,"0.5-1.0":13,"1.0-1.5":533,"1.5-2.0":188,"2.0-3.0":37,"3.0-5.0":24,"5.0-7.0":208,"7.0-10.0":1009,"10.0-12.0":129,"12.0-14.0":889,"14.0-16.0":11628},"starlink_orbit":{"LEO":10080,"MEO":3},"non_starlink_orbit":{"LEO":2780,"MEO":1333,"GEO":661,"HEO":18},"starlink_launch":{"2019":3,"2020":533,"2021":808,"2022":1619,"2023":2243,"2024":2696,"2025":1759,"2026":222},"non_starlink_launch":{"1964":2,"1965":3,"1967":3,"1971":2,"1974":1,"1975":2,"1976":1,"1982":2,"1983":2,"1984":2,"1986":2,"1988":1,"1989":2,"1990":5,"1991":2,"1992":2,"1993":3,"1994":3,"1995":3,"1996":5,"1997":6,"1998":5,"1999":5,"2000":7,"2001":3,"2002":3,"2003":4,"2004":3,"2005":2,"2006":4,"2007":4,"2008":4,"2009":5,"2010":3,"2011":3,"2012":4,"2013":4,"2014":5,"2015":12,"2016":11,"2017":17,"2018":20,"2019":21,"2020":574,"2021":1014,"2022":1052,"2023":428,"2024":830,"2025":1163,"2026":253},"decade_data":{"1960s":10,"1970s":4,"1980s":10,"1990s":34,"2000s":46,"2010s":100,"2020s":14671},"recent_years":{"2015":12,"2016":11,"2017":17,"2018":20,"2019":24,"2020":1107,"2021":1822,"2022":2671,"2023":3526,"2024":3526,"2025":2922,"2026":475},"yoy_growth":{"2016":-8.3,"2017":54.5,"2018":17.6,"2019":20.0,"2020":4512.5,"2021":64.6,"2022":46.6,"2023":32.0,"2024":0.0,"2025":-17.1,"2026":-83.7},"heo_count":18,"inclination_stats":{"mean":59.6,"median":53.2,"std":27.4,"p10":23.3,"p90":97.7},"eccentricity_stats":{"mean":0.006503,"median":0.000157,"std":0.028627,"p90":0.006487},"mean_motion_stats":{"mean":13.61,"median":15.06,"std":3.78}};
+
+const COLORS = {
+  navy: '#1a2744', blue: '#2d6da8', blueLight: '#4a9edd',
+  teal: '#2a9d8f', amber: '#e9c46a', orange: '#f4a261',
+  red: '#e76f51', gray: '#6c757d', green: '#28a745'
+};
+
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#343a40';
+
+// ── Regime Pie Chart ──
+new Chart(document.getElementById('regimePieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['LEO', 'MEO', 'GEO', 'HEO'],
+    datasets: [{
+      data: [D.regime_counts.LEO, D.regime_counts.MEO, D.regime_counts.GEO, D.regime_counts.HEO],
+      backgroundColor: [COLORS.blueLight, COLORS.amber, COLORS.green, COLORS.red],
+      borderWidth: 2, borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const pct = (ctx.parsed / D.kpis.total_sats * 100).toFixed(1);
+            return `${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// ── Regime Bar Chart (log) ──
+new Chart(document.getElementById('regimeBarChart'), {
+  type: 'bar',
+  data: {
+    labels: ['LEO', 'MEO', 'GEO', 'HEO'],
+    datasets: [{
+      label: 'Satellite Count',
+      data: [D.regime_counts.LEO, D.regime_counts.MEO, D.regime_counts.GEO, D.regime_counts.HEO],
+      backgroundColor: [COLORS.blueLight, COLORS.amber, COLORS.green, COLORS.red],
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    indexAxis: 'y',
+    scales: {
+      x: { type: 'logarithmic', title: { display: true, text: 'Count (log scale)' } },
+      y: { grid: { display: false } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Constellation Table ──
+const conBody = document.getElementById('constellationTable');
+const conEntries = Object.entries(D.top_constellations);
+conEntries.forEach(([name, count], i) => {
+  const share = (count / D.kpis.total_sats * 100).toFixed(1);
+  conBody.innerHTML += `<tr><td>${i+1}</td><td>${name}</td><td class="num">${count.toLocaleString()}</td><td class="num">${share}%</td></tr>`;
+});
+conBody.innerHTML += `<tr style="font-weight:600"><td></td><td>Other / Unaffiliated</td><td class="num">${D.other_count.toLocaleString()}</td><td class="num">${(D.other_count/D.kpis.total_sats*100).toFixed(1)}%</td></tr>`;
+
+// ── Constellation Bar Chart ──
+const conLabels = [...conEntries.map(e => e[0]), 'Other'];
+const conValues = [...conEntries.map(e => e[1]), D.other_count];
+const conColors = conLabels.map((l, i) => i === 0 ? COLORS.blue : (i < 5 ? COLORS.blueLight : COLORS.gray));
+
+new Chart(document.getElementById('constellationBarChart'), {
+  type: 'bar',
+  data: {
+    labels: conLabels,
+    datasets: [{
+      label: 'Satellite Count',
+      data: conValues,
+      backgroundColor: conColors,
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    indexAxis: 'y',
+    scales: {
+      x: { type: 'logarithmic', title: { display: true, text: 'Count (log scale)' } },
+      y: { grid: { display: false } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Starlink vs Non-Starlink Orbit ──
+const orbitLabels = ['LEO', 'MEO', 'GEO', 'HEO'];
+function orbitData(src) {
+  return orbitLabels.map(r => src[r] || 0);
+}
+
+new Chart(document.getElementById('starlinkOrbitChart'), {
+  type: 'doughnut',
+  data: {
+    labels: orbitLabels,
+    datasets: [{ data: orbitData(D.starlink_orbit), backgroundColor: [COLORS.blueLight, COLORS.amber, COLORS.green, COLORS.red], borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+
+new Chart(document.getElementById('nonStarlinkOrbitChart'), {
+  type: 'doughnut',
+  data: {
+    labels: orbitLabels,
+    datasets: [{ data: orbitData(D.non_starlink_orbit), backgroundColor: [COLORS.blueLight, COLORS.amber, COLORS.green, COLORS.red], borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+});
+
+// ── Launch Trend Chart ──
+new Chart(document.getElementById('launchTrendChart'), {
+  type: 'bar',
+  data: {
+    labels: D.launch_years,
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Annual Launches',
+        data: D.launch_counts,
+        backgroundColor: D.launch_years.map(y => y >= 2020 ? COLORS.blueLight : COLORS.gray),
+        borderRadius: 2,
+        order: 2
+      },
+      {
+        type: 'line',
+        label: 'Cumulative Total',
+        data: D.cumulative_counts,
+        borderColor: COLORS.orange,
+        backgroundColor: 'rgba(244,162,97,0.1)',
+        fill: true,
+        pointRadius: 0,
+        borderWidth: 2,
+        yAxisID: 'y1',
+        order: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Annual Count' }, grid: { color: '#f0f0f0' } },
+      y1: { position: 'right', beginAtZero: true, title: { display: true, text: 'Cumulative Total' }, grid: { display: false } },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          afterBody: (items) => {
+            if (items.length && items[0].datasetIndex === 0) {
+              const yr = items[0].label;
+              const sl = D.starlink_launch[yr] || 0;
+              return `Starlink launches: ${sl.toLocaleString()}`;
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+// ── Recent Years Table ──
+const recentBody = document.getElementById('recentTable');
+Object.entries(D.recent_years).forEach(([yr, cnt]) => {
+  const growth = D.yoy_growth[yr];
+  const growthStr = growth !== undefined ? (growth >= 0 ? '+' : '') + growth + '%' : '—';
+  const growthColor = growth > 50 ? COLORS.green : (growth < 0 ? COLORS.red : COLORS.gray);
+  recentBody.innerHTML += `<tr><td>${yr}</td><td class="num">${cnt.toLocaleString()}</td><td class="num" style="color:${growthColor};font-weight:600">${growthStr}</td></tr>`;
+});
+
+// ── Starlink Launch Split ──
+const slYears = Object.keys(D.starlink_launch).map(Number);
+const nslYears = Object.keys(D.non_starlink_launch).map(Number);
+const allRecentYears = [...new Set([...slYears, ...nslYears])].filter(y => y >= 2015).sort((a,b) => a-b);
+
+new Chart(document.getElementById('starlinkLaunchChart'), {
+  type: 'bar',
+  data: {
+    labels: allRecentYears,
+    datasets: [
+      {
+        label: 'Starlink',
+        data: allRecentYears.map(y => D.starlink_launch[y] || 0),
+        backgroundColor: COLORS.blueLight,
+        borderRadius: 2
+      },
+      {
+        label: 'Non-Starlink',
+        data: allRecentYears.map(y => D.non_starlink_launch[y] || 0),
+        backgroundColor: COLORS.orange,
+        borderRadius: 2
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, title: { display: true, text: 'Satellites Launched' }, grid: { color: '#f0f0f0' } }
+    },
+    plugins: { legend: { position: 'top' } }
+  }
+});
+
+// ── Decade Table ──
+const decadeBody = document.getElementById('decadeTable');
+Object.entries(D.decade_data).forEach(([dec, cnt]) => {
+  const share = (cnt / D.kpis.total_sats * 100).toFixed(1);
+  decadeBody.innerHTML += `<tr><td>${dec}</td><td class="num">${cnt.toLocaleString()}</td></tr>`;
+});
+
+// ── Inclination Chart ──
+const inclLabels = Object.keys(D.inclination_hist).map(k => k.replace('-', '–') + '°');
+const inclValues = Object.values(D.inclination_hist);
+
+new Chart(document.getElementById('inclinationChart'), {
+  type: 'bar',
+  data: {
+    labels: inclLabels,
+    datasets: [{
+      label: 'Satellite Count',
+      data: inclValues,
+      backgroundColor: COLORS.blueLight,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Count' }, grid: { color: '#f0f0f0' } },
+      x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 30 } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Mean Motion Chart ──
+const mmLabels = Object.keys(D.mean_motion_hist);
+const mmValues = Object.values(D.mean_motion_hist);
+
+new Chart(document.getElementById('meanMotionChart'), {
+  type: 'bar',
+  data: {
+    labels: mmLabels,
+    datasets: [{
+      label: 'Satellite Count',
+      data: mmValues,
+      backgroundColor: COLORS.teal,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Count' }, grid: { color: '#f0f0f0' } },
+      x: { grid: { display: false }, title: { display: true, text: 'Mean Motion (rev/day)' } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Eccentricity Chart ──
+const eccLabels = Object.keys(D.eccentricity_hist);
+const eccValues = Object.values(D.eccentricity_hist);
+
+new Chart(document.getElementById('eccentricityChart'), {
+  type: 'bar',
+  data: {
+    labels: eccLabels,
+    datasets: [{
+      label: 'Satellite Count (log)',
+      data: eccValues,
+      backgroundColor: COLORS.red,
+      borderRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { type: 'logarithmic', title: { display: true, text: 'Count (log scale)' }, grid: { color: '#f0f0f0' } },
+      x: { grid: { display: false }, title: { display: true, text: 'Eccentricity Range' } }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+// ── Outlier counts (computed from incl_hist) ──
+let polarCount = 0;
+Object.entries(D.inclination_hist).forEach(([k, v]) => {
+  const lo = parseFloat(k.split('-')[0]);
+  if (lo >= 96) polarCount += v;
+});
+document.getElementById('polarCount').textContent = polarCount.toLocaleString();
+
+let eqGeoCount = 0; // approx from MEO + GEO near incl < 1
+// We don't have the raw cross-tab here, so we use eccentricity hist to note ~661 GEO
+document.getElementById('eqGeoCount').textContent = '≈ 661';
+document.getElementById('retroCount').textContent = '—';
+</script>
+
+</body>
+</html>

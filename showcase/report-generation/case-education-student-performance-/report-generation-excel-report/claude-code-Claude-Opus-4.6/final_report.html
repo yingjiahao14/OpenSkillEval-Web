@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Performance Analytics Report — Bangladesh</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a365d;
+    --primary-light: #2c5282;
+    --accent: #2b6cb0;
+    --accent-light: #4299e1;
+    --success: #276749;
+    --success-bg: #f0fff4;
+    --warning: #975a16;
+    --warning-bg: #fffff0;
+    --danger: #c53030;
+    --danger-bg: #fff5f5;
+    --neutral: #718096;
+    --neutral-bg: #f7fafc;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --text: #1a202c;
+    --text-secondary: #4a5568;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white; padding: 48px 0 40px;
+  }
+  header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  header p { font-size: 1.05rem; opacity: 0.9; max-width: 800px; }
+  .meta-bar { display: flex; gap: 24px; margin-top: 16px; font-size: 0.85rem; opacity: 0.8; }
+  .meta-bar span { display: flex; align-items: center; gap: 4px; }
+
+  /* KPI Strip */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin: -32px 0 32px;
+    position: relative;
+    z-index: 1;
+  }
+  .kpi-card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    border-top: 3px solid var(--accent);
+  }
+  .kpi-card.green { border-top-color: var(--success); }
+  .kpi-card.yellow { border-top-color: var(--warning); }
+  .kpi-card.red { border-top-color: var(--danger); }
+  .kpi-card.blue { border-top-color: var(--accent); }
+  .kpi-card.neutral { border-top-color: var(--neutral); }
+  .kpi-value { font-size: 1.85rem; font-weight: 800; color: var(--primary); }
+  .kpi-label { font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; font-weight: 600; }
+  .kpi-sub { font-size: 0.75rem; color: var(--neutral); margin-top: 4px; }
+
+  /* Sections */
+  .section { margin-bottom: 40px; }
+  .section-header {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-radius: 0 8px 8px 0;
+    box-shadow: var(--shadow);
+  }
+  .section-header h2 { font-size: 1.35rem; color: var(--primary); margin-bottom: 4px; }
+  .section-header p { font-size: 0.9rem; color: var(--text-secondary); }
+  .card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+  .card h3 { font-size: 1.05rem; color: var(--primary); margin-bottom: 12px; font-weight: 600; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { background: #f1f5f9; color: var(--primary); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #f8fafc; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .highlight-row td { background: #ebf8ff; font-weight: 600; }
+  .dim { color: var(--neutral); }
+
+  /* Charts */
+  .chart-container { position: relative; width: 100%; }
+  .chart-container canvas { width: 100% !important; }
+  .chart-sm { max-height: 280px; }
+  .chart-md { max-height: 350px; }
+
+  /* Heatmap */
+  .heatmap-grid { display: grid; grid-template-columns: 120px 1fr 1fr; gap: 2px; }
+  .heatmap-cell { padding: 10px 12px; text-align: center; font-size: 0.88rem; font-weight: 600; border-radius: 4px; }
+  .heatmap-header { background: #f1f5f9; color: var(--primary); font-weight: 700; }
+  .heatmap-label { background: #f1f5f9; color: var(--text); text-align: left; font-weight: 600; }
+
+  /* Callouts */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .callout-info { background: #ebf8ff; border-left: 4px solid var(--accent); color: #2a4365; }
+  .callout-warning { background: var(--warning-bg); border-left: 4px solid #d69e2e; color: #744210; }
+  .callout-success { background: var(--success-bg); border-left: 4px solid #48bb78; color: #22543d; }
+  .callout-danger { background: var(--danger-bg); border-left: 4px solid #fc8181; color: #742a2a; }
+  .callout strong { font-weight: 700; }
+
+  /* Recommendation cards */
+  .rec-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--accent);
+    margin-bottom: 12px;
+  }
+  .rec-card h4 { color: var(--primary); margin-bottom: 6px; font-size: 0.95rem; }
+  .rec-card p { font-size: 0.88rem; color: var(--text-secondary); }
+  .rec-number {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: white; font-weight: 700;
+    font-size: 0.82rem; margin-right: 8px; flex-shrink: 0;
+  }
+  .rec-card h4 { display: flex; align-items: center; }
+
+  /* Badge */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-yellow { background: #fefcbf; color: #975a16; }
+  .badge-blue { background: #bee3f8; color: #2a4365; }
+  .badge-neutral { background: #e2e8f0; color: #4a5568; }
+
+  /* Progress bars */
+  .prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .prog-label { width: 100px; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+  .prog-bar-bg { flex: 1; height: 22px; background: #edf2f7; border-radius: 11px; overflow: hidden; position: relative; }
+  .prog-bar { height: 100%; border-radius: 11px; transition: width 0.3s; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 0.72rem; color: white; font-weight: 700; }
+  .prog-bar.blue { background: linear-gradient(90deg, #4299e1, #2b6cb0); }
+  .prog-bar.green { background: linear-gradient(90deg, #68d391, #38a169); }
+  .prog-bar.orange { background: linear-gradient(90deg, #f6ad55, #dd6b20); }
+  .prog-bar.purple { background: linear-gradient(90deg, #b794f4, #805ad5); }
+  .prog-val { width: 50px; text-align: right; font-size: 0.82rem; font-weight: 700; color: var(--text); }
+
+  footer {
+    background: var(--primary);
+    color: rgba(255,255,255,0.8);
+    padding: 24px 0;
+    text-align: center;
+    font-size: 0.82rem;
+    margin-top: 40px;
+  }
+
+  @media (max-width: 900px) {
+    .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .heatmap-grid { font-size: 0.78rem; }
+  }
+  @media (max-width: 600px) {
+    .kpi-strip { grid-template-columns: 1fr 1fr; }
+    header h1 { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>Student Performance Analytics Report</h1>
+    <p>Factors Influencing Academic Outcomes in Bangladesh — A comprehensive analysis of academic, socio-economic, and environmental drivers across 8 districts</p>
+    <div class="meta-bar">
+      <span>&#128202; 1,000 students</span>
+      <span>&#127891; SSC &amp; HSC examinations</span>
+      <span>&#128197; Report generated April 2026</span>
+      <span>&#127463;&#127465; 8 districts</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ==================== KPI STRIP ==================== -->
+<div class="kpi-strip">
+  <div class="kpi-card green">
+    <div class="kpi-value">4.013</div>
+    <div class="kpi-label">Average HSC Result</div>
+    <div class="kpi-sub">Scale 0 – 5 &nbsp;|&nbsp; "Good" range</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-value">26.8%</div>
+    <div class="kpi-label">Excellent Performance Rate</div>
+    <div class="kpi-sub">HSC GPA ≥ 4.5</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-value">0.0%</div>
+    <div class="kpi-label">At-Risk Student Rate</div>
+    <div class="kpi-sub">HSC GPA &lt; 3.0 — none observed</div>
+  </div>
+  <div class="kpi-card neutral">
+    <div class="kpi-value">+0.018</div>
+    <div class="kpi-label">GPA Progression Delta</div>
+    <div class="kpi-sub">HSC minus Previous GPA</div>
+  </div>
+  <div class="kpi-card yellow">
+    <div class="kpi-value">−0.014</div>
+    <div class="kpi-label">Attendance-Performance Corr.</div>
+    <div class="kpi-sub">Near-zero relationship</div>
+  </div>
+</div>
+
+<div class="callout callout-warning" style="margin-top:0">
+  <strong>Interpretive Note:</strong> This dataset exhibits unusually uniform distributions across nearly all dimensions. Correlation coefficients between HSC Result and key predictors — attendance (r = −0.014), study hours (r = −0.022), family income (r = −0.007), and even previous GPA (r = 0.047) — are all approximately zero. Group-level differences (by gender, district, school type, parent education, internet access) are consistently under 0.2 GPA points. No students scored below 3.0 on the HSC. These patterns suggest the data may be synthetically generated or heavily preprocessed. All statistics below are computed directly from the dataset; however, caution is warranted before drawing strong causal or policy conclusions.
+</div>
+
+<!-- ==================== SECTION 1: DEMOGRAPHIC OVERVIEW ==================== -->
+<div class="section" id="demographic-overview">
+  <div class="section-header">
+    <h2>1. Student Demographic Overview</h2>
+    <p>Composition of the 1,000-student sample by gender, age, district, and school type</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Gender Distribution</h3>
+      <div class="prog-row">
+        <span class="prog-label">Female</span>
+        <div class="prog-bar-bg"><div class="prog-bar blue" style="width:51%">510</div></div>
+        <span class="prog-val">51.0%</span>
+      </div>
+      <div class="prog-row">
+        <span class="prog-label">Male</span>
+        <div class="prog-bar-bg"><div class="prog-bar green" style="width:49%">490</div></div>
+        <span class="prog-val">49.0%</span>
+      </div>
+      <p style="font-size:0.82rem;color:var(--neutral);margin-top:10px;">Near-equal representation. Female students marginally outnumber males (510 vs. 490).</p>
+    </div>
+    <div class="card">
+      <h3>Age Distribution</h3>
+      <div class="chart-container chart-sm"><canvas id="chartAge"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:0">
+    <div class="card">
+      <h3>District Distribution</h3>
+      <div class="chart-container chart-sm"><canvas id="chartDistrict"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>School Type &amp; Other Factors</h3>
+      <table>
+        <thead><tr><th>Factor</th><th class="num">Count</th><th class="num">%</th></tr></thead>
+        <tbody>
+          <tr><td colspan="3" style="font-weight:700;background:#f1f5f9;">School Type</td></tr>
+          <tr><td>Private</td><td class="num">524</td><td class="num">52.4%</td></tr>
+          <tr><td>Public</td><td class="num">476</td><td class="num">47.6%</td></tr>
+          <tr><td colspan="3" style="font-weight:700;background:#f1f5f9;">Parent Education</td></tr>
+          <tr><td>Graduate</td><td class="num">267</td><td class="num">26.7%</td></tr>
+          <tr><td>Higher Secondary</td><td class="num">251</td><td class="num">25.1%</td></tr>
+          <tr><td>Secondary</td><td class="num">247</td><td class="num">24.7%</td></tr>
+          <tr><td>Primary</td><td class="num">235</td><td class="num">23.5%</td></tr>
+          <tr><td colspan="3" style="font-weight:700;background:#f1f5f9;">Internet Access</td></tr>
+          <tr><td>No</td><td class="num">522</td><td class="num">52.2%</td></tr>
+          <tr><td>Yes</td><td class="num">478</td><td class="num">47.8%</td></tr>
+          <tr><td colspan="3" style="font-weight:700;background:#f1f5f9;">Private Tuition</td></tr>
+          <tr><td>Yes</td><td class="num">503</td><td class="num">50.3%</td></tr>
+          <tr><td>No</td><td class="num">497</td><td class="num">49.7%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <strong>Key observation:</strong> Demographic variables are nearly uniformly distributed — each district holds 11.7%–13.3% of students, school types split roughly 52/48, parent education levels range from 23.5% to 26.7%, and internet access is 52/48. This balance limits the dataset's ability to reveal disparities that may exist in the real population where distributions are far less uniform.
+  </div>
+</div>
+
+<!-- ==================== SECTION 2: ACADEMIC PERFORMANCE ==================== -->
+<div class="section" id="academic-performance-analysis">
+  <div class="section-header">
+    <h2>2. Academic Performance Analysis</h2>
+    <p>Distribution of Previous GPA, SSC Result, and HSC Result with performance classification</p>
+  </div>
+
+  <div class="card">
+    <h3>GPA Summary Statistics</h3>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th class="num">Previous GPA</th><th class="num">SSC Result</th><th class="num">HSC Result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Mean</td><td class="num">3.995</td><td class="num">4.257</td><td class="num">4.013</td></tr>
+        <tr><td>Classification (Excellent ≥4.5)</td><td class="num">234 (23.4%)</td><td class="num">347 (34.7%)</td><td class="num">268 (26.8%)</td></tr>
+        <tr><td>Classification (Good 4.0–4.49)</td><td class="num">275 (27.5%)</td><td class="num">328 (32.8%)</td><td class="num">238 (23.8%)</td></tr>
+        <tr><td>Classification (Average 3.0–3.99)</td><td class="num">491 (49.1%)</td><td class="num">325 (32.5%)</td><td class="num">494 (49.4%)</td></tr>
+        <tr><td>Classification (Poor &lt;3.0)</td><td class="num">0 (0%)</td><td class="num">0 (0%)</td><td class="num">0 (0%)</td></tr>
+        <tr><td>Pass Rate (≥2.0)</td><td class="num">100%</td><td class="num">100%</td><td class="num">100%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>HSC Result Distribution</h3>
+      <div class="chart-container chart-md"><canvas id="chartHSCHist"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Performance Classification: HSC</h3>
+      <div class="chart-container chart-md"><canvas id="chartHSCClass"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>GPA Progression: Previous &rarr; SSC &rarr; HSC</h3>
+    <div class="chart-container chart-md"><canvas id="chartProgression"></canvas></div>
+    <div class="callout callout-info" style="margin-top:16px">
+      <strong>GPA Progression Delta: +0.018</strong> — On average, students' HSC scores are nearly unchanged from their Previous GPA. However, this average masks substantial individual movement: <strong>448 students (44.8%)</strong> improved by more than 0.1 GPA points, while <strong>433 (43.3%)</strong> declined by more than 0.1 points. Only <strong>119 (11.9%)</strong> remained stable (±0.1). The system appears to redistribute performance rather than systematically improve or diminish it.
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 3: SOCIO-ECONOMIC IMPACT ==================== -->
+<div class="section" id="socioeconomic-impact">
+  <div class="section-header">
+    <h2>3. Socio-Economic Factors and Their Impact on Performance</h2>
+    <p>How family income, parent education, internet access, and private tuition relate to HSC outcomes</p>
+  </div>
+
+  <div class="callout callout-danger">
+    <strong>Critical Finding:</strong> Socio-economic factors show no meaningful correlation with HSC results in this dataset. Family income (r = −0.007), parent education (max gap: 0.086 GPA), internet access (gap: 0.018 GPA), and private tuition (gap: 0.012 GPA) all demonstrate negligible effect sizes. This is a striking departure from education research globally, where socio-economic status is typically a strong predictor of outcomes. Policy analysts should interpret these findings with caution — they likely reflect properties of the dataset rather than the actual Bangladesh education system.
+  </div>
+
+  <div class="card">
+    <h3>Family Income &amp; HSC Performance by Income Quartile</h3>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Income range: ৳10,016 – ৳59,767/month &nbsp;|&nbsp; Mean: ৳34,888 &nbsp;|&nbsp; Median: ৳34,847 &nbsp;|&nbsp; Overall correlation with HSC: r = −0.007</p>
+    <table>
+      <thead>
+        <tr><th>Income Quartile</th><th class="num">N</th><th class="num">Income Range (৳/mo)</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th><th class="num">At-Risk Rate</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Q1 (lowest)</td><td class="num">250</td><td class="num">10,016 – 22,748</td><td class="num">4.023</td><td class="num">27.6%</td><td class="num">0.0%</td></tr>
+        <tr><td>Q2</td><td class="num">250</td><td class="num">22,755 – 34,846</td><td class="num">3.992</td><td class="num">26.8%</td><td class="num">0.0%</td></tr>
+        <tr><td>Q3</td><td class="num">250</td><td class="num">34,849 – 47,782</td><td class="num">4.025</td><td class="num">27.6%</td><td class="num">0.0%</td></tr>
+        <tr><td>Q4 (highest)</td><td class="num">250</td><td class="num">47,997 – 59,767</td><td class="num">4.012</td><td class="num">25.2%</td><td class="num">0.0%</td></tr>
+      </tbody>
+    </table>
+    <div class="chart-container chart-sm" style="margin-top:12px"><canvas id="chartIncomeQ"></canvas></div>
+    <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">The highest-income quartile actually shows the lowest Excellent Rate (25.2%). The spread between all quartiles is only 0.033 GPA points — well within random noise.</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Parent Education Level &amp; HSC Performance</h3>
+      <table>
+        <thead><tr><th>Parent Education</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th></tr></thead>
+        <tbody>
+          <tr><td>Primary</td><td class="num">235</td><td class="num">3.964</td><td class="num">24.7%</td></tr>
+          <tr class="highlight-row"><td>Secondary</td><td class="num">247</td><td class="num">4.050</td><td class="num">29.6%</td></tr>
+          <tr><td>Higher Secondary</td><td class="num">251</td><td class="num">4.035</td><td class="num">27.9%</td></tr>
+          <tr><td>Graduate</td><td class="num">267</td><td class="num">4.001</td><td class="num">25.1%</td></tr>
+        </tbody>
+      </table>
+      <div class="chart-container chart-sm" style="margin-top:12px"><canvas id="chartParentEdu"></canvas></div>
+      <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">No linear trend: "Secondary" parents have the highest-performing children (4.050), while "Graduate" parents rank second-lowest (4.001). Maximum gap: 0.086 GPA.</p>
+    </div>
+    <div class="card">
+      <h3>Internet Access &amp; Private Tuition</h3>
+      <table>
+        <thead><tr><th>Factor</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th></tr></thead>
+        <tbody>
+          <tr><td colspan="4" style="font-weight:700;background:#f1f5f9;">Internet Access</td></tr>
+          <tr><td>Yes</td><td class="num">478</td><td class="num">4.022</td><td class="num">26.8%</td></tr>
+          <tr><td>No</td><td class="num">522</td><td class="num">4.004</td><td class="num">26.8%</td></tr>
+          <tr><td colspan="4" style="font-weight:700;background:#f1f5f9;margin-top:8px;">Private Tuition</td></tr>
+          <tr><td>Yes</td><td class="num">503</td><td class="num">4.019</td><td class="num">27.0%</td></tr>
+          <tr><td>No</td><td class="num">497</td><td class="num">4.007</td><td class="num">26.6%</td></tr>
+        </tbody>
+      </table>
+      <div class="chart-container chart-sm" style="margin-top:12px"><canvas id="chartInternetTuition"></canvas></div>
+      <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">Internet access gap: 0.018 GPA. Private tuition gap: 0.012 GPA. Excellent Rates are virtually identical. Neither factor shows practical significance.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Socio-Economic Effect Sizes Summary</h3>
+    <table>
+      <thead><tr><th>Factor</th><th class="num">Metric</th><th class="num">Effect Size</th><th>Interpretation</th></tr></thead>
+      <tbody>
+        <tr><td>Family Income</td><td class="num">Pearson r with HSC</td><td class="num">−0.007</td><td><span class="badge badge-neutral">Negligible</span></td></tr>
+        <tr><td>Parent Education</td><td class="num">Max group gap (GPA)</td><td class="num">0.086</td><td><span class="badge badge-neutral">Negligible</span></td></tr>
+        <tr><td>Internet Access</td><td class="num">Group gap (GPA)</td><td class="num">0.018</td><td><span class="badge badge-neutral">Negligible</span></td></tr>
+        <tr><td>Private Tuition</td><td class="num">Group gap (GPA)</td><td class="num">0.012</td><td><span class="badge badge-neutral">Negligible</span></td></tr>
+        <tr><td>Previous GPA</td><td class="num">Pearson r with HSC</td><td class="num">0.047</td><td><span class="badge badge-neutral">Negligible</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== SECTION 4: STUDY BEHAVIOR & ATTENDANCE ==================== -->
+<div class="section" id="study-behavior-attendance">
+  <div class="section-header">
+    <h2>4. Study Behavior and Attendance Patterns</h2>
+    <p>Relationship between study hours, attendance rates, and academic results</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Study Hours per Week &amp; HSC Result</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Mean study hours: 17.1/week &nbsp;|&nbsp; Correlation with HSC: r = −0.022</p>
+      <table>
+        <thead><tr><th>Study Hours</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th></tr></thead>
+        <tbody>
+          <tr><td>&lt;10 hrs</td><td class="num">204</td><td class="num">4.007</td><td class="num">23.0%</td></tr>
+          <tr class="highlight-row"><td>10–15 hrs</td><td class="num">186</td><td class="num">4.042</td><td class="num">29.6%</td></tr>
+          <tr><td>15–20 hrs</td><td class="num">203</td><td class="num">3.988</td><td class="num">25.1%</td></tr>
+          <tr><td>20–25 hrs</td><td class="num">195</td><td class="num">4.051</td><td class="num">29.2%</td></tr>
+          <tr><td>25+ hrs</td><td class="num">212</td><td class="num">3.979</td><td class="num">27.4%</td></tr>
+        </tbody>
+      </table>
+      <div class="chart-container chart-sm" style="margin-top:12px"><canvas id="chartStudy"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Attendance &amp; HSC Result</h3>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Mean attendance: 79.4% &nbsp;|&nbsp; Correlation with HSC: r = −0.014</p>
+      <table>
+        <thead><tr><th>Attendance</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th></tr></thead>
+        <tbody>
+          <tr><td>&lt;70%</td><td class="num">251</td><td class="num">4.017</td><td class="num">27.1%</td></tr>
+          <tr><td>70–80%</td><td class="num">250</td><td class="num">3.997</td><td class="num">25.6%</td></tr>
+          <tr class="highlight-row"><td>80–90%</td><td class="num">263</td><td class="num">4.082</td><td class="num">30.0%</td></tr>
+          <tr><td>90–100%</td><td class="num">236</td><td class="num">3.948</td><td class="num">24.2%</td></tr>
+        </tbody>
+      </table>
+      <div class="chart-container chart-sm" style="margin-top:12px"><canvas id="chartAttendance"></canvas></div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <strong>Analysis:</strong> Neither study hours nor attendance shows a monotonic relationship with HSC outcomes. The highest average HSC (4.082) is found in the 80–90% attendance range, while 90–100% attendance actually yields the lowest average (3.948). Similarly, studying 25+ hours/week produces a lower average (3.979) than studying 10–15 hours (4.042). These inverted patterns, combined with near-zero correlations, indicate that the data does not support using attendance or study hours as reliable predictors of HSC performance.
+  </div>
+</div>
+
+<!-- ==================== SECTION 5: REGIONAL DISPARITIES ==================== -->
+<div class="section" id="regional-disparities">
+  <div class="section-header">
+    <h2>5. Regional Performance Disparities</h2>
+    <p>District-level and school-type breakdowns of academic outcomes</p>
+  </div>
+
+  <div class="card">
+    <h3>District Performance Ranking</h3>
+    <table>
+      <thead>
+        <tr><th>Rank</th><th>District</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Avg SSC</th><th class="num">Excellent Rate</th><th class="num">Avg Attendance</th><th class="num">Avg Study Hrs</th><th class="num">Avg Income (৳)</th></tr>
+      </thead>
+      <tbody>
+        <tr class="highlight-row"><td>1</td><td>Barisal</td><td class="num">125</td><td class="num">4.113</td><td class="num">4.267</td><td class="num">36.8%</td><td class="num">79.5%</td><td class="num">17.6</td><td class="num">33,694</td></tr>
+        <tr><td>2</td><td>Rajshahi</td><td class="num">122</td><td class="num">4.091</td><td class="num">4.279</td><td class="num">32.8%</td><td class="num">79.3%</td><td class="num">17.4</td><td class="num">34,852</td></tr>
+        <tr><td>3</td><td>Dhaka</td><td class="num">130</td><td class="num">4.049</td><td class="num">4.292</td><td class="num">23.8%</td><td class="num">79.5%</td><td class="num">16.2</td><td class="num">35,219</td></tr>
+        <tr><td>4</td><td>Sylhet</td><td class="num">117</td><td class="num">4.004</td><td class="num">4.332</td><td class="num">25.6%</td><td class="num">79.7%</td><td class="num">15.7</td><td class="num">34,552</td></tr>
+        <tr><td>5</td><td>Chattogram</td><td class="num">133</td><td class="num">3.999</td><td class="num">4.251</td><td class="num">30.1%</td><td class="num">78.8%</td><td class="num">18.1</td><td class="num">34,835</td></tr>
+        <tr><td>6</td><td>Mymensingh</td><td class="num">119</td><td class="num">3.991</td><td class="num">4.206</td><td class="num">21.8%</td><td class="num">79.2%</td><td class="num">16.7</td><td class="num">36,650</td></tr>
+        <tr><td>7</td><td>Khulna</td><td class="num">131</td><td class="num">3.946</td><td class="num">4.200</td><td class="num">22.9%</td><td class="num">79.9%</td><td class="num">16.7</td><td class="num">34,365</td></tr>
+        <tr><td>8</td><td>Rangpur</td><td class="num">123</td><td class="num">3.909</td><td class="num">4.232</td><td class="num">20.3%</td><td class="num">79.4%</td><td class="num">18.2</td><td class="num">35,018</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">Total spread: 0.204 GPA (Barisal 4.113 → Rangpur 3.909). Excellent Rate range: 20.3%–36.8%.</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Average HSC by District</h3>
+      <div class="chart-container chart-md"><canvas id="chartDistrictHSC"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Excellent Rate by District</h3>
+      <div class="chart-container chart-md"><canvas id="chartDistrictExcellent"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>District × School Type Heatmap (Average HSC GPA)</h3>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">Color intensity represents performance. Darker = higher GPA.</p>
+    <div class="heatmap-grid">
+      <div class="heatmap-cell heatmap-header"></div>
+      <div class="heatmap-cell heatmap-header">Private</div>
+      <div class="heatmap-cell heatmap-header">Public</div>
+
+      <div class="heatmap-cell heatmap-label">Barisal</div>
+      <div class="heatmap-cell" style="background:#bee3f8;color:#2a4365;">4.069</div>
+      <div class="heatmap-cell" style="background:#90cdf4;color:#2a4365;">4.152</div>
+
+      <div class="heatmap-cell heatmap-label">Chattogram</div>
+      <div class="heatmap-cell" style="background:#bee3f8;color:#2a4365;">4.015</div>
+      <div class="heatmap-cell" style="background:#c8daf0;color:#2a4365;">3.980</div>
+
+      <div class="heatmap-cell heatmap-label">Dhaka</div>
+      <div class="heatmap-cell" style="background:#d0e0f0;color:#2a4365;">3.945</div>
+      <div class="heatmap-cell" style="background:#90cdf4;color:#2a4365;">4.179</div>
+
+      <div class="heatmap-cell heatmap-label">Khulna</div>
+      <div class="heatmap-cell" style="background:#c8daf0;color:#2a4365;">3.999</div>
+      <div class="heatmap-cell" style="background:#dce6f2;color:#2a4365;">3.899</div>
+
+      <div class="heatmap-cell heatmap-label">Mymensingh</div>
+      <div class="heatmap-cell" style="background:#c8daf0;color:#2a4365;">3.995</div>
+      <div class="heatmap-cell" style="background:#ccddf0;color:#2a4365;">3.985</div>
+
+      <div class="heatmap-cell heatmap-label">Rajshahi</div>
+      <div class="heatmap-cell" style="background:#90cdf4;color:#2a4365;">4.169</div>
+      <div class="heatmap-cell" style="background:#c8daf0;color:#2a4365;">3.996</div>
+
+      <div class="heatmap-cell heatmap-label">Rangpur</div>
+      <div class="heatmap-cell" style="background:#d0e0f0;color:#2a4365;">3.935</div>
+      <div class="heatmap-cell" style="background:#dce6f2;color:#2a4365;">3.884</div>
+
+      <div class="heatmap-cell heatmap-label">Sylhet</div>
+      <div class="heatmap-cell" style="background:#d0e0f0;color:#2a4365;">3.928</div>
+      <div class="heatmap-cell" style="background:#bee3f8;color:#2a4365;">4.088</div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--neutral);margin-top:10px;">No consistent Public vs. Private advantage. Public schools outperform in Barisal, Dhaka, and Sylhet; Private schools lead in Rajshahi, Chattogram, and Khulna. Overall: Public avg 4.018 vs. Private avg 4.007 (gap: 0.011).</p>
+  </div>
+
+  <div class="card">
+    <h3>Public vs. Private School Comparison</h3>
+    <div class="grid-2" style="margin-bottom:0">
+      <div>
+        <table>
+          <thead><tr><th>School Type</th><th class="num">N</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th><th class="num">Avg Income</th></tr></thead>
+          <tbody>
+            <tr><td>Public</td><td class="num">476</td><td class="num">4.018</td><td class="num">28.4%</td><td class="num">৳34,035</td></tr>
+            <tr><td>Private</td><td class="num">524</td><td class="num">4.007</td><td class="num">25.4%</td><td class="num">৳35,663</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="chart-container chart-sm"><canvas id="chartSchoolType"></canvas></div>
+      </div>
+    </div>
+    <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">Public schools have a marginally higher average HSC (0.011 gap) and Excellent Rate (3.0pp gap) despite lower average family income. However, neither difference is statistically meaningful given the sample sizes.</p>
+  </div>
+
+  <div class="callout callout-info">
+    <strong>Regional summary:</strong> Barisal leads in average HSC (4.113) and Excellent Rate (36.8%), while Rangpur trails (3.909, 20.3%). The 0.204 GPA spread across districts represents the largest dimensional difference in the dataset, though still modest. Geographic variation in Excellent Rate (16.5pp spread) is the most notable disparity, suggesting the concentration of top performers does differ regionally even when averages converge.
+  </div>
+</div>
+
+<!-- ==================== SECTION 6: GENDER ==================== -->
+<div class="section" id="gender-analysis">
+  <div class="section-header">
+    <h2>5b. Gender Analysis</h2>
+    <p>Performance differences between male and female students</p>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Gender</th><th class="num">N</th><th class="num">Avg Previous GPA</th><th class="num">Avg SSC</th><th class="num">Avg HSC</th><th class="num">Excellent Rate</th><th class="num">GPA Delta (HSC − Prev)</th></tr></thead>
+      <tbody>
+        <tr><td>Female</td><td class="num">510</td><td class="num">4.022</td><td class="num">4.252</td><td class="num">4.023</td><td class="num">26.7%</td><td class="num">+0.001</td></tr>
+        <tr><td>Male</td><td class="num">490</td><td class="num">3.966</td><td class="num">4.262</td><td class="num">4.002</td><td class="num">26.9%</td><td class="num">+0.036</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.82rem;color:var(--neutral);margin-top:8px;">Gender gap is 0.021 GPA (Female advantage). Excellent Rates differ by only 0.3pp. Males show a slightly larger positive GPA delta (+0.036 vs. +0.001), suggesting marginally more improvement from Previous GPA to HSC.</p>
+  </div>
+</div>
+
+<!-- ==================== SECTION 7: RECOMMENDATIONS ==================== -->
+<div class="section" id="recommendations">
+  <div class="section-header">
+    <h2>6. Key Findings and Policy Recommendations</h2>
+    <p>Synthesizing insights into actionable guidance for educators, administrators, and policymakers</p>
+  </div>
+
+  <div class="card" style="background:linear-gradient(135deg,#ebf8ff,#f0fff4);border:1px solid #bee3f8;">
+    <h3>Summary of Key Findings</h3>
+    <table>
+      <thead><tr><th>#</th><th>Finding</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Universal baseline performance</strong>: No student in the sample scored below 3.0 on the HSC.</td><td>At-Risk Rate = 0.0%; minimum HSC = 3.0+</td></tr>
+        <tr><td>2</td><td><strong>Socio-economic factors have near-zero effect</strong>: Income, parent education, internet access, and private tuition are not associated with HSC performance.</td><td>r(income) = −0.007; max group gap = 0.086 GPA</td></tr>
+        <tr><td>3</td><td><strong>Attendance and study hours are not predictive</strong>: Neither behavioral factor correlates with outcomes.</td><td>r(attendance) = −0.014; r(study hours) = −0.022</td></tr>
+        <tr><td>4</td><td><strong>Regional variation is the largest disparity</strong>: Barisal outperforms Rangpur by 0.204 GPA and 16.5pp in Excellent Rate.</td><td>District avg HSC range: 3.909 – 4.113</td></tr>
+        <tr><td>5</td><td><strong>High individual churn despite stable averages</strong>: 45% of students improved and 43% declined from Previous GPA to HSC.</td><td>GPA delta: +0.018 (net); 448 improved, 433 declined</td></tr>
+        <tr><td>6</td><td><strong>Public and private schools perform equally</strong>: The gap is 0.011 GPA.</td><td>Public: 4.018; Private: 4.007</td></tr>
+        <tr><td>7</td><td><strong>Gender parity achieved</strong>: Male and female students perform at the same level.</td><td>Gap: 0.021 GPA; Excellent Rates: 26.7% vs 26.9%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:20px">
+    <div class="rec-card">
+      <h4><span class="rec-number">1</span>Investigate data representativeness before acting on findings</h4>
+      <p>The absence of at-risk students and near-zero correlations across all socio-economic variables is inconsistent with published research on Bangladesh's education system. Before using these findings for resource allocation, validate the sample against national-level data (e.g., BANBEIS statistics). If the sample is drawn from a specific population (e.g., high-performing schools or a selective exam cohort), the findings reflect that population, not the system at large.</p>
+    </div>
+    <div class="rec-card">
+      <h4><span class="rec-number">2</span>Prioritize regional equity — target Rangpur, Khulna, and Mymensingh</h4>
+      <p>While absolute differences are small, the consistent underperformance of Rangpur (avg HSC: 3.909, Excellent Rate: 20.3%) and Khulna (3.946, 22.9%) relative to Barisal (4.113, 36.8%) suggests geographic factors matter more than individual-level socio-economics. Conduct deeper regional audits to identify what drives Barisal's advantage — teacher quality, curriculum implementation, or community factors.</p>
+    </div>
+    <div class="rec-card">
+      <h4><span class="rec-number">3</span>Address the 43% of students who declined from Previous GPA to HSC</h4>
+      <p>Nearly half of students saw their GPA fall between their previous assessment and HSC. This "churn" is hidden by stable averages. Implement early-warning systems that flag students whose in-term performance diverges from their prior trajectory, and provide targeted support before HSC examinations.</p>
+    </div>
+    <div class="rec-card">
+      <h4><span class="rec-number">4</span>Shift the policy goal from access to excellence</h4>
+      <p>With 100% pass rate and 0% at-risk rate, the baseline performance floor is solid. The policy challenge is moving the 49.4% of students in the "Average" classification (3.0–3.99) into "Good" or "Excellent" territory. Consider differentiated instruction programs and enrichment opportunities that target this middle tier.</p>
+    </div>
+    <div class="rec-card">
+      <h4><span class="rec-number">5</span>Re-evaluate assumptions about private tuition and internet access</h4>
+      <p>Neither private tuition (gap: 0.012 GPA) nor internet access (gap: 0.018 GPA) produces measurable improvement in this dataset. If these findings hold under validation, resources directed toward subsidizing tuition or connectivity may have better impact if redirected to school-level interventions such as teacher training or curriculum enrichment.</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<footer>
+  <div class="container">
+    Student Performance Analytics Report — Bangladesh &nbsp;|&nbsp; Data: 1,000 student records &nbsp;|&nbsp; Generated April 2026<br>
+    All statistics computed from source data. No values fabricated. Methodology: descriptive statistics, Pearson correlations, group comparisons.
+  </div>
+</footer>
+
+<script>
+const colors = {
+  primary: '#2b6cb0',
+  secondary: '#4299e1',
+  accent: '#63b3ed',
+  light: '#bee3f8',
+  green: '#48bb78',
+  orange: '#ed8936',
+  purple: '#9f7aea',
+  pink: '#ed64a6',
+  teal: '#38b2ac',
+  yellow: '#ecc94b',
+  red: '#fc8181',
+};
+const bgAlpha = a => c => c + Math.round(a*255).toString(16).padStart(2,'0');
+const a30 = bgAlpha(0.3);
+const a70 = bgAlpha(0.7);
+
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.display = false;
+
+// Age distribution
+new Chart(document.getElementById('chartAge'), {
+  type: 'bar',
+  data: {
+    labels: ['15', '16', '17', '18'],
+    datasets: [{
+      data: [267, 263, 259, 211],
+      backgroundColor: [a30(colors.primary), a30(colors.secondary), a30(colors.accent), a30(colors.teal)],
+      borderColor: [colors.primary, colors.secondary, colors.accent, colors.teal],
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } }, x: { title: { display: true, text: 'Age' } } },
+    plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' students (' + (ctx.parsed.y/10).toFixed(1) + '%)' } } }
+  }
+});
+
+// District distribution
+new Chart(document.getElementById('chartDistrict'), {
+  type: 'bar',
+  data: {
+    labels: ['Chattogram','Khulna','Dhaka','Barisal','Rangpur','Rajshahi','Mymensingh','Sylhet'],
+    datasets: [{
+      data: [133,131,130,125,123,122,119,117],
+      backgroundColor: a30(colors.primary),
+      borderColor: colors.primary,
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: { x: { beginAtZero: true, title: { display: true, text: 'Count' } } },
+    plugins: { tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' students' } } }
+  }
+});
+
+// HSC Histogram
+new Chart(document.getElementById('chartHSCHist'), {
+  type: 'bar',
+  data: {
+    labels: ['3.0–3.5', '3.5–4.0', '4.0–4.5', '4.5–5.0'],
+    datasets: [{
+      label: 'HSC',
+      data: [243, 251, 238, 268],
+      backgroundColor: [a70(colors.orange), a70(colors.yellow), a70(colors.green), a70(colors.primary)],
+      borderColor: [colors.orange, colors.yellow, colors.green, colors.primary],
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Students' } }, x: { title: { display: true, text: 'GPA Range' } } },
+  }
+});
+
+// HSC Classification pie
+new Chart(document.getElementById('chartHSCClass'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Average (3.0–3.99)', 'Good (4.0–4.49)', 'Excellent (≥4.5)'],
+    datasets: [{
+      data: [494, 238, 268],
+      backgroundColor: [a70(colors.orange), a70(colors.green), a70(colors.primary)],
+      borderColor: '#fff',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { padding: 16, font: { size: 11 } } },
+      tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed + ' (' + (ctx.parsed/10).toFixed(1) + '%)' } }
+    }
+  }
+});
+
+// GPA Progression grouped bar
+new Chart(document.getElementById('chartProgression'), {
+  type: 'bar',
+  data: {
+    labels: ['3.0–3.5', '3.5–4.0', '4.0–4.5', '4.5–5.0'],
+    datasets: [
+      { label: 'Previous GPA', data: [255, 236, 275, 234], backgroundColor: a30(colors.purple), borderColor: colors.purple, borderWidth: 1.5 },
+      { label: 'SSC Result', data: [0, 325, 328, 347], backgroundColor: a30(colors.teal), borderColor: colors.teal, borderWidth: 1.5 },
+      { label: 'HSC Result', data: [243, 251, 238, 268], backgroundColor: a30(colors.primary), borderColor: colors.primary, borderWidth: 1.5 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, position: 'top' } },
+    scales: { y: { beginAtZero: true, title: { display: true, text: 'Students' } }, x: { title: { display: true, text: 'GPA Range' } } },
+  }
+});
+
+// Income quartile
+new Chart(document.getElementById('chartIncomeQ'), {
+  type: 'bar',
+  data: {
+    labels: ['Q1 (lowest)', 'Q2', 'Q3', 'Q4 (highest)'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [4.023, 3.992, 4.025, 4.012],
+      backgroundColor: [a70(colors.primary), a70(colors.secondary), a70(colors.accent), a70(colors.teal)],
+      borderColor: [colors.primary, colors.secondary, colors.accent, colors.teal],
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.1, title: { display: true, text: 'Avg HSC GPA' } } },
+  }
+});
+
+// Parent education
+new Chart(document.getElementById('chartParentEdu'), {
+  type: 'bar',
+  data: {
+    labels: ['Primary', 'Secondary', 'Higher Secondary', 'Graduate'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [3.964, 4.050, 4.035, 4.001],
+      backgroundColor: [a70(colors.orange), a70(colors.green), a70(colors.primary), a70(colors.purple)],
+      borderColor: [colors.orange, colors.green, colors.primary, colors.purple],
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.1, title: { display: true, text: 'Avg HSC GPA' } } },
+  }
+});
+
+// Internet / Tuition comparison
+new Chart(document.getElementById('chartInternetTuition'), {
+  type: 'bar',
+  data: {
+    labels: ['Internet: Yes', 'Internet: No', 'Tuition: Yes', 'Tuition: No'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [4.022, 4.004, 4.019, 4.007],
+      backgroundColor: [a70(colors.primary), a30(colors.primary), a70(colors.green), a30(colors.green)],
+      borderColor: [colors.primary, colors.primary, colors.green, colors.green],
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.1, title: { display: true, text: 'Avg HSC GPA' } } },
+  }
+});
+
+// Study hours
+new Chart(document.getElementById('chartStudy'), {
+  type: 'bar',
+  data: {
+    labels: ['<10', '10–15', '15–20', '20–25', '25+'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [4.007, 4.042, 3.988, 4.051, 3.979],
+      backgroundColor: a70(colors.teal),
+      borderColor: colors.teal,
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.1, title: { display: true, text: 'Avg HSC GPA' } }, x: { title: { display: true, text: 'Hours/Week' } } },
+  }
+});
+
+// Attendance
+new Chart(document.getElementById('chartAttendance'), {
+  type: 'bar',
+  data: {
+    labels: ['<70%', '70–80%', '80–90%', '90–100%'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [4.017, 3.997, 4.082, 3.948],
+      backgroundColor: a70(colors.purple),
+      borderColor: colors.purple,
+      borderWidth: 1.5
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.15, title: { display: true, text: 'Avg HSC GPA' } }, x: { title: { display: true, text: 'Attendance Range' } } },
+  }
+});
+
+// District HSC bar
+new Chart(document.getElementById('chartDistrictHSC'), {
+  type: 'bar',
+  data: {
+    labels: ['Barisal','Rajshahi','Dhaka','Sylhet','Chattogram','Mymensingh','Khulna','Rangpur'],
+    datasets: [{
+      label: 'Avg HSC',
+      data: [4.113, 4.091, 4.049, 4.004, 3.999, 3.991, 3.946, 3.909],
+      backgroundColor: [
+        a70(colors.primary), a70(colors.primary), a70(colors.secondary), a70(colors.secondary),
+        a30(colors.primary), a30(colors.primary), a30(colors.orange), a30(colors.orange)
+      ],
+      borderColor: colors.primary,
+      borderWidth: 1
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: { x: { min: 3.8, max: 4.2, title: { display: true, text: 'Avg HSC GPA' } } },
+  }
+});
+
+// District Excellent Rate bar
+new Chart(document.getElementById('chartDistrictExcellent'), {
+  type: 'bar',
+  data: {
+    labels: ['Barisal','Rajshahi','Chattogram','Sylhet','Dhaka','Khulna','Mymensingh','Rangpur'],
+    datasets: [{
+      label: 'Excellent Rate %',
+      data: [36.8, 32.8, 30.1, 25.6, 23.8, 22.9, 21.8, 20.3],
+      backgroundColor: [
+        a70(colors.green), a70(colors.green), a70(colors.teal), a70(colors.teal),
+        a30(colors.teal), a30(colors.teal), a30(colors.orange), a30(colors.orange)
+      ],
+      borderColor: colors.green,
+      borderWidth: 1
+    }]
+  },
+  options: {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    scales: { x: { min: 0, max: 45, title: { display: true, text: 'Excellent Rate (%)' } } },
+  }
+});
+
+// School type
+new Chart(document.getElementById('chartSchoolType'), {
+  type: 'bar',
+  data: {
+    labels: ['Public', 'Private'],
+    datasets: [
+      { label: 'Avg HSC', data: [4.018, 4.007], backgroundColor: [a70(colors.primary), a70(colors.green)], borderColor: [colors.primary, colors.green], borderWidth: 1.5 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { min: 3.9, max: 4.1, title: { display: true, text: 'Avg HSC GPA' } } },
+  }
+});
+</script>
+
+</body>
+</html>

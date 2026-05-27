@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Global Cost of Living Crisis Index 2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f5f7fb;color:#1f2937;margin:0;line-height:1.45}
+    .container{max-width:1180px;margin:0 auto;padding:28px}
+    h1{font-size:32px;margin:0 0 8px}
+    h2{margin-top:34px;border-bottom:2px solid #dbe2ef;padding-bottom:8px}
+    .subtitle{color:#4b5563;margin-bottom:20px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:12px}
+    .kpi{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px}
+    .kpi .label{font-size:12px;color:#6b7280}
+    .kpi .value{font-size:24px;font-weight:700;margin-top:6px;color:#0f172a}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:12px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    canvas{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;max-height:420px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}
+    th{background:#f9fafb}
+    .note{font-size:13px;color:#4b5563}
+    @media (max-width:1000px){.kpi-grid{grid-template-columns:repeat(2,1fr)} .two{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="container" id="app"></div>
+<script>
+fetch('metrics.json').then(r=>r.json()).then(m=>{
+  const k=m.kpis, regional=m.regional, tiers=m.tier_profile, oil=m.oil_summary, rows=m.all_rows;
+  const app=document.getElementById('app');
+
+  function table(headers, dataRows){
+    return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${dataRows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
+  const regionalTable=table(
+    ['Region','Cities','Avg Cost of Living Index','Avg Rent Index','Avg Purchasing Power','Avg Rent-to-Salary %'],
+    regional.map(r=>[r.region,r.city_count,r.avg_cost_of_living_index.toFixed(2),r.avg_rent_index.toFixed(2),r.avg_local_purchasing_power_index.toFixed(2),`${r.avg_rent_to_salary_ratio_pct.toFixed(2)}%`])
+  );
+
+  const tierTable=table(
+    ['Tier','Cities','Dominant Label','Avg Cost of Living','Avg Rent Index','Avg Purchasing Power','Avg Rent-to-Salary %','Avg Inflation %'],
+    tiers.map(t=>[t.tier,t.cities,t.dominant_label,t.avg_cost_of_living_index.toFixed(2),t.avg_rent_index.toFixed(2),t.avg_local_purchasing_power_index.toFixed(2),`${t.avg_rent_to_salary_ratio_pct.toFixed(2)}%`,`${t.avg_annual_inflation_rate_2025_pct.toFixed(2)}%`])
+  );
+
+  const oilTable=table(
+    ['Oil Exposure','Cities','Avg Inflation %','Avg Cost of Living','Avg Purchasing Power','Avg Rent-to-Salary %'],
+    oil.map(o=>[o.oil_shock_exposure,o.cities,`${o.avg_inflation.toFixed(2)}%`,o.avg_cost_of_living_index.toFixed(2),o.avg_local_purchasing_power_index.toFixed(2),`${o.avg_rent_to_salary_ratio_pct.toFixed(2)}%`])
+  );
+
+  app.innerHTML = `
+    <h1>Global Cost of Living Crisis Index 2026</h1>
+    <div class="subtitle">Comparative analysis of economic stress across 80 cities (data year: 2026)</div>
+
+    <section>
+      <h2>Executive Overview</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Median Cost of Living Index</div><div class="value">${k['Median Cost of Living Index'].toFixed(2)}</div></div>
+        <div class="kpi"><div class="label">Average Rent-to-Salary Ratio</div><div class="value">${k['Average Rent-to-Salary Ratio'].toFixed(2)}%</div></div>
+        <div class="kpi"><div class="label">Purchasing Power Gap</div><div class="value">${k['Purchasing Power Gap'].toFixed(2)}</div></div>
+        <div class="kpi"><div class="label">High-Crisis City Count</div><div class="value">${k['High-Crisis City Count']}</div></div>
+        <div class="kpi"><div class="label">Average Annual Inflation Rate</div><div class="value">${k['Average Annual Inflation Rate'].toFixed(2)}%</div></div>
+      </div>
+      <div class="card">
+        <p>The 2026 city sample shows a wide affordability spread: high-cost cities coexist with cities where lower nominal costs are offset by weak purchasing power and high rent burden. Crisis intensity is most policy-relevant where <strong>rent-to-salary ratios are elevated</strong>, as housing pressure is the fastest channel from macro stress to household distress.</p>
+        <p class="note">Most expensive cities by cost-of-living index: ${m.highest_cost.slice(0,5).map(r=>`${r.city} (${r.cost_of_living_index.toFixed(2)})`).join(', ')}. Least expensive: ${m.lowest_cost.slice(0,5).map(r=>`${r.city} (${r.cost_of_living_index.toFixed(2)})`).join(', ')}.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Regional Cost-of-Living Comparison</h2>
+      <div class="two"><canvas id="regionalBars"></canvas><canvas id="regionalPP"></canvas></div>
+      <div class="card">${regionalTable}</div>
+      <div class="card"><strong>Regional outliers (cost-of-living vs regional mean):</strong><ul>${m.outliers.slice(0,8).map(o=>`<li><strong>${o[1]}</strong> (${o[2]}) deviates by ${o[0].toFixed(2)} points from its regional average (${o[3].toFixed(2)} vs ${o[4].toFixed(2)}).</li>`).join('')}</ul></div>
+    </section>
+
+    <section>
+      <h2>Affordability and Rent Burden Analysis</h2>
+      <div class="two"><canvas id="rentBurdenTop"></canvas><canvas id="salaryVsBurden"></canvas></div>
+      <div class="card">
+        <p>Housing affordability is the strongest crisis discriminator in this dataset. Cities with high rent-to-salary values show materially tighter household budgets even when headline cost indices are moderate.</p>
+        <p class="note">Top rent burden cities: ${m.highest_burden.map(r=>`${r.city} (${r.rent_to_salary_ratio_pct.toFixed(2)}%)`).join(', ')}.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Crisis Tier Profiling</h2>
+      <div class="two"><canvas id="tierRadar"></canvas><canvas id="tierBurden"></canvas></div>
+      <div class="card">${tierTable}</div>
+    </section>
+
+    <section>
+      <h2>Inflation and Oil Shock Exposure</h2>
+      <div class="two"><canvas id="oilInfl"></canvas><canvas id="oilColPp"></canvas></div>
+      <div class="card">${oilTable}</div>
+      <div class="card"><p class="note">Highest inflation cities: ${m.highest_infl.slice(0,8).map(r=>`${r.city} (${r.annual_inflation_rate_2025_pct.toFixed(2)}%)`).join(', ')}. Lowest purchasing power cities: ${m.lowest_pp.slice(0,8).map(r=>`${r.city} (${r.local_purchasing_power_index.toFixed(2)})`).join(', ')}.</p></div>
+    </section>
+
+    <section>
+      <h2>Key Findings and Policy Implications</h2>
+      <div class="card">
+        <ol>
+          <li><strong>Affordability stress is concentrated in housing:</strong> Rent burden exceeds prudent thresholds in multiple cities, indicating immediate need for rental support, supply acceleration, or tenant-protection measures.</li>
+          <li><strong>Regional averages mask city-level risk:</strong> Several cities deviate sharply from regional means, so intervention targeting should be city-specific rather than region-wide only.</li>
+          <li><strong>Crisis tiers are structurally distinct:</strong> Higher-crisis tiers combine weaker purchasing power with higher rent burden and inflation pressure, requiring integrated wage, housing, and price-stability responses.</li>
+          <li><strong>Oil exposure compounds macro vulnerability:</strong> Cities with higher oil-shock exposure show differentiated inflation-cost dynamics, supporting energy-price contingency planning.</li>
+          <li><strong>Prioritization framework:</strong> Immediate attention should go to cities simultaneously ranking high on rent burden, low on purchasing power, and in the highest crisis tier.</li>
+        </ol>
+        <p class="note">Method: all statistics derived directly from <code>/app/benchmark/data.csv</code> (80 cities, 2026).</p>
+      </div>
+    </section>
+  `;
+
+  const regLabels=regional.map(r=>r.region);
+  new Chart(document.getElementById('regionalBars'),{type:'bar',data:{labels:regLabels,datasets:[{label:'Avg Cost of Living Index',data:regional.map(r=>r.avg_cost_of_living_index),backgroundColor:'#2563eb'},{label:'Avg Rent Index',data:regional.map(r=>r.avg_rent_index),backgroundColor:'#0ea5e9'}]},options:{plugins:{title:{display:true,text:'Regional Cost vs Rent Indices'}}}});
+  new Chart(document.getElementById('regionalPP'),{type:'bar',data:{labels:regLabels,datasets:[{label:'Avg Local Purchasing Power Index',data:regional.map(r=>r.avg_local_purchasing_power_index),backgroundColor:'#16a34a'}]},options:{plugins:{title:{display:true,text:'Regional Purchasing Power'}}}});
+
+  const burden=rows.slice().sort((a,b)=>b.rent_to_salary_ratio_pct-a.rent_to_salary_ratio_pct).slice(0,15);
+  new Chart(document.getElementById('rentBurdenTop'),{type:'bar',data:{labels:burden.map(r=>`${r.city} (${r.country})`),datasets:[{label:'Rent-to-Salary Ratio %',data:burden.map(r=>r.rent_to_salary_ratio_pct),backgroundColor:'#dc2626'}]},options:{indexAxis:'y',plugins:{title:{display:true,text:'Top 15 Cities by Rent Burden'}}}});
+  new Chart(document.getElementById('salaryVsBurden'),{type:'scatter',data:{datasets:[{label:'Cities',data:rows.map(r=>({x:r.avg_monthly_net_salary_usd,y:r.rent_to_salary_ratio_pct})),backgroundColor:'#7c3aed'}]},options:{plugins:{title:{display:true,text:'Salary vs Rent Burden'}},scales:{x:{title:{display:true,text:'Avg Monthly Net Salary (USD)'}},y:{title:{display:true,text:'Rent-to-Salary Ratio %'}}}}});
+
+  new Chart(document.getElementById('tierRadar'),{type:'radar',data:{labels:['Cost of Living','Rent Index','Purchasing Power','Rent-to-Salary %','Inflation %'],datasets:tiers.map((t,i)=>({label:`Tier ${t.tier}`,data:[t.avg_cost_of_living_index,t.avg_rent_index,t.avg_local_purchasing_power_index,t.avg_rent_to_salary_ratio_pct,t.avg_annual_inflation_rate_2025_pct],fill:true}))},options:{plugins:{title:{display:true,text:'Crisis Tier Indicator Profiles'}}}});
+  new Chart(document.getElementById('tierBurden'),{type:'bar',data:{labels:tiers.map(t=>`Tier ${t.tier}`),datasets:[{label:'Avg Rent-to-Salary %',data:tiers.map(t=>t.avg_rent_to_salary_ratio_pct),backgroundColor:'#ef4444'},{label:'Avg Cost of Living Index',data:tiers.map(t=>t.avg_cost_of_living_index),backgroundColor:'#3b82f6'},{label:'Avg Purchasing Power',data:tiers.map(t=>t.avg_local_purchasing_power_index),backgroundColor:'#22c55e'},{label:'Avg Inflation %',data:tiers.map(t=>t.avg_annual_inflation_rate_2025_pct),backgroundColor:'#f59e0b'}]},options:{plugins:{title:{display:true,text:'Tier Averages Comparison'}}}});
+
+  new Chart(document.getElementById('oilInfl'),{type:'bar',data:{labels:oil.map(o=>o.oil_shock_exposure),datasets:[{label:'Avg Inflation %',data:oil.map(o=>o.avg_inflation),backgroundColor:'#f97316'}]},options:{plugins:{title:{display:true,text:'Inflation by Oil Shock Exposure'}}}});
+  new Chart(document.getElementById('oilColPp'),{type:'bar',data:{labels:oil.map(o=>o.oil_shock_exposure),datasets:[{label:'Avg Cost of Living Index',data:oil.map(o=>o.avg_cost_of_living_index),backgroundColor:'#2563eb'},{label:'Avg Purchasing Power',data:oil.map(o=>o.avg_local_purchasing_power_index),backgroundColor:'#16a34a'}]},options:{plugins:{title:{display:true,text:'Cost and Purchasing Power by Oil Exposure'}}}});
+});
+</script>
+</body>
+</html>

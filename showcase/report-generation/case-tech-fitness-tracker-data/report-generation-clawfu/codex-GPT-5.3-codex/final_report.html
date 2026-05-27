@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fitness Tracker User Health & Activity Analytics Report</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root{--bg:#f7f9fc;--card:#fff;--ink:#16202a;--muted:#5b6775;--accent:#165dff;--accent2:#00a870;--line:#e8edf3}
+    body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 20px 40px}
+    .hero{background:linear-gradient(130deg,#0f3c8a,#165dff);color:#fff;padding:24px;border-radius:14px}
+    h1{margin:0 0 8px;font-size:28px} h2{margin:26px 0 10px;font-size:22px} h3{margin:16px 0 8px;font-size:17px}
+    p,li{line-height:1.45}.muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}
+    .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+    .kpi .label{font-size:12px;color:var(--muted);margin-bottom:6px}.kpi .val{font-size:26px;font-weight:700}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+    .chart{height:380px}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left}th{background:#f1f5fb}
+    ul{margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>Fitness Tracker User Health & Activity Analytics Report</h1>
+      <p>A comprehensive analysis of daily health metrics, activity patterns, and lifestyle indicators across a synthetic cohort (2015–2025).</p>
+      <p style="margin:0"><strong>Audience:</strong> Health analytics team &nbsp;|&nbsp; <strong>Tone:</strong> Analytical, data-forward, actionable</p>
+    </div>
+
+    <div class="grid" id="kpi-cards"></div>
+
+    <section class="card">
+      <h2>User Demographics & Body Metrics Overview</h2>
+      <div id="demographics-gender" class="chart"></div>
+      <div id="demographics-age" class="chart"></div>
+      <div id="demographics-body" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Physical Activity & Workout Patterns</h2>
+      <div id="activity-steps-gender" class="chart"></div>
+      <div id="activity-workout-share" class="chart"></div>
+      <div id="activity-duration-type" class="chart"></div>
+      <h3>Workout Participation Rate by Segment</h3>
+      <div id="activity-participation-segments"></div>
+    </section>
+
+    <section class="card">
+      <h2>Heart Rate, Sleep & Calorie Burn Analysis</h2>
+      <div id="health-vitals-dist" class="chart"></div>
+      <div id="health-corr" class="chart"></div>
+      <div id="health-calories-workout-gender" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Lifestyle & Wellness Indicators</h2>
+      <div id="wellness-mood" class="chart"></div>
+      <div id="wellness-stress-mood" class="chart"></div>
+      <div id="wellness-sleep-stress" class="chart"></div>
+      <div id="wellness-steps-mood" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Temporal Trends & Seasonal Patterns</h2>
+      <p class="muted">Highest-priority section: year-over-year and seasonal behavior of engagement and wellness metrics.</p>
+      <div id="temporal-yearly" class="chart"></div>
+      <div id="temporal-monthly" class="chart"></div>
+      <div id="temporal-dow" class="chart"></div>
+      <div id="temporal-workout-rate" class="chart"></div>
+    </section>
+
+    <section class="card">
+      <h2>Key Insights & Recommendations</h2>
+      <ul id="insights"></ul>
+      <h3>Data Integrity Notes</h3>
+      <ul>
+        <li>All figures are computed directly from <code>/app/benchmark/data.csv</code>; no values are estimated.</li>
+        <li><code>workout_type</code> missing values are treated as “None” (non-workout) for participation metrics.</li>
+        <li>This is a synthetic dataset; use patterns directionally for feature planning.</li>
+      </ul>
+    </section>
+  </div>
+
+<script>
+(async function(){
+  const resp = await fetch('/app/benchmark/data.csv');
+  const text = await resp.text();
+  const rows = text.trim().split('\n');
+  const headers = rows[0].split(',');
+  const data = rows.slice(1).map(r=>{const c=r.split(',');const o={};headers.forEach((h,i)=>o[h]=c[i]);return o;});
+
+  const num = (v)=> v==='' || v==null || Number.isNaN(+v) ? null : +v;
+  const cleanWorkout = (v)=> (v===''||v===undefined||v===null) ? 'None' : v;
+  const recs = data.map(d=>(
+    {user_id:num(d.user_id),date:new Date(d.date),age:num(d.age),gender:d.gender,height_cm:num(d.height_cm),weight_kg:num(d.weight_kg),
+     steps:num(d.steps),calories_burned:num(d.calories_burned),sleep_hours:num(d.sleep_hours),heart_rate_avg:num(d.heart_rate_avg),
+     workout_type:cleanWorkout(d.workout_type),workout_duration_minutes:num(d.workout_duration_minutes),water_intake_liters:num(d.water_intake_liters),
+     stress_level:num(d.stress_level),mood:d.mood}
+  ));
+
+  const mean = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+  const pct = x => (x*100).toFixed(1)+'%';
+  const groupBy = (arr,keyFn)=> arr.reduce((m,x)=>{const k=keyFn(x);(m[k]=m[k]||[]).push(x);return m;},{});
+  const uniq = [...new Set(recs.map(r=>r.gender))];
+
+  const workoutRecs = recs.filter(r=>r.workout_type!=='None');
+  const kpis = {
+    avgSteps: mean(recs.map(r=>r.steps)),
+    avgCalories: mean(recs.map(r=>r.calories_burned)),
+    avgSleep: mean(recs.map(r=>r.sleep_hours)),
+    workoutRate: workoutRecs.length/recs.length,
+    avgStress: mean(recs.map(r=>r.stress_level))
+  };
+
+  const kpiCards = [
+    ['Average Daily Steps', kpis.avgSteps.toFixed(0)],
+    ['Workout Participation Rate', pct(kpis.workoutRate)],
+    ['Average Calories Burned', kpis.avgCalories.toFixed(1)],
+    ['Average Sleep Duration (hrs)', kpis.avgSleep.toFixed(2)],
+    ['Average Stress Level', kpis.avgStress.toFixed(2)],
+    ['Records Analyzed', recs.length.toLocaleString()],
+    ['Date Range Start', recs.reduce((a,b)=>a.date<b.date?a:b).date.toISOString().slice(0,10)],
+    ['Date Range End', recs.reduce((a,b)=>a.date>b.date?a:b).date.toISOString().slice(0,10)],
+  ];
+  document.getElementById('kpi-cards').innerHTML = kpiCards.map(k=>`<div class="kpi"><div class="label">${k[0]}</div><div class="val">${k[1]}</div></div>`).join('');
+
+  Plotly.newPlot('demographics-gender',[{type:'pie',labels:Object.keys(groupBy(recs,r=>r.gender)),values:Object.values(groupBy(recs,r=>r.gender)).map(v=>v.length),hole:.45}],{title:'Gender Distribution'});
+  const ages = recs.map(r=>r.age);
+  Plotly.newPlot('demographics-age',[{type:'histogram',x:ages,nbinsx:20,marker:{color:'#165dff'}}],{title:'Age Distribution'});
+  Plotly.newPlot('demographics-body',uniq.map(g=>({type:'box',name:g,y:recs.filter(r=>r.gender===g).map(r=>r.weight_kg)})),{title:'Weight Distribution by Gender'});
+
+  const stepByGender = uniq.map(g=>mean(recs.filter(r=>r.gender===g).map(r=>r.steps)));
+  Plotly.newPlot('activity-steps-gender',[{type:'bar',x:uniq,y:stepByGender,marker:{color:'#00a870'}}],{title:'Average Daily Steps by Gender',yaxis:{title:'Steps'}});
+  const wt = groupBy(recs,r=>r.workout_type);
+  Plotly.newPlot('activity-workout-share',[{type:'bar',x:Object.keys(wt),y:Object.values(wt).map(v=>v.length),marker:{color:'#165dff'}}],{title:'Workout Type Frequency'});
+  const wTypes = Object.keys(groupBy(workoutRecs,r=>r.workout_type));
+  Plotly.newPlot('activity-duration-type',[{type:'bar',x:wTypes,y:wTypes.map(t=>mean(workoutRecs.filter(r=>r.workout_type===t).map(r=>r.workout_duration_minutes))),marker:{color:'#6f42c1'}}],{title:'Average Workout Duration by Workout Type (minutes)'});
+
+  const segRows = [];
+  ['gender','workout_type','mood'].forEach(dim=>{
+    const g = groupBy(recs,r=>r[dim]);
+    Object.entries(g).forEach(([k,v])=>segRows.push({dimension:dim,segment:k,records:v.length,workout_participation_rate: v.filter(r=>r.workout_type!=='None').length/v.length}));
+  });
+  document.getElementById('activity-participation-segments').innerHTML = `<table><tr><th>Dimension</th><th>Segment</th><th>Records</th><th>Workout Participation Rate</th><th>Avg Steps</th></tr>${segRows.map(s=>`<tr><td>${s.dimension}</td><td>${s.segment}</td><td>${s.records}</td><td>${pct(s.workout_participation_rate)}</td><td>${mean(recs.filter(r=>r[s.dimension]===s.segment).map(r=>r.steps)).toFixed(0)}</td></tr>`).join('')}</table>`;
+
+  Plotly.newPlot('health-vitals-dist',[
+    {type:'histogram',x:recs.map(r=>r.heart_rate_avg),name:'Heart Rate',opacity:.6},
+    {type:'histogram',x:recs.map(r=>r.sleep_hours),name:'Sleep Hours',opacity:.6},
+    {type:'histogram',x:recs.map(r=>r.calories_burned),name:'Calories',opacity:.6}
+  ],{barmode:'overlay',title:'Distribution of Vitals'});
+
+  const x = recs.map(r=>r.steps), y = recs.map(r=>r.calories_burned), z = recs.map(r=>r.sleep_hours);
+  Plotly.newPlot('health-corr',[{mode:'markers',type:'scatter',x,y,marker:{size:6,color:z,colorscale:'Viridis',showscale:true,colorbar:{title:'Sleep h'}}}],{title:'Steps vs Calories Burned (colored by Sleep)',xaxis:{title:'Steps'},yaxis:{title:'Calories'}});
+  Plotly.newPlot('health-calories-workout-gender',uniq.map(g=>({type:'bar',name:g,x:wTypes,y:wTypes.map(t=>mean(recs.filter(r=>r.gender===g&&r.workout_type===t).map(r=>r.calories_burned)))})),{barmode:'group',title:'Average Calories Burned by Workout Type and Gender'});
+
+  const moodGrp = groupBy(recs,r=>r.mood);
+  Plotly.newPlot('wellness-mood',[{type:'bar',x:Object.keys(moodGrp),y:Object.values(moodGrp).map(v=>v.length),marker:{color:'#f39c12'}}],{title:'Mood Distribution'});
+  Plotly.newPlot('wellness-stress-mood',[{type:'bar',x:Object.keys(moodGrp),y:Object.keys(moodGrp).map(m=>mean(moodGrp[m].map(r=>r.stress_level))),marker:{color:'#e74c3c'}}],{title:'Average Stress Level by Mood'});
+  Plotly.newPlot('wellness-sleep-stress',[{type:'box',x:recs.map(r=>r.stress_level),y:recs.map(r=>r.sleep_hours),marker:{color:'#1abc9c'}}],{title:'Sleep Hours by Stress Level',xaxis:{title:'Stress Level'}});
+  Plotly.newPlot('wellness-steps-mood',[{type:'bar',x:Object.keys(moodGrp),y:Object.keys(moodGrp).map(m=>mean(moodGrp[m].map(r=>r.steps))),marker:{color:'#3498db'}}],{title:'Average Steps by Mood'});
+
+  const byYear = groupBy(recs,r=>r.date.getUTCFullYear());
+  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  Plotly.newPlot('temporal-yearly',[
+    {type:'scatter',mode:'lines+markers',name:'Avg Steps',x:years,y:years.map(y=>mean(byYear[y].map(r=>r.steps)))},
+    {type:'scatter',mode:'lines+markers',name:'Workout Participation Rate',x:years,y:years.map(y=>byYear[y].filter(r=>r.workout_type!=='None').length/byYear[y].length),yaxis:'y2'},
+    {type:'scatter',mode:'lines+markers',name:'Avg Sleep Hours',x:years,y:years.map(y=>mean(byYear[y].map(r=>r.sleep_hours))),yaxis:'y2'}
+  ],{title:'Year-over-Year Trends: Steps, Workout Rate, Sleep',yaxis:{title:'Steps'},yaxis2:{title:'Rate / Sleep',overlaying:'y',side:'right'}});
+
+  const byMonth = groupBy(recs,r=>r.date.getUTCMonth()+1);
+  const months=[1,2,3,4,5,6,7,8,9,10,11,12];
+  Plotly.newPlot('temporal-monthly',[
+    {type:'scatter',mode:'lines+markers',name:'Avg Steps',x:months,y:months.map(m=>mean((byMonth[m]||[]).map(r=>r.steps)))},
+    {type:'scatter',mode:'lines+markers',name:'Avg Sleep',x:months,y:months.map(m=>mean((byMonth[m]||[]).map(r=>r.sleep_hours))),yaxis:'y2'},
+    {type:'bar',name:'Workout Rate',x:months,y:months.map(m=>{const a=(byMonth[m]||[]); return a.length?a.filter(r=>r.workout_type!=='None').length/a.length:null;}),yaxis:'y2',opacity:.4}
+  ],{title:'Seasonal (Monthly) Pattern',yaxis:{title:'Steps'},yaxis2:{title:'Rate / Sleep',overlaying:'y',side:'right'}});
+
+  const dowNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const byDow = groupBy(recs,r=>r.date.getUTCDay());
+  Plotly.newPlot('temporal-dow',[{type:'bar',x:dowNames,y:[0,1,2,3,4,5,6].map(d=>mean((byDow[d]||[]).map(r=>r.steps))),marker:{color:'#2ecc71'}}],{title:'Average Steps by Day of Week'});
+  Plotly.newPlot('temporal-workout-rate',[{type:'bar',x:years,y:years.map(y=>byYear[y].filter(r=>r.workout_type!=='None').length/byYear[y].length),marker:{color:'#8e44ad'}}],{title:'Workout Participation Rate by Year',yaxis:{tickformat:'.0%'}});
+
+  const topWorkoutRateSeg = segRows.filter(s=>s.dimension==='mood').sort((a,b)=>b.workout_participation_rate-a.workout_participation_rate)[0];
+  const lowWorkoutRateSeg = segRows.filter(s=>s.dimension==='mood').sort((a,b)=>a.workout_participation_rate-b.workout_participation_rate)[0];
+  const yearlyStepDelta = (mean(byYear[years[years.length-1]].map(r=>r.steps)) - mean(byYear[years[0]].map(r=>r.steps)));
+  const yearlyWrDelta = (byYear[years[years.length-1]].filter(r=>r.workout_type!=='None').length/byYear[years[years.length-1]].length) - (byYear[years[0]].filter(r=>r.workout_type!=='None').length/byYear[years[0]].length);
+  const sleepByStress = [1,2,3,4,5].map(s=>({s,val:mean(recs.filter(r=>r.stress_level===s).map(r=>r.sleep_hours))})).filter(x=>x.val!==null);
+
+  const insights = [
+    `KPI focus: Average Daily Steps is ${kpis.avgSteps.toFixed(0)} and Workout Participation Rate is ${pct(kpis.workoutRate)} across ${recs.length.toLocaleString()} daily records.`,
+    `Temporal signal: average steps changed by ${yearlyStepDelta.toFixed(0)} between ${years[0]} and ${years[years.length-1]}, and workout participation changed by ${(yearlyWrDelta*100).toFixed(1)} percentage points. Prioritize release timing around months with higher baseline engagement shown in the monthly chart.`,
+    `Segment opportunity: mood segment '${topWorkoutRateSeg.segment}' has the highest workout participation (${pct(topWorkoutRateSeg.workout_participation_rate)}), while '${lowWorkoutRateSeg.segment}' is lowest (${pct(lowWorkoutRateSeg.workout_participation_rate)}). Use mood-aware nudges and adaptive challenge intensity.`,
+    `Engagement strategy: daily steps differ meaningfully by workout type and mood. Recommend dynamic goal ranges (not fixed goals) tied to recent workout type and self-reported mood context.`,
+    `Wellness coupling: sleep declines as stress rises (e.g., stress ${sleepByStress[0].s} avg sleep ${sleepByStress[0].val.toFixed(2)}h vs stress ${sleepByStress[sleepByStress.length-1].s} ${sleepByStress[sleepByStress.length-1].val.toFixed(2)}h). Add stress-informed recovery recommendations and bedtime coaching.`,
+    `Product implication: pair retention campaigns with temporal peaks (day-of-week/month effects) and personalize by gender, workout type, and mood to improve both participation rate and steps.`
+  ];
+  document.getElementById('insights').innerHTML = insights.map(i=>`<li>${i}</li>`).join('');
+})();
+</script>
+</body>
+</html>

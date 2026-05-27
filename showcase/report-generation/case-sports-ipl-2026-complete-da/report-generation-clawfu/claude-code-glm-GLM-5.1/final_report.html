@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPL 2026 Ball-by-Ball Analytics Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: #1a2332;
+    --accent: #00d4aa;
+    --accent-secondary: #6366f1;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border: #1e293b;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 20px; }
+  .header {
+    text-align: center;
+    padding: 48px 24px;
+    background: linear-gradient(135deg, #0a0e17 0%, #1a1a3e 50%, #0a0e17 100%);
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: 32px;
+  }
+  .header h1 {
+    font-size: 2.4em;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), #6366f1, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  .header .subtitle { color: var(--text-secondary); font-size: 1.1em; }
+  .header .meta { color: var(--text-muted); font-size: 0.85em; margin-top: 12px; }
+
+  /* KPI Dashboard */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+  }
+  .kpi-value {
+    font-size: 2em;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.2;
+  }
+  .kpi-label {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Sections */
+  .section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 32px;
+  }
+  .section-title {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .section-subtitle {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 24px 0 12px;
+  }
+  .section-desc {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 0.95em;
+  }
+
+  /* Tables */
+  .table-wrapper { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88em;
+  }
+  th {
+    background: var(--bg-secondary);
+    color: var(--accent);
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.82em;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--accent);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  tr:hover td { background: rgba(0,212,170,0.04); }
+  .highlight { color: var(--accent); font-weight: 600; }
+  .warn { color: var(--orange); font-weight: 600; }
+  .danger { color: var(--red); font-weight: 600; }
+
+  /* Chart containers */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 20px 0;
+  }
+  .chart-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+  }
+  .chart-box.full { grid-column: 1 / -1; }
+  .chart-title {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  canvas { max-height: 380px; }
+
+  /* Summary stats */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-item .val {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .stat-item .lbl {
+    font-size: 0.78em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .insight-box {
+    background: rgba(0,212,170,0.06);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin: 16px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92em;
+    color: var(--text-secondary);
+  }
+  .insight-box strong { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>IPL 2026 Ball-by-Ball Analytics Report</h1>
+  <div class="subtitle">Delivery-Level Insights for Cricket Analysts &amp; Team Strategists</div>
+  <div class="meta">Season 19 | 15 Matches | 3,284 Deliveries Analyzed | Data through Apr 9, 2026</div>
+</div>
+
+<div class="container">
+
+  <!-- KPI Dashboard -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value">9.34</div>
+      <div class="kpi-label">Avg Runs Per Over</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">21.5%</div>
+      <div class="kpi-label">Boundary Percentage</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">31.36%</div>
+      <div class="kpi-label">Dot Ball Percentage</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">17.73</div>
+      <div class="kpi-label">Extras Per Match</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">12.0</div>
+      <div class="kpi-label">Wickets Per Match</div>
+    </div>
+  </div>
+
+  <!-- Section 1: Tournament Overview -->
+  <div class="section">
+    <h2 class="section-title">1. Tournament Overview &amp; Match Summary</h2>
+    <div class="stats-row">
+      <div class="stat-item"><div class="val">15</div><div class="lbl">Matches Played</div></div>
+      <div class="stat-item"><div class="val">10</div><div class="lbl">Venues Used</div></div>
+      <div class="stat-item"><div class="val">10</div><div class="lbl">Teams</div></div>
+      <div class="stat-item"><div class="val">3,284</div><div class="lbl">Total Deliveries</div></div>
+      <div class="stat-item"><div class="val">5,114</div><div class="lbl">Total Runs</div></div>
+      <div class="stat-item"><div class="val">180</div><div class="lbl">Total Wickets</div></div>
+      <div class="stat-item"><div class="val">458</div><div class="lbl">Fours</div></div>
+      <div class="stat-item"><div class="val">248</div><div class="lbl">Sixes</div></div>
+      <div class="stat-item"><div class="val">266</div><div class="lbl">Total Extras</div></div>
+      <div class="stat-item"><div class="val">1,030</div><div class="lbl">Dot Balls</div></div>
+    </div>
+
+    <h3 class="section-subtitle">Match Results</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Match</th><th>Date</th><th>Venue</th><th>1st Innings</th><th>2nd Innings</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>1</td>
+        <td>Mar 28, 2026</td>
+        <td>M.Chinnaswamy Stadium</td>
+        <td>SRH (203/11)</td>
+        <td>RCB (203/5)</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td>Mar 29, 2026</td>
+        <td>Wankhede Stadium</td>
+        <td>KKR (220/4)</td>
+        <td>MI (224/4)</td>
+    </tr>
+    <tr>
+        <td>3</td>
+        <td>Mar 30, 2026</td>
+        <td>Barsapara Cricket Stadium</td>
+        <td>CSK (128/10)</td>
+        <td>RR (128/2)</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td>Mar 31, 2026</td>
+        <td>Maharaja Yadavindra Singh International Cricket Stadium</td>
+        <td>GT (162/6)</td>
+        <td>PBKS (165/7)</td>
+    </tr>
+    <tr>
+        <td>5</td>
+        <td>Apr 1, 2026</td>
+        <td>Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium</td>
+        <td>LSG (141/10)</td>
+        <td>DC (144/4)</td>
+    </tr>
+    <tr>
+        <td>6</td>
+        <td>Apr 2, 2026</td>
+        <td>Eden Gardens</td>
+        <td>SRH (226/8)</td>
+        <td>KKR (160/10)</td>
+    </tr>
+    <tr>
+        <td>7</td>
+        <td>Apr 3, 2026</td>
+        <td>MA Chidambaram Stadium</td>
+        <td>CSK (209/5)</td>
+        <td>PBKS (209/5)</td>
+    </tr>
+    <tr>
+        <td>8</td>
+        <td>Apr 4, 2026</td>
+        <td>Arun Jaitley Stadium</td>
+        <td>MI (162/7)</td>
+        <td>DC (164/4)</td>
+    </tr>
+    <tr>
+        <td>9</td>
+        <td>Apr 4, 2026</td>
+        <td>Narendra Modi Stadium</td>
+        <td>RR (210/6)</td>
+        <td>GT (204/8)</td>
+    </tr>
+    <tr>
+        <td>10</td>
+        <td>Apr 5, 2026</td>
+        <td>Rajiv Gandhi International Stadium</td>
+        <td>SRH (156/9)</td>
+        <td>LSG (160/5)</td>
+    </tr>
+    <tr>
+        <td>11</td>
+        <td>Apr 5, 2026</td>
+        <td>M.Chinnaswamy Stadium</td>
+        <td>RCB (250/3)</td>
+        <td>CSK (207/10)</td>
+    </tr>
+    <tr>
+        <td>12</td>
+        <td>Apr 6, 2026</td>
+        <td>Eden Gardens</td>
+        <td>KKR (25/2)</td>
+        <td>N/A</td>
+    </tr>
+    <tr>
+        <td>13</td>
+        <td>Apr 7, 2026</td>
+        <td>Barsapara Cricket Stadium</td>
+        <td>RR (150/3)</td>
+        <td>MI (123/9)</td>
+    </tr>
+    <tr>
+        <td>14</td>
+        <td>Apr 8, 2026</td>
+        <td>Arun Jaitley Stadium</td>
+        <td>GT (210/4)</td>
+        <td>DC (208/8)</td>
+    </tr>
+    <tr>
+        <td>15</td>
+        <td>Apr 9, 2026</td>
+        <td>Eden Gardens</td>
+        <td>KKR (181/4)</td>
+        <td>LSG (182/7)</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Innings Comparison: Batting First vs Chasing</h3>
+    <div class="stats-row">
+      <div class="stat-item"><div class="val">9.13</div><div class="lbl">1st Innings Run Rate</div></div>
+      <div class="stat-item"><div class="val">9.58</div><div class="lbl">2nd Innings Run Rate</div></div>
+      <div class="stat-item"><div class="val">4</div><div class="lbl">1st Innings Wickets</div></div>
+      <div class="stat-item"><div class="val">7</div><div class="lbl">2nd Innings Wickets</div></div>
+    </div>
+    <div class="insight-box">
+      <strong>Key Insight:</strong> Chasing teams scored at a higher rate (9.58 vs 9.13 RPO), suggesting the impact of known targets and dew factors in the second innings.
+    </div>
+  </div>
+
+  <!-- Section 2: Batting Performance Analysis -->
+  <div class="section">
+    <h2 class="section-title">2. Batting Performance Analysis</h2>
+    <p class="section-desc">Top run-scorers ranked by aggregate runs with strike rate, boundary frequency, and scoring patterns across match phases.</p>
+
+    <h3 class="section-subtitle">Top 15 Run Scorers</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Runs by Batsman</div>
+        <canvas id="batsmenRunsChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Strike Rate vs Boundary %</div>
+        <canvas id="batsmenSRChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Batsman</th><th>Runs</th><th>Balls</th><th>SR</th><th>4s</th><th>6s</th><th>Boundary %</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>Yashasvi Jaiswal</td>
+        <td>170</td>
+        <td>109</td>
+        <td>155.96</td>
+        <td>19</td>
+        <td>8</td>
+        <td>24.77</td>
+    </tr>
+    <tr>
+        <td>Sameer Rizvi</td>
+        <td>160</td>
+        <td>106</td>
+        <td>150.94</td>
+        <td>12</td>
+        <td>11</td>
+        <td>21.7</td>
+    </tr>
+    <tr>
+        <td>Angkrish Raghuvanshi</td>
+        <td>155</td>
+        <td>103</td>
+        <td>150.49</td>
+        <td>17</td>
+        <td>6</td>
+        <td>22.33</td>
+    </tr>
+    <tr>
+        <td>Heinrich Klaasen</td>
+        <td>145</td>
+        <td>103</td>
+        <td>140.78</td>
+        <td>11</td>
+        <td>4</td>
+        <td>14.56</td>
+    </tr>
+    <tr>
+        <td>Ajinkya Rahane</td>
+        <td>124</td>
+        <td>84</td>
+        <td>147.62</td>
+        <td>8</td>
+        <td>7</td>
+        <td>17.86</td>
+    </tr>
+    <tr>
+        <td>Vaibhav Sooryavanshi</td>
+        <td>122</td>
+        <td>52</td>
+        <td>234.62</td>
+        <td>10</td>
+        <td>11</td>
+        <td>40.38</td>
+    </tr>
+    <tr>
+        <td>Rohit Sharma</td>
+        <td>118</td>
+        <td>72</td>
+        <td>163.89</td>
+        <td>11</td>
+        <td>7</td>
+        <td>25.0</td>
+    </tr>
+    <tr>
+        <td>Jos Buttler</td>
+        <td>116</td>
+        <td>75</td>
+        <td>154.67</td>
+        <td>11</td>
+        <td>7</td>
+        <td>24.0</td>
+    </tr>
+    <tr>
+        <td>Devdutt Padikkal</td>
+        <td>111</td>
+        <td>56</td>
+        <td>198.21</td>
+        <td>12</td>
+        <td>6</td>
+        <td>32.14</td>
+    </tr>
+    <tr>
+        <td>Shubman Gill</td>
+        <td>109</td>
+        <td>75</td>
+        <td>145.33</td>
+        <td>10</td>
+        <td>5</td>
+        <td>20.0</td>
+    </tr>
+    <tr>
+        <td>Cooper Connolly</td>
+        <td>108</td>
+        <td>68</td>
+        <td>158.82</td>
+        <td>11</td>
+        <td>5</td>
+        <td>23.53</td>
+    </tr>
+    <tr>
+        <td>Sarfaraz Khan</td>
+        <td>99</td>
+        <td>52</td>
+        <td>190.38</td>
+        <td>16</td>
+        <td>4</td>
+        <td>38.46</td>
+    </tr>
+    <tr>
+        <td>Ryan Rickelton</td>
+        <td>98</td>
+        <td>59</td>
+        <td>166.1</td>
+        <td>6</td>
+        <td>9</td>
+        <td>25.42</td>
+    </tr>
+    <tr>
+        <td>Sai Sudharsan</td>
+        <td>98</td>
+        <td>66</td>
+        <td>148.48</td>
+        <td>13</td>
+        <td>3</td>
+        <td>24.24</td>
+    </tr>
+    <tr>
+        <td>Virat Kohli</td>
+        <td>97</td>
+        <td>59</td>
+        <td>164.41</td>
+        <td>7</td>
+        <td>6</td>
+        <td>22.03</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Scoring Patterns by Match Phase</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Run Rate by Phase</div>
+        <canvas id="phaseRRChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Wickets &amp; Dot Ball % by Phase</div>
+        <canvas id="phaseWicketsChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Phase</th><th>Total Runs</th><th>Run Rate</th><th>Wickets</th><th>Dot %</th><th>4s</th><th>6s</th><th>Boundary %</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>Death Overs</td>
+        <td>1134</td>
+        <td>9.89</td>
+        <td>50</td>
+        <td>27.62%</td>
+        <td>102</td>
+        <td>56</td>
+        <td>22.97%</td>
+    </tr>
+    <tr>
+        <td>Middle Overs</td>
+        <td>2282</td>
+        <td>9.06</td>
+        <td>80</td>
+        <td>27.53%</td>
+        <td>179</td>
+        <td>105</td>
+        <td>18.8%</td>
+    </tr>
+    <tr>
+        <td>Powerplay</td>
+        <td>1698</td>
+        <td>9.39</td>
+        <td>50</td>
+        <td>39.08%</td>
+        <td>177</td>
+        <td>87</td>
+        <td>24.33%</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Over-by-Over Scoring Trend</h3>
+    <div class="chart-box full">
+      <div class="chart-title">Run Rate &amp; Dot Ball % by Over</div>
+      <canvas id="overTrendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Section 3: Bowling Performance Analysis -->
+  <div class="section">
+    <h2 class="section-title">3. Bowling Performance Analysis</h2>
+    <p class="section-desc">Bowlers ranked by wickets taken with economy rate, dot-ball percentage, and phase-wise effectiveness analysis.</p>
+
+    <h3 class="section-subtitle">Top 15 Wicket Takers</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Wickets by Bowler</div>
+        <canvas id="bowlerWicketsChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Economy Rate vs Dot Ball %</div>
+        <canvas id="bowlerEconChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Bowler</th><th>Wickets</th><th>Overs</th><th>Economy</th><th>Dot %</th><th>Runs</th><th>Extras</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>Ravi Bishnoi</td>
+        <td>8</td>
+        <td>9.3</td>
+        <td>8.79</td>
+        <td>33.93</td>
+        <td>82</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>Prasidh Krishna</td>
+        <td>7</td>
+        <td>12.5</td>
+        <td>9.92</td>
+        <td>36.0</td>
+        <td>124</td>
+        <td>3</td>
+    </tr>
+    <tr>
+        <td>Mukesh Kumar</td>
+        <td>6</td>
+        <td>10.8</td>
+        <td>9.42</td>
+        <td>43.08</td>
+        <td>102</td>
+        <td>5</td>
+    </tr>
+    <tr>
+        <td>Jacob Duffy</td>
+        <td>6</td>
+        <td>8.8</td>
+        <td>9.28</td>
+        <td>35.85</td>
+        <td>82</td>
+        <td>5</td>
+    </tr>
+    <tr>
+        <td>Prince Yadav</td>
+        <td>6</td>
+        <td>12.2</td>
+        <td>8.55</td>
+        <td>32.88</td>
+        <td>104</td>
+        <td>7</td>
+    </tr>
+    <tr>
+        <td>Vaibhav Arora</td>
+        <td>5</td>
+        <td>12.5</td>
+        <td>11.12</td>
+        <td>36.0</td>
+        <td>139</td>
+        <td>3</td>
+    </tr>
+    <tr>
+        <td>Nandre Burger</td>
+        <td>5</td>
+        <td>10.0</td>
+        <td>8.8</td>
+        <td>36.67</td>
+        <td>88</td>
+        <td>6</td>
+    </tr>
+    <tr>
+        <td>Anshul Kamboj</td>
+        <td>5</td>
+        <td>11.3</td>
+        <td>10.76</td>
+        <td>33.82</td>
+        <td>122</td>
+        <td>4</td>
+    </tr>
+    <tr>
+        <td>Vijaykumar Vyshak</td>
+        <td>5</td>
+        <td>8.2</td>
+        <td>8.94</td>
+        <td>30.61</td>
+        <td>73</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>Blessing Muzarabani</td>
+        <td>5</td>
+        <td>7.3</td>
+        <td>10.77</td>
+        <td>27.27</td>
+        <td>79</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>Lungi Ngidi</td>
+        <td>5</td>
+        <td>12.2</td>
+        <td>6.99</td>
+        <td>38.36</td>
+        <td>85</td>
+        <td>3</td>
+    </tr>
+    <tr>
+        <td>Rashid Khan</td>
+        <td>5</td>
+        <td>12.3</td>
+        <td>6.89</td>
+        <td>32.43</td>
+        <td>85</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>Sandeep Sharma</td>
+        <td>4</td>
+        <td>9.2</td>
+        <td>9.05</td>
+        <td>27.27</td>
+        <td>83</td>
+        <td>3</td>
+    </tr>
+    <tr>
+        <td>Natarajan</td>
+        <td>4</td>
+        <td>11.0</td>
+        <td>7.91</td>
+        <td>24.24</td>
+        <td>87</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>Shardul Thakur</td>
+        <td>4</td>
+        <td>9.7</td>
+        <td>12.0</td>
+        <td>20.69</td>
+        <td>116</td>
+        <td>4</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Dismissal Type Breakdown</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Dismissal Types Distribution</div>
+        <canvas id="dismissalChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Top Economy Rates (min 2 overs)</div>
+        <canvas id="economyLeadersChart"></canvas>
+      </div>
+    </div>
+
+    <h3 class="section-subtitle">Dot Ball Pressure Leaders (min 2 overs)</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Bowler</th><th>Dot %</th><th>Overs</th><th>Economy</th><th>Wickets</th></tr></thead>
+        <tbody>
+          <tr><td>Brijesh Sharma</td><td class="highlight">50.0%</td><td>3.3</td><td>5.1</td><td>1</td></tr>
+          <tr><td>Mohammed Shami</td><td class="highlight">49.35%</td><td>12.8</td><td>4.99</td><td>3</td></tr>
+          <tr><td>Mohsin Khan</td><td class="highlight">48.0%</td><td>4.2</td><td>5.52</td><td>1</td></tr>
+          <tr><td>Deepak Chahar</td><td class="highlight">45.83%</td><td>4.0</td><td>10.5</td><td>1</td></tr>
+          <tr><td>Jofra Archer</td><td class="highlight">45.16%</td><td>10.3</td><td>7.35</td><td>4</td></tr>
+          <tr><td>Mukesh Kumar</td><td class="highlight">43.08%</td><td>10.8</td><td>9.42</td><td>6</td></tr>
+          <tr><td>Khaleel Ahmed</td><td class="highlight">41.27%</td><td>10.5</td><td>7.9</td><td>0</td></tr>
+          <tr><td>Sunil Narine</td><td class="highlight">39.39%</td><td>11.0</td><td>7.45</td><td>2</td></tr>
+          <tr><td>Xavier Bartlett</td><td class="highlight">39.34%</td><td>10.2</td><td>9.15</td><td>3</td></tr>
+          <tr><td>Mitchell Santner</td><td class="highlight">38.89%</td><td>3.0</td><td>7.67</td><td>1</td></tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section 4: Team Performance Comparison -->
+  <div class="section">
+    <h2 class="section-title">4. Team Performance Comparison</h2>
+    <p class="section-desc">Comparative analysis of batting and bowling performance across all teams, including average innings scores, net scoring rates, and extras discipline.</p>
+
+    <h3 class="section-subtitle">Average Runs Per Innings by Team</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Avg Innings Runs</div>
+        <canvas id="teamInningsChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Team Run Rates (Batting)</div>
+        <canvas id="teamRunRateChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Team</th><th>Avg Innings Runs</th><th>Avg Wickets Lost</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>RCB</td>
+        <td>226.5</td>
+        <td>4.0</td>
+    </tr>
+    <tr>
+        <td>SRH</td>
+        <td>195.0</td>
+        <td>9.3</td>
+    </tr>
+    <tr>
+        <td>GT</td>
+        <td>192.0</td>
+        <td>6.0</td>
+    </tr>
+    <tr>
+        <td>PBKS</td>
+        <td>187.0</td>
+        <td>6.0</td>
+    </tr>
+    <tr>
+        <td>CSK</td>
+        <td>181.3</td>
+        <td>8.3</td>
+    </tr>
+    <tr>
+        <td>DC</td>
+        <td>172.0</td>
+        <td>5.3</td>
+    </tr>
+    <tr>
+        <td>MI</td>
+        <td>169.7</td>
+        <td>6.7</td>
+    </tr>
+    <tr>
+        <td>RR</td>
+        <td>162.7</td>
+        <td>3.7</td>
+    </tr>
+    <tr>
+        <td>LSG</td>
+        <td>161.0</td>
+        <td>7.3</td>
+    </tr>
+    <tr>
+        <td>KKR</td>
+        <td>146.5</td>
+        <td>5.0</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Batting Performance</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Team</th><th>Total Runs</th><th>Run Rate</th><th>4s</th><th>6s</th><th>Wickets Lost</th><th>Extras Received</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>RCB</td>
+        <td>453</td>
+        <td>12.03</td>
+        <td>31</td>
+        <td>32</td>
+        <td>8</td>
+        <td>26</td>
+    </tr>
+    <tr>
+        <td>RR</td>
+        <td>488</td>
+        <td>10.65</td>
+        <td>42</td>
+        <td>30</td>
+        <td>11</td>
+        <td>26</td>
+    </tr>
+    <tr>
+        <td>MI</td>
+        <td>509</td>
+        <td>9.7</td>
+        <td>50</td>
+        <td>23</td>
+        <td>20</td>
+        <td>22</td>
+    </tr>
+    <tr>
+        <td>PBKS</td>
+        <td>374</td>
+        <td>9.43</td>
+        <td>29</td>
+        <td>23</td>
+        <td>12</td>
+        <td>12</td>
+    </tr>
+    <tr>
+        <td>KKR</td>
+        <td>586</td>
+        <td>9.33</td>
+        <td>57</td>
+        <td>24</td>
+        <td>20</td>
+        <td>28</td>
+    </tr>
+    <tr>
+        <td>SRH</td>
+        <td>585</td>
+        <td>9.29</td>
+        <td>50</td>
+        <td>29</td>
+        <td>28</td>
+        <td>25</td>
+    </tr>
+    <tr>
+        <td>GT</td>
+        <td>576</td>
+        <td>9.07</td>
+        <td>55</td>
+        <td>23</td>
+        <td>18</td>
+        <td>30</td>
+    </tr>
+    <tr>
+        <td>DC</td>
+        <td>516</td>
+        <td>8.75</td>
+        <td>50</td>
+        <td>22</td>
+        <td>16</td>
+        <td>31</td>
+    </tr>
+    <tr>
+        <td>CSK</td>
+        <td>544</td>
+        <td>8.61</td>
+        <td>50</td>
+        <td>23</td>
+        <td>25</td>
+        <td>40</td>
+    </tr>
+    <tr>
+        <td>LSG</td>
+        <td>483</td>
+        <td>8.03</td>
+        <td>44</td>
+        <td>19</td>
+        <td>22</td>
+        <td>26</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Bowling Performance</h3>
+    <div class="chart-box full" style="margin-bottom: 20px;">
+      <div class="chart-title">Team Bowling Economy Rate</div>
+      <canvas id="teamEconChart"></canvas>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Team</th><th>Economy</th><th>Wickets</th><th>Dot %</th><th>Extras</th><th>Wides</th><th>No-Balls</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>LSG</td>
+        <td>7.95</td>
+        <td>17</td>
+        <td>36.09</td>
+        <td>35</td>
+        <td>20</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>PBKS</td>
+        <td>8.37</td>
+        <td>13</td>
+        <td>31.69</td>
+        <td>31</td>
+        <td>20</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>DC</td>
+        <td>8.46</td>
+        <td>21</td>
+        <td>31.59</td>
+        <td>25</td>
+        <td>11</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>RR</td>
+        <td>8.5</td>
+        <td>27</td>
+        <td>36.45</td>
+        <td>37</td>
+        <td>15</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>GT</td>
+        <td>9.33</td>
+        <td>21</td>
+        <td>34.4</td>
+        <td>25</td>
+        <td>20</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>SRH</td>
+        <td>9.72</td>
+        <td>20</td>
+        <td>27.55</td>
+        <td>27</td>
+        <td>12</td>
+        <td>0</td>
+    </tr>
+    <tr>
+        <td>RCB</td>
+        <td>9.88</td>
+        <td>21</td>
+        <td>30.92</td>
+        <td>14</td>
+        <td>8</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>KKR</td>
+        <td>10.11</td>
+        <td>19</td>
+        <td>30.13</td>
+        <td>29</td>
+        <td>18</td>
+        <td>2</td>
+    </tr>
+    <tr>
+        <td>MI</td>
+        <td>10.24</td>
+        <td>11</td>
+        <td>27.8</td>
+        <td>21</td>
+        <td>17</td>
+        <td>1</td>
+    </tr>
+    <tr>
+        <td>CSK</td>
+        <td>11.11</td>
+        <td>10</td>
+        <td>25.87</td>
+        <td>22</td>
+        <td>9</td>
+        <td>3</td>
+    </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Section 5: Extras & Bowling Discipline -->
+  <div class="section">
+    <h2 class="section-title">5. Extras &amp; Bowling Discipline</h2>
+    <p class="section-desc">Analysis of extra runs conceded (wides, no-balls, byes, leg-byes) by team and bowler to assess discipline and its match impact.</p>
+
+    <div class="stats-row">
+      <div class="stat-item"><div class="val">150</div><div class="lbl">Wides</div></div>
+      <div class="stat-item"><div class="val">13</div><div class="lbl">No-Balls</div></div>
+      <div class="stat-item"><div class="val">13</div><div class="lbl">Byes</div></div>
+      <div class="stat-item"><div class="val">42</div><div class="lbl">Leg-Byes</div></div>
+      <div class="stat-item"><div class="val">266</div><div class="lbl">Total Extras</div></div>
+      <div class="stat-item"><div class="val">5.2%</div><div class="lbl">% of Total Runs</div></div>
+    </div>
+
+    <h3 class="section-subtitle">Extras Breakdown by Bowling Team</h3>
+    <div class="chart-box full" style="margin-bottom: 20px;">
+      <div class="chart-title">Extras by Type per Team</div>
+      <canvas id="teamExtrasChart"></canvas>
+    </div>
+
+    <h3 class="section-subtitle">Worst Discipline Bowlers (min 2 overs, by total extras)</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Bowler</th><th>Wides</th><th>No-Balls</th><th>Total Extras</th><th>Extras/Over</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>Nandre Burger</td>
+        <td>5</td>
+        <td>1</td>
+        <td>17</td>
+        <td>1.7</td>
+    </tr>
+    <tr>
+        <td>Arshdeep Singh</td>
+        <td>10</td>
+        <td>1</td>
+        <td>13</td>
+        <td>1.1</td>
+    </tr>
+    <tr>
+        <td>Prince Yadav</td>
+        <td>7</td>
+        <td>0</td>
+        <td>10</td>
+        <td>0.82</td>
+    </tr>
+    <tr>
+        <td>Eshan Malinga</td>
+        <td>8</td>
+        <td>0</td>
+        <td>9</td>
+        <td>0.96</td>
+    </tr>
+    <tr>
+        <td>Mukesh Kumar</td>
+        <td>5</td>
+        <td>0</td>
+        <td>9</td>
+        <td>0.83</td>
+    </tr>
+    <tr>
+        <td>Noor Ahmad</td>
+        <td>1</td>
+        <td>1</td>
+        <td>8</td>
+        <td>0.77</td>
+    </tr>
+    <tr>
+        <td>Anukul Roy</td>
+        <td>7</td>
+        <td>0</td>
+        <td>8</td>
+        <td>0.96</td>
+    </tr>
+    <tr>
+        <td>Jofra Archer</td>
+        <td>2</td>
+        <td>0</td>
+        <td>8</td>
+        <td>0.77</td>
+    </tr>
+    <tr>
+        <td>Bhuvneshwar Kumar</td>
+        <td>3</td>
+        <td>1</td>
+        <td>7</td>
+        <td>0.81</td>
+    </tr>
+    <tr>
+        <td>Anrich Nortje</td>
+        <td>3</td>
+        <td>0</td>
+        <td>7</td>
+        <td>1.56</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <div class="insight-box">
+      <strong>Discipline Gap:</strong> Extras account for 5.2% of all runs scored. At 17.73 extras per match, ill-disciplined bowling directly translates to 1-2 additional overs of free scoring. The spread between the most and least disciplined teams represents a meaningful competitive edge.
+    </div>
+  </div>
+
+  <!-- Section 6: Venue & Match Phase Insights -->
+  <div class="section">
+    <h2 class="section-title">6. Venue &amp; Match Phase Insights</h2>
+    <p class="section-desc">Scoring trends by venue and match phase to identify high-scoring grounds, bowling-friendly venues, and batting-first vs chasing dynamics.</p>
+
+    <h3 class="section-subtitle">Venue Scoring Profiles</h3>
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div class="chart-title">Run Rate by Venue</div>
+        <canvas id="venueRRChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Batting 1st vs 2nd Avg Score by Venue</div>
+        <canvas id="venueInningsChart"></canvas>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Venue</th><th>Matches</th><th>Run Rate</th><th>Avg Runs/Match</th><th>Wickets</th><th>4s</th><th>6s</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>M.Chinnaswamy Stadium, Bengaluru</td>
+        <td>2</td>
+        <td>10.9</td>
+        <td>431.5</td>
+        <td>29</td>
+        <td>67</td>
+        <td>55</td>
+    </tr>
+    <tr>
+        <td>Wankhede Stadium, Mumbai</td>
+        <td>1</td>
+        <td>10.79</td>
+        <td>444.0</td>
+        <td>8</td>
+        <td>41</td>
+        <td>24</td>
+    </tr>
+    <tr>
+        <td>MA Chidambaram Stadium, Chennai</td>
+        <td>1</td>
+        <td>10.03</td>
+        <td>418.0</td>
+        <td>10</td>
+        <td>44</td>
+        <td>16</td>
+    </tr>
+    <tr>
+        <td>Narendra Modi Stadium, Ahmedabad</td>
+        <td>1</td>
+        <td>9.82</td>
+        <td>414.0</td>
+        <td>14</td>
+        <td>42</td>
+        <td>19</td>
+    </tr>
+    <tr>
+        <td>Barsapara Cricket Stadium, Guwahati</td>
+        <td>2</td>
+        <td>9.25</td>
+        <td>264.5</td>
+        <td>24</td>
+        <td>44</td>
+        <td>28</td>
+    </tr>
+    <tr>
+        <td>Eden Gardens, Kolkata</td>
+        <td>3</td>
+        <td>9.2</td>
+        <td>258.0</td>
+        <td>31</td>
+        <td>74</td>
+        <td>35</td>
+    </tr>
+    <tr>
+        <td>Arun Jaitley Stadium, Delhi</td>
+        <td>2</td>
+        <td>9.11</td>
+        <td>372.0</td>
+        <td>23</td>
+        <td>73</td>
+        <td>33</td>
+    </tr>
+    <tr>
+        <td>Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur, New Chandigarh</td>
+        <td>1</td>
+        <td>7.85</td>
+        <td>327.0</td>
+        <td>13</td>
+        <td>21</td>
+        <td>17</td>
+    </tr>
+    <tr>
+        <td>Rajiv Gandhi International Stadium, Hyderabad</td>
+        <td>1</td>
+        <td>7.8</td>
+        <td>316.0</td>
+        <td>14</td>
+        <td>31</td>
+        <td>10</td>
+    </tr>
+    <tr>
+        <td>Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow</td>
+        <td>1</td>
+        <td>7.5</td>
+        <td>285.0</td>
+        <td>14</td>
+        <td>21</td>
+        <td>11</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Batting First vs Chasing by Venue</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Venue</th><th>1st Innings Avg</th><th>2nd Innings Avg</th></tr></thead>
+        <tbody>
+    <tr>
+        <td>M.Chinnaswamy Stadium, Bengaluru</td>
+        <td>226.5</td>
+        <td>205.0</td>
+    </tr>
+    <tr>
+        <td>Wankhede Stadium, Mumbai</td>
+        <td>220.0</td>
+        <td>224.0</td>
+    </tr>
+    <tr>
+        <td>MA Chidambaram Stadium, Chennai</td>
+        <td>209.0</td>
+        <td>209.0</td>
+    </tr>
+    <tr>
+        <td>Narendra Modi Stadium, Ahmedabad</td>
+        <td>210.0</td>
+        <td>204.0</td>
+    </tr>
+    <tr>
+        <td>Barsapara Cricket Stadium, Guwahati</td>
+        <td>139.0</td>
+        <td>125.5</td>
+    </tr>
+    <tr>
+        <td>Eden Gardens, Kolkata</td>
+        <td>144.0</td>
+        <td>171.0</td>
+    </tr>
+    <tr>
+        <td>Arun Jaitley Stadium, Delhi</td>
+        <td>186.0</td>
+        <td>186.0</td>
+    </tr>
+    <tr>
+        <td>Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur, New Chandigarh</td>
+        <td>162.0</td>
+        <td>165.0</td>
+    </tr>
+    <tr>
+        <td>Rajiv Gandhi International Stadium, Hyderabad</td>
+        <td>156.0</td>
+        <td>160.0</td>
+    </tr>
+    <tr>
+        <td>Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow</td>
+        <td>141.0</td>
+        <td>144.0</td>
+    </tr></tbody>
+      </table>
+    </div>
+
+    <div class="insight-box">
+      <strong>Venuue Takeaway:</strong> Ground dimensions, pitch behavior, and dew factors create significant venue-to-venue variance. Analysts should weight venue-specific historical data heavily when setting target totals or constructing chase strategies.
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Chart.js global config
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#1e293b';
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+const accentColor = '#00d4aa';
+const purpleColor = '#6366f1';
+const blueColor = '#3b82f6';
+const orangeColor = '#f97316';
+const redColor = '#ef4444';
+const yellowColor = '#eab308';
+const greenColor = '#22c55e';
+
+// Batsmen Runs Chart
+new Chart(document.getElementById('batsmenRunsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Yashasvi Jaiswal", "Sameer Rizvi", "Angkrish Raghuvanshi", "Heinrich Klaasen", "Ajinkya Rahane", "Vaibhav Sooryavanshi", "Rohit Sharma", "Jos Buttler", "Devdutt Padikkal", "Shubman Gill", "Cooper Connolly", "Sarfaraz Khan", "Ryan Rickelton", "Sai Sudharsan", "Virat Kohli"],
+    datasets: [{
+      label: 'Runs',
+      data: [170, 160, 155, 145, 124, 122, 118, 116, 111, 109, 108, 99, 98, 98, 97],
+      backgroundColor: batsmen_runs.map((r,i) => i < 3 ? accentColor : '#1e6e5a'),
+      borderRadius: 4
+    }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+  }
+});
+
+// Batsmen SR vs Boundary %
+new Chart(document.getElementById('batsmenSRChart'), {
+  type: 'bubble',
+  data: {
+    datasets: [{
+      label: 'Batsmen',
+      data: [{"x": 155.96, "y": 24.77, "r": 21.25, "label": "Yashasvi Jaiswal"}, {"x": 150.94, "y": 21.7, "r": 20.0, "label": "Sameer Rizvi"}, {"x": 150.49, "y": 22.33, "r": 19.375, "label": "Angkrish Raghuvanshi"}, {"x": 140.78, "y": 14.56, "r": 18.125, "label": "Heinrich Klaasen"}, {"x": 147.62, "y": 17.86, "r": 15.5, "label": "Ajinkya Rahane"}, {"x": 234.62, "y": 40.38, "r": 15.25, "label": "Vaibhav Sooryavanshi"}, {"x": 163.89, "y": 25.0, "r": 14.75, "label": "Rohit Sharma"}, {"x": 154.67, "y": 24.0, "r": 14.5, "label": "Jos Buttler"}, {"x": 198.21, "y": 32.14, "r": 13.875, "label": "Devdutt Padikkal"}, {"x": 145.33, "y": 20.0, "r": 13.625, "label": "Shubman Gill"}, {"x": 158.82, "y": 23.53, "r": 13.5, "label": "Cooper Connolly"}, {"x": 190.38, "y": 38.46, "r": 12.375, "label": "Sarfaraz Khan"}, {"x": 166.1, "y": 25.42, "r": 12.25, "label": "Ryan Rickelton"}, {"x": 148.48, "y": 24.24, "r": 12.25, "label": "Sai Sudharsan"}, {"x": 164.41, "y": 22.03, "r": 12.125, "label": "Virat Kohli"}],
+      backgroundColor: accentColor + '99',
+      borderColor: accentColor
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: { callbacks: { label: (ctx) => ctx.raw.label + ' | SR: ' + ctx.raw.x + ' | BP%: ' + ctx.raw.y }}},
+    scales: {
+      x: { title: { display: true, text: 'Strike Rate' }, grid: { color: '#1e293b' } },
+      y: { title: { display: true, text: 'Boundary %' }, grid: { color: '#1e293b' } }
+    }
+  }
+});
+
+// Phase Run Rate Chart
+new Chart(document.getElementById('phaseRRChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Death Overs", "Middle Overs", "Powerplay"],
+    datasets: [
+      { label: 'Run Rate', data: [9.89, 9.06, 9.39], backgroundColor: [blueColor, purpleColor, redColor], borderRadius: 6 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Phase Wickets & Dot %
+new Chart(document.getElementById('phaseWicketsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Death Overs", "Middle Overs", "Powerplay"],
+    datasets: [
+      { label: 'Wickets', data: [50, 80, 50], backgroundColor: redColor + '99', borderRadius: 6, yAxisID: 'y' },
+      { label: 'Dot %', data: [27.62, 27.53, 39.08], type: 'line', borderColor: orangeColor, backgroundColor: orangeColor, yAxisID: 'y1', tension: 0.3 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { position: 'left', title: { display: true, text: 'Wickets' }, grid: { color: '#1e293b' } },
+      y1: { position: 'right', title: { display: true, text: 'Dot %' }, grid: { display: false } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Over Trend Chart
+new Chart(document.getElementById('overTrendChart'), {
+  type: 'line',
+  data: {
+    labels: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"],
+    datasets: [
+      { label: 'Run Rate', data: [8.75, 8.39, 9.1, 9.61, 10.72, 9.86, 8.88, 8.69, 10.0, 7.58, 8.97, 10.48, 8.27, 8.73, 9.96, 9.36, 9.75, 9.36, 10.83, 10.38], borderColor: accentColor, backgroundColor: accentColor + '20', fill: true, tension: 0.3, yAxisID: 'y' },
+      { label: 'Dot Ball %', data: [42.62, 38.71, 40.43, 38.07, 38.2, 36.21, 28.07, 24.71, 25.29, 31.43, 26.14, 22.35, 32.69, 32.69, 25.16, 29.3, 32.64, 24.48, 23.31, 27.93], borderColor: orangeColor, borderDash: [5,5], tension: 0.3, yAxisID: 'y1' },
+      { label: 'Wickets', data: [6, 11, 11, 4, 12, 6, 5, 7, 11, 11, 7, 7, 10, 12, 10, 10, 8, 9, 12, 11], type: 'bar', backgroundColor: redColor + '60', yAxisID: 'y2' }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: { position: 'left', title: { display: true, text: 'Run Rate' }, grid: { color: '#1e293b' } },
+      y1: { position: 'right', title: { display: true, text: 'Dot %' }, grid: { display: false }, min: 0, max: 80 },
+      y2: { display: false },
+      x: { title: { display: true, text: 'Over' }, grid: { display: false } }
+    }
+  }
+});
+
+// Bowler Wickets Chart
+new Chart(document.getElementById('bowlerWicketsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Ravi Bishnoi", "Prasidh Krishna", "Mukesh Kumar", "Jacob Duffy", "Prince Yadav", "Vaibhav Arora", "Nandre Burger", "Anshul Kamboj", "Vijaykumar Vyshak", "Blessing Muzarabani", "Lungi Ngidi", "Rashid Khan", "Sandeep Sharma", "Natarajan", "Shardul Thakur"],
+    datasets: [{
+      label: 'Wickets',
+      data: [8, 7, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4],
+      backgroundColor: bowler_wickets.map((w,i) => i < 3 ? redColor : '#7f1d1d99'),
+      borderRadius: 4
+    }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+  }
+});
+
+// Bowler Econ vs Dot%
+new Chart(document.getElementById('bowlerEconChart'), {
+  type: 'scatter',
+  data: {
+    datasets: [{
+      label: 'Bowlers',
+      data: [{"x": 8.79, "y": 33.93, "label": "Ravi Bishnoi"}, {"x": 9.92, "y": 36.0, "label": "Prasidh Krishna"}, {"x": 9.42, "y": 43.08, "label": "Mukesh Kumar"}, {"x": 9.28, "y": 35.85, "label": "Jacob Duffy"}, {"x": 8.55, "y": 32.88, "label": "Prince Yadav"}, {"x": 11.12, "y": 36.0, "label": "Vaibhav Arora"}, {"x": 8.8, "y": 36.67, "label": "Nandre Burger"}, {"x": 10.76, "y": 33.82, "label": "Anshul Kamboj"}, {"x": 8.94, "y": 30.61, "label": "Vijaykumar Vyshak"}, {"x": 10.77, "y": 27.27, "label": "Blessing Muzarabani"}, {"x": 6.99, "y": 38.36, "label": "Lungi Ngidi"}, {"x": 6.89, "y": 32.43, "label": "Rashid Khan"}, {"x": 9.05, "y": 27.27, "label": "Sandeep Sharma"}, {"x": 7.91, "y": 24.24, "label": "Natarajan"}, {"x": 12.0, "y": 20.69, "label": "Shardul Thakur"}],
+      backgroundColor: purpleColor + '99',
+      borderColor: purpleColor,
+      pointRadius: 6
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { tooltip: { callbacks: { label: (ctx) => ctx.raw.label + ' | Econ: ' + ctx.raw.x + ' | Dot%: ' + ctx.raw.y }}},
+    scales: {
+      x: { title: { display: true, text: 'Economy Rate' }, grid: { color: '#1e293b' } },
+      y: { title: { display: true, text: 'Dot Ball %' }, grid: { color: '#1e293b' } }
+    }
+  }
+});
+
+// Dismissal Types Chart
+new Chart(document.getElementById('dismissalChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ["caught", "bowled", "runout", "lbw", "stumped"],
+    datasets: [{
+      data: [131, 28, 13, 6, 2],
+      backgroundColor: [accentColor, purpleColor, blueColor, orangeColor, redColor, yellowColor, greenColor],
+      borderWidth: 0
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right' } }
+  }
+});
+
+// Economy Leaders
+new Chart(document.getElementById('economyLeadersChart'), {
+  type: 'bar',
+  data: {
+    labels: ["Mohammed Shami", "Brijesh Sharma", "Mohsin Khan", "Yuzvendra Chahal", "Rashid Khan", "Lungi Ngidi", "Suyash Sharma", "Axar Patel", "Jofra Archer", "Sunil Narine"],
+    datasets: [{
+      label: 'Economy',
+      data: [4.99, 5.1, 5.52, 6.52, 6.89, 6.99, 7.0, 7.26, 7.35, 7.45],
+      backgroundColor: greenColor + '99',
+      borderColor: greenColor,
+      borderRadius: 4
+    }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+  }
+});
+
+// Team Innings Avg
+new Chart(document.getElementById('teamInningsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["RCB", "SRH", "GT", "PBKS", "CSK", "DC", "MI", "RR", "LSG", "KKR"],
+    datasets: [{
+      label: 'Avg Innings Runs',
+      data: [226.5, 195.0, 192.0, 187.0, 181.3, 172.0, 169.7, 162.7, 161.0, 146.5],
+      backgroundColor: [accentColor, purpleColor, blueColor, orangeColor, redColor, yellowColor, greenColor, '#ec4899', '#8b5cf6', '#14b8a6'],
+      borderRadius: 6
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Team Run Rate
+new Chart(document.getElementById('teamRunRateChart'), {
+  type: 'bar',
+  data: {
+    labels: ["KKR", "SRH", "GT", "CSK", "DC", "MI", "RR", "LSG", "RCB", "PBKS"],
+    datasets: [{
+      label: 'Run Rate',
+      data: [9.33, 9.29, 9.07, 8.61, 8.75, 9.7, 10.65, 8.03, 12.03, 9.43],
+      backgroundColor: purpleColor + '99',
+      borderColor: purpleColor,
+      borderRadius: 6
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Team Bowling Economy
+new Chart(document.getElementById('teamEconChart'), {
+  type: 'bar',
+  data: {
+    labels: ["LSG", "PBKS", "DC", "RR", "GT", "SRH", "RCB", "KKR", "MI", "CSK"],
+    datasets: [{
+      label: 'Economy Rate',
+      data: [7.95, 8.37, 8.46, 8.5, 9.33, 9.72, 9.88, 10.11, 10.24, 11.11],
+      backgroundColor: [blueColor, accentColor, purpleColor, greenColor, orangeColor, redColor, yellowColor, '#ec4899', '#8b5cf6', '#14b8a6'],
+      borderRadius: 6
+    }]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Team Extras Breakdown
+new Chart(document.getElementById('teamExtrasChart'), {
+  type: 'bar',
+  data: {
+    labels: ["RR", "LSG", "PBKS", "KKR", "SRH", "DC", "GT", "CSK", "MI", "RCB"],
+    datasets: [
+      { label: 'Wides', data: [15, 20, 20, 18, 12, 11, 20, 9, 17, 8], backgroundColor: redColor + 'cc', borderRadius: 4 },
+      { label: 'No-Balls', data: [2, 0, 2, 2, 0, 1, 0, 3, 1, 2], backgroundColor: orangeColor + 'cc', borderRadius: 4 },
+      { label: 'Byes', data: [2, 2, 1, 1, 4, 1, 0, 2, 0, 0], backgroundColor: blueColor + 'cc', borderRadius: 4 },
+      { label: 'Leg-Byes', data: [8, 7, 2, 5, 4, 3, 1, 5, 3, 4], backgroundColor: purpleColor + 'cc', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: '#1e293b' } } }
+  }
+});
+
+// Venue Run Rate
+new Chart(document.getElementById('venueRRChart'), {
+  type: 'bar',
+  data: {
+    labels: ["M.Chinnaswamy Stadium", "Wankhede Stadium", "MA Chidambaram Stadium", "Narendra Modi Stadium", "Barsapara Cricket Stadium", "Eden Gardens", "Arun Jaitley Stadium", "Maharaja Yadavindra Singh International Cricket Stadium", "Rajiv Gandhi International Stadium", "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium"],
+    datasets: [{
+      label: 'Run Rate',
+      data: [10.9, 10.79, 10.03, 9.82, 9.25, 9.2, 9.11, 7.85, 7.8, 7.5],
+      backgroundColor: accentColor + '99',
+      borderColor: accentColor,
+      borderRadius: 6
+    }]
+  },
+  options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { color: '#1e293b' } }, y: { grid: { display: false } } }
+  }
+});
+
+// Venue Innings Comparison
+new Chart(document.getElementById('venueInningsChart'), {
+  type: 'bar',
+  data: {
+    labels: ["M.Chinnaswamy Stadium", "Wankhede Stadium", "MA Chidambaram Stadium", "Narendra Modi Stadium", "Barsapara Cricket Stadium", "Eden Gardens", "Arun Jaitley Stadium", "Maharaja Yadavindra Singh International Cricket Stadium", "Rajiv Gandhi International Stadium", "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium"],
+    datasets: [
+      { label: '1st Innings Avg', data: [226.5, 220.0, 209.0, 210.0, 139.0, 144.0, 186.0, 162.0, 156.0, 141.0], backgroundColor: blueColor + 'cc', borderRadius: 4 },
+      { label: '2nd Innings Avg', data: [205.0, 224.0, 209.0, 204.0, 125.5, 171.0, 186.0, 165.0, 160.0, 144.0], backgroundColor: accentColor + 'cc', borderRadius: 4 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+  }
+});
+</script>
+
+</body>
+</html>
