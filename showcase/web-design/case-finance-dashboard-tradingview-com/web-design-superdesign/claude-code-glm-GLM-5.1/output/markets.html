@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChartPulse — Markets</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .markets-hero {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem;
+    }
+    .markets-hero-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .markets-hero h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+
+    .market-nav-tabs {
+      display: flex;
+      gap: 0.25rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .market-nav-tabs::-webkit-scrollbar { display: none; }
+    .mkt-tab {
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 150ms;
+      white-space: nowrap;
+      font-family: var(--font-sans);
+    }
+    .mkt-tab:hover { color: var(--text-secondary); background: var(--bg-elevated); }
+    .mkt-tab.active { color: var(--text-primary); background: var(--accent-muted); border-color: var(--accent); }
+
+    .chart-type-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.75rem;
+    }
+    .chart-type-btn {
+      padding: 0.25rem 0.625rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 150ms;
+      font-family: var(--font-sans);
+    }
+    .chart-type-btn:hover { color: var(--text-secondary); border-color: var(--border-hover); }
+    .chart-type-btn.active { color: var(--text-primary); background: var(--accent-muted); border-color: var(--accent); }
+    .chart-type-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      margin: 0 0.25rem;
+    }
+
+    .markets-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .market-section {
+      margin-bottom: 2rem;
+    }
+    .market-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .market-section-header h2 { font-size: 1.125rem; font-weight: 700; }
+    .market-section-header .view-all { font-size: 0.8125rem; color: var(--accent); cursor: pointer; }
+
+    .market-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .market-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      transition: border-color 200ms;
+      cursor: pointer;
+    }
+    .market-card:hover { border-color: var(--border-hover); }
+    .market-card .mc-label { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .market-card .mc-symbol { font-size: 0.6875rem; color: var(--text-muted); }
+    .market-card .mc-price { font-family: var(--font-mono); font-size: 1.0625rem; font-weight: 700; margin: 0.25rem 0; }
+    .market-card .mc-change { font-size: 0.75rem; font-weight: 600; }
+    .market-card .mc-sparkline {
+      margin-top: 0.5rem;
+      height: 32px;
+    }
+    .market-card .mc-sparkline svg { width: 100%; height: 100%; }
+
+    /* Movers section */
+    .movers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 768px) { .movers-grid { grid-template-columns: 1fr; } }
+
+    .movers-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .movers-card-header {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .movers-card-header h3 { font-size: 0.9375rem; font-weight: 700; }
+    .session-tabs {
+      display: flex;
+      gap: 0.125rem;
+    }
+    .session-tab {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: var(--font-sans);
+    }
+    .session-tab:hover { color: var(--text-secondary); }
+    .session-tab.active { color: var(--text-primary); background: var(--accent-muted); }
+
+    .mover-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.625rem 1rem;
+      border-bottom: 1px solid var(--border);
+      transition: background 150ms;
+    }
+    .mover-item:last-child { border-bottom: none; }
+    .mover-item:hover { background: rgba(255,255,255,0.02); }
+    .mover-item .company { font-size: 0.8125rem; font-weight: 600; }
+    .mover-item .ticker { font-size: 0.6875rem; color: var(--text-muted); }
+
+    /* Earnings Calendar */
+    .earnings-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .earnings-table th {
+      text-align: left;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+    .earnings-table td {
+      padding: 0.625rem 0.875rem;
+      font-size: 0.8125rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .earnings-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .earnings-table .mono { font-family: var(--font-mono); }
+
+    .beat-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.0625rem 0.375rem;
+      border-radius: 3px;
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .beat-badge.beat { background: var(--green-bg); color: var(--green); }
+    .beat-badge.miss { background: var(--red-bg); color: var(--red); }
+    .beat-badge.pending { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+    /* Bonds table */
+    .bonds-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 768px) { .bonds-grid { grid-template-columns: 1fr; } }
+
+    .yield-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-elevated);
+      margin-top: 0.25rem;
+    }
+    .yield-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent);
+      transition: width 500ms ease-out;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 300ms ease-out; }
+
+    .mover-content { display: none; }
+    .mover-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      ChartPulse
+    </a>
+    <ul class="nav-links">
+      <li><a href="chart.html">Products</a></li>
+      <li><a href="ideas.html">Community</a></li>
+      <li><a href="markets.html" class="active">Markets</a></li>
+      <li><a href="brokers.html">Brokers</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="btn btn-ghost" style="font-size:0.8125rem">Sign in</button>
+      <button class="btn btn-primary" style="font-size:0.8125rem">Get started</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Markets Header -->
+<section class="markets-hero">
+  <div class="markets-hero-inner">
+    <h1>Markets</h1>
+    <div class="market-nav-tabs">
+      <button class="mkt-tab active" onclick="scrollToSection('indices',this)">Indices</button>
+      <button class="mkt-tab" onclick="scrollToSection('stocks',this)">US stocks</button>
+      <button class="mkt-tab" onclick="scrollToSection('crypto',this)">Crypto</button>
+      <button class="mkt-tab" onclick="scrollToSection('futures',this)">Futures</button>
+      <button class="mkt-tab" onclick="scrollToSection('forex',this)">Forex</button>
+      <button class="mkt-tab" onclick="scrollToSection('bonds',this)">Bonds</button>
+      <button class="mkt-tab" onclick="scrollToSection('etfs',this)">ETFs</button>
+      <button class="mkt-tab" onclick="scrollToSection('economy',this)">Economy</button>
+    </div>
+    <div class="chart-type-bar">
+      <button class="chart-type-btn active" onclick="setChartType(this)">1D</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">1M</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">3M</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">1Y</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">5Y</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">All</button>
+      <div class="chart-type-sep"></div>
+      <button class="chart-type-btn active" onclick="setChartType(this)">Area</button>
+      <button class="chart-type-btn" onclick="setChartType(this)">Candles</button>
+    </div>
+  </div>
+</section>
+
+<!-- Markets Content -->
+<div class="markets-content">
+
+  <!-- US Indices -->
+  <div class="market-section" id="section-indices">
+    <div class="market-section-header">
+      <h2>US Market Indices</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="market-cards-grid">
+      <div class="market-card">
+        <div class="mc-label">S&P 500</div>
+        <div class="mc-price">7,041.29</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.26%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,20 20,18 40,22 60,16 80,14 100,12 120,15 140,13 160,10" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Nasdaq 100</div>
+        <div class="mc-price">26,333.00</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.49%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,24 20,20 40,18 60,22 80,15 100,12 120,10 140,8 160,6" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Dow 30</div>
+        <div class="mc-price">48,578.73</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.24%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,18 20,16 40,19 60,14 80,15 100,12 120,14 140,11 160,10" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">US 2000 Small Cap</div>
+        <div class="mc-price">2,735.734</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.41%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,22 20,20 40,18 60,16 80,19 100,14 120,12 140,10 160,8" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">VIX</div>
+        <div class="mc-price">17.87</div>
+        <span class="badge-red" style="font-size:0.6875rem">−0.39%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,10 20,12 40,8 60,14 80,16 100,13 120,18 140,16 160,20" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">NYSE Composite</div>
+        <div class="mc-price">22,955.59</div>
+        <span style="font-size:0.6875rem;color:var(--text-muted)">0.00%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,16 20,16 40,15 60,16 80,16 100,15 120,16 140,16 160,16" fill="none" stroke="#6b7280" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">S&P 100</div>
+        <div class="mc-price">3,462.23</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.18%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,18 20,17 40,19 60,16 80,15 100,14 120,15 140,13 160,12" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- World Stocks -->
+  <div class="market-section" id="section-stocks">
+    <div class="market-section-header">
+      <h2>World Stocks</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="market-cards-grid">
+      <div class="market-card">
+        <div class="mc-label">NVIDIA</div>
+        <div class="mc-symbol">NVDA</div>
+        <div class="mc-price">198.35</div>
+        <span class="badge-red" style="font-size:0.6875rem">−0.26%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,10 20,12 40,14 60,11 80,16 100,18 120,15 140,19 160,20" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Apple</div>
+        <div class="mc-symbol">AAPL</div>
+        <div class="mc-price">263.40</div>
+        <span class="badge-red" style="font-size:0.6875rem">−1.14%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,8 20,10 40,12 60,14 80,16 100,18 120,20 140,22 160,24" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Microsoft</div>
+        <div class="mc-symbol">MSFT</div>
+        <div class="mc-price">420.26</div>
+        <span class="badge-green" style="font-size:0.6875rem">+2.20%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,24 20,22 40,20 60,18 80,16 100,14 120,10 140,8 160,5" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Tesla</div>
+        <div class="mc-symbol">TSLA</div>
+        <div class="mc-price">388.90</div>
+        <span class="badge-red" style="font-size:0.6875rem">−0.78%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,12 20,14 40,12 60,16 80,18 100,16 120,20 140,22 160,20" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Amazon</div>
+        <div class="mc-symbol">AMZN</div>
+        <div class="mc-price">249.70</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.48%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,18 20,16 40,18 60,14 80,16 100,12 120,14 140,10 160,12" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Alphabet</div>
+        <div class="mc-symbol">GOOG</div>
+        <div class="mc-price">332.77</div>
+        <span class="badge-red" style="font-size:0.6875rem">−0.51%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,10 20,12 40,14 60,12 80,16 100,18 120,16 140,20 160,18" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Movers -->
+  <div class="market-section">
+    <div class="market-section-header">
+      <h2>Stock Movers</h2>
+    </div>
+    <div class="movers-grid">
+      <!-- Gainers -->
+      <div class="movers-card">
+        <div class="movers-card-header">
+          <h3 style="color:var(--green)">Top Gainers</h3>
+          <div class="session-tabs">
+            <button class="session-tab active" onclick="switchMoverTab(this,'gainers-regular')">Regular hours</button>
+            <button class="session-tab" onclick="switchMoverTab(this,'gainers-premarket')">Pre-market</button>
+            <button class="session-tab" onclick="switchMoverTab(this,'gainers-afterhours')">After-hours</button>
+          </div>
+        </div>
+        <div id="movers-gainers-regular" class="mover-content active">
+          <div class="mover-item">
+            <div><div class="company">Myseum, Inc.</div></div>
+            <span class="badge-green">+129.17%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">Psyence Biomedical Ltd.</div></div>
+            <span class="badge-green">+103.82%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">Mega Fortune Company</div></div>
+            <span class="badge-green">+53.96%</span>
+          </div>
+        </div>
+        <div id="movers-gainers-premarket" class="mover-content">
+          <div class="mover-item">
+            <div><div class="company">NeuralTech AI</div></div>
+            <span class="badge-green">+42.5%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">Quantum Dynamics</div></div>
+            <span class="badge-green">+28.3%</span>
+          </div>
+        </div>
+        <div id="movers-gainers-afterhours" class="mover-content">
+          <div class="mover-item">
+            <div><div class="company">CloudSync Corp</div></div>
+            <span class="badge-green">+18.7%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">BioGenix Labs</div></div>
+            <span class="badge-green">+15.2%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Losers -->
+      <div class="movers-card">
+        <div class="movers-card-header">
+          <h3 style="color:var(--red)">Top Losers</h3>
+          <div class="session-tabs">
+            <button class="session-tab active" onclick="switchMoverTab(this,'losers-regular')">Regular hours</button>
+            <button class="session-tab" onclick="switchMoverTab(this,'losers-premarket')">Pre-market</button>
+            <button class="session-tab" onclick="switchMoverTab(this,'losers-afterhours')">After-hours</button>
+          </div>
+        </div>
+        <div id="movers-losers-regular" class="mover-content active">
+          <div class="mover-item">
+            <div><div class="company">Texxon Holding Limited</div></div>
+            <span class="badge-red">−44.96%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">Allbirds, Inc.</div></div>
+            <span class="badge-red">−35.79%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">MMTec, Inc.</div></div>
+            <span class="badge-red">−33.66%</span>
+          </div>
+        </div>
+        <div id="movers-losers-premarket" class="mover-content">
+          <div class="mover-item">
+            <div><div class="company">Legacy Oil Corp</div></div>
+            <span class="badge-red">−22.1%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">RetailHoldings Inc</div></div>
+            <span class="badge-red">−16.8%</span>
+          </div>
+        </div>
+        <div id="movers-losers-afterhours" class="mover-content">
+          <div class="mover-item">
+            <div><div class="company">DataFlow Inc</div></div>
+            <span class="badge-red">−12.3%</span>
+          </div>
+          <div class="mover-item">
+            <div><div class="company">SolarEdge Comp</div></div>
+            <span class="badge-red">−9.7%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crypto -->
+  <div class="market-section" id="section-crypto">
+    <div class="market-section-header">
+      <h2>Cryptocurrency</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.75rem;margin-bottom:1rem">
+      <div class="card" style="text-align:center">
+        <div style="font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Crypto market cap</div>
+        <div style="font-family:var(--font-mono);font-size:1.25rem;font-weight:700;margin:0.25rem 0">2.54 T USD</div>
+        <span class="badge-green">+1.37%</span>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Bitcoin dominance</div>
+        <div style="font-family:var(--font-mono);font-size:1.25rem;font-weight:700;margin:0.25rem 0">59.61%</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:0.6875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em">Ethereum share</div>
+        <div style="font-family:var(--font-mono);font-size:1.25rem;font-weight:700;margin:0.25rem 0">11.20%</div>
+      </div>
+    </div>
+    <div class="market-cards-grid">
+      <div class="market-card">
+        <div class="mc-label">Bitcoin</div>
+        <div class="mc-symbol">BTCUSD</div>
+        <div class="mc-price">75,593</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.55%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,20 20,18 40,22 60,16 80,14 100,18 120,12 140,10 160,8" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Ethereum</div>
+        <div class="mc-symbol">ETHUSD</div>
+        <div class="mc-price">2,355.7</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.28%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,16 20,18 40,14 60,16 80,12 100,14 120,10 140,12 160,10" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Futures -->
+  <div class="market-section" id="section-futures">
+    <div class="market-section-header">
+      <h2>Futures & Commodities</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="market-cards-grid">
+      <div class="market-card">
+        <div class="mc-label">Light crude oil</div>
+        <div class="mc-symbol">CL1!</div>
+        <div class="mc-price">87.72</div>
+        <span class="badge-red" style="font-size:0.6875rem">−7.36%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,4 20,6 40,8 60,10 80,14 100,16 120,20 140,24 160,28" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Natural gas</div>
+        <div class="mc-symbol">NG1!</div>
+        <div class="mc-price">2.692</div>
+        <span class="badge-green" style="font-size:0.6875rem">+1.70%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,24 20,22 40,20 60,18 80,16 100,14 120,12 140,10 160,8" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Gold</div>
+        <div class="mc-symbol">GC1!</div>
+        <div class="mc-price">4,818.6</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.21%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,18 20,16 40,18 60,14 80,16 100,14 120,12 140,14 160,10" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Copper</div>
+        <div class="mc-symbol">HG1!</div>
+        <div class="mc-price">6.0430</div>
+        <span class="badge-red" style="font-size:0.6875rem">−0.55%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,12 20,10 40,14 60,12 80,16 100,14 120,18 140,16 160,20" fill="none" stroke="#F7525F" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Silver</div>
+        <div class="mc-symbol">SI1!</div>
+        <div class="mc-price">79.645</div>
+        <span class="badge-green" style="font-size:0.6875rem">+1.19%</span>
+        <div class="mc-sparkline">
+          <svg viewBox="0 0 160 32"><polyline points="0,22 20,20 40,18 60,16 80,14 100,12 120,10 140,8 160,6" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forex -->
+  <div class="market-section" id="section-forex">
+    <div class="market-section-header">
+      <h2>Forex</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Pair</th>
+            <th style="text-align:right">Rate</th>
+            <th style="text-align:right">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600">EUR to USD</td>
+            <td class="mono" style="text-align:right">1.17932</td>
+            <td style="text-align:right"><span class="badge-green">+0.13%</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">GBP to USD</td>
+            <td class="mono" style="text-align:right">1.3529</td>
+            <td style="text-align:right"><span class="badge-green">+0.06%</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">USD to JPY</td>
+            <td class="mono" style="text-align:right">159.210</td>
+            <td style="text-align:right"><span class="badge-green">+0.06%</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">USD to CHF</td>
+            <td class="mono" style="text-align:right">0.78260</td>
+            <td style="text-align:right"><span class="badge-red">−0.05%</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:600">AUD to USD</td>
+            <td class="mono" style="text-align:right">0.71718</td>
+            <td style="text-align:right"><span class="badge-green">+0.19%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Bonds -->
+  <div class="market-section" id="section-bonds">
+    <div class="market-section-header">
+      <h2>Bonds</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="bonds-grid">
+      <!-- Government Bonds -->
+      <div class="card">
+        <h3 style="font-size:0.9375rem;font-weight:700;margin-bottom:1rem">Government Bonds</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Bond</th><th>Price</th><th style="text-align:right">Yield</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600">US 1Y</td>
+              <td class="mono">—</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">3.682%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:74.7%"></div></div>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">US 2Y</td>
+              <td class="mono">100.199%</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">3.767%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:76.7%"></div></div>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">US 5Y</td>
+              <td class="mono">99.875%</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">3.903%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:79.5%"></div></div>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">US 10Y</td>
+              <td class="mono">98.645%</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">4.295%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:87.5%"></div></div>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">US 20Y</td>
+              <td class="mono">96.531%</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">4.900%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:99.7%"></div></div>
+              </td>
+            </tr>
+            <tr>
+              <td style="font-weight:600">US 30Y</td>
+              <td class="mono">97.363%</td>
+              <td style="text-align:right"><span style="font-family:var(--font-mono);font-weight:600">4.919%</span>
+                <div class="yield-bar"><div class="yield-bar-fill" style="width:100%"></div></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Corporate Bonds -->
+      <div class="card">
+        <h3 style="font-size:0.9375rem;font-weight:700;margin-bottom:1rem">Corporate Bonds</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Issuer</th><th>Coupon</th><th style="text-align:right">YTM</th><th>Maturity</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:600;font-size:0.8125rem">Petroleos Mexicanos</td>
+              <td class="mono">7.69%</td>
+              <td style="text-align:right" class="mono">8.60%</td>
+              <td style="font-size:0.75rem;color:var(--text-muted)">Jan 23, 2050</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;font-size:0.8125rem">Grupo Televisa</td>
+              <td class="mono">6.125%</td>
+              <td style="text-align:right" class="mono">8.59%</td>
+              <td style="font-size:0.75rem;color:var(--text-muted)">Jan 31, 2046</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;font-size:0.8125rem">Petroleos Mexicanos</td>
+              <td class="mono">6.95%</td>
+              <td style="text-align:right" class="mono">8.48%</td>
+              <td style="font-size:0.75rem;color:var(--text-muted)">Jan 28, 2060</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;font-size:0.8125rem">Grupo Televisa</td>
+              <td class="mono">5.0%</td>
+              <td style="text-align:right" class="mono">8.43%</td>
+              <td style="font-size:0.75rem;color:var(--text-muted)">May 13, 2045</td>
+            </tr>
+            <tr>
+              <td style="font-weight:600;font-size:0.8125rem">SBL Holdings</td>
+              <td class="mono">7.2%</td>
+              <td style="text-align:right" class="mono">8.38%</td>
+              <td style="font-size:0.75rem;color:var(--text-muted)">Oct 30, 2034</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ETFs placeholder -->
+  <div class="market-section" id="section-etfs">
+    <div class="market-section-header">
+      <h2>ETFs</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="market-cards-grid">
+      <div class="market-card">
+        <div class="mc-label">SPDR S&P 500</div>
+        <div class="mc-symbol">SPY</div>
+        <div class="mc-price">704.85</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.24%</span>
+        <div class="mc-sparkline"><svg viewBox="0 0 160 32"><polyline points="0,18 20,16 40,18 60,14 80,12 100,10 120,12 140,8 160,6" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">Invesco QQQ</div>
+        <div class="mc-symbol">QQQ</div>
+        <div class="mc-price">527.12</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.49%</span>
+        <div class="mc-sparkline"><svg viewBox="0 0 160 32"><polyline points="0,20 20,18 40,16 60,14 80,12 100,10 120,8 140,6 160,4" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></div>
+      </div>
+      <div class="market-card">
+        <div class="mc-label">iShares Russell 2000</div>
+        <div class="mc-symbol">IWM</div>
+        <div class="mc-price">225.38</div>
+        <span class="badge-green" style="font-size:0.6875rem">+0.38%</span>
+        <div class="mc-sparkline"><svg viewBox="0 0 160 32"><polyline points="0,16 20,18 40,14 60,16 80,12 100,14 120,10 140,12 160,8" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Economy / Earnings -->
+  <div class="market-section" id="section-economy">
+    <div class="market-section-header">
+      <h2>Earnings Calendar</h2>
+      <a href="#" class="view-all">View all →</a>
+    </div>
+    <div class="card" style="overflow-x:auto">
+      <table class="earnings-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Company</th>
+            <th style="text-align:right">Actual (EPS)</th>
+            <th style="text-align:right">Estimate (EPS)</th>
+            <th style="text-align:right">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--accent);font-weight:600;font-size:0.75rem">Today</td>
+            <td style="font-weight:600">Autoliv, Inc.</td>
+            <td class="mono" style="text-align:right">2.05 USD</td>
+            <td class="mono" style="text-align:right">1.83 USD</td>
+            <td style="text-align:right"><span class="beat-badge beat">Beat</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-weight:600;font-size:0.75rem">Today</td>
+            <td style="font-weight:600">Regions Financial</td>
+            <td class="mono" style="text-align:right">0.62 USD</td>
+            <td class="mono" style="text-align:right">0.60 USD</td>
+            <td style="text-align:right"><span class="beat-badge beat">Beat</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-weight:600;font-size:0.75rem">Today</td>
+            <td style="font-weight:600">Fifth Third Bancorp</td>
+            <td class="mono" style="text-align:right">0.15 USD</td>
+            <td class="mono" style="text-align:right">−0.10 USD</td>
+            <td style="text-align:right"><span class="beat-badge beat">Beat</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-weight:600;font-size:0.75rem">Today</td>
+            <td style="font-weight:600">Ally Financial</td>
+            <td class="mono" style="text-align:right">—</td>
+            <td class="mono" style="text-align:right">0.93 USD</td>
+            <td style="text-align:right"><span class="beat-badge pending">Pending</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--accent);font-weight:600;font-size:0.75rem">Today</td>
+            <td style="font-weight:600">State Street Corp</td>
+            <td class="mono" style="text-align:right">—</td>
+            <td class="mono" style="text-align:right">2.64 USD</td>
+            <td style="text-align:right"><span class="beat-badge pending">Pending</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <h4>Products</h4>
+      <a href="chart.html">Supercharts</a>
+      <a href="#">Screeners</a>
+      <a href="#">Pine Script</a>
+      <a href="#">Heatmaps</a>
+      <a href="#">Calendars</a>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <a href="ideas.html">Social Network</a>
+      <a href="ideas.html">Ideas</a>
+      <a href="#">Indicators & Strategies</a>
+      <a href="#">Editors' Picks</a>
+    </div>
+    <div class="footer-col">
+      <h4>Markets</h4>
+      <a href="markets.html">Stocks</a>
+      <a href="markets.html">ETFs</a>
+      <a href="markets.html">Crypto</a>
+      <a href="markets.html">Forex</a>
+      <a href="markets.html">Futures</a>
+      <a href="markets.html">Bonds</a>
+    </div>
+    <div class="footer-col">
+      <h4>Brokers</h4>
+      <a href="brokers.html">Top Brokers</a>
+      <a href="brokers.html">Broker Comparison</a>
+      <a href="brokers.html">Special Offers</a>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="#">About</a>
+      <a href="#">Blog</a>
+      <a href="#">Careers</a>
+      <a href="#">Media Kit</a>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <a href="#">Terms of Use</a>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Cookies Policy</a>
+      <a href="#">Disclaimer</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 ChartPulse. All rights reserved.</span>
+    <span>$0 forever — no credit card needed</span>
+  </div>
+</footer>
+
+<script>
+function scrollToSection(id, tab) {
+  document.querySelectorAll('.mkt-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  const el = document.getElementById('section-' + id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setChartType(el) {
+  el.classList.toggle('active');
+}
+
+function switchMoverTab(el, id) {
+  const parent = el.closest('.session-tabs');
+  parent.querySelectorAll('.session-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const card = el.closest('.movers-card');
+  card.querySelectorAll('.mover-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('movers-' + id).classList.add('active');
+}
+</script>
+</body>
+</html>

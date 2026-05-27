@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brokers - ChartPulse</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { dark: '#0F0F0F', blue: '#2962FF', red: '#F7525F', green: '#22C55E' },
+            surface: { primary: '#0F0F0F', secondary: '#161625', tertiary: '#1C1C2E', card: '#1A1A2E', hover: '#252540', input: '#1E1E35' },
+            border: { DEFAULT: '#2A2A45', light: '#333355' },
+            text: { primary: '#E8E8F0', secondary: '#9E9EBF', muted: '#6B6B8D' },
+            platinum: '#E5E4E2',
+            gold: '#FFD700',
+            yellow: '#EAB308',
+          },
+          fontFamily: { inter: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Broker page specific styles */
+    .hero-brokers {
+      background: linear-gradient(180deg, #0F0F0F 0%, #161625 50%, #1C1C2E 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-brokers::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -25%;
+      width: 50%;
+      height: 200%;
+      background: radial-gradient(ellipse, rgba(41,98,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-brokers::after {
+      content: '';
+      position: absolute;
+      bottom: -50%;
+      right: -25%;
+      width: 50%;
+      height: 200%;
+      background: radial-gradient(ellipse, rgba(41,98,255,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .filter-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 56px;
+      z-index: 50;
+    }
+
+    .filter-tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .filter-tab:hover { color: var(--text-secondary); }
+    .filter-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent);
+    }
+
+    .broker-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .broker-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      transition: all 0.2s ease;
+    }
+    .broker-card:hover {
+      border-color: var(--border-light);
+      background: var(--bg-hover);
+      transform: translateY(-1px);
+    }
+
+    .promo-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(41,98,255,0.12);
+      color: #5B8DEF;
+      border: 1px solid rgba(41,98,255,0.2);
+      white-space: nowrap;
+    }
+
+    .stats-banner {
+      background: linear-gradient(135deg, #161625 0%, #1C1C2E 50%, #0F0F0F 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .stats-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(41,98,255,0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .broker-card.hidden-card {
+      display: none;
+    }
+
+    /* Responsive broker cards */
+    @media (max-width: 768px) {
+      .broker-card {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px;
+      }
+      .broker-card .broker-info {
+        flex: 1 1 100%;
+      }
+      .broker-card .broker-actions {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+      }
+      .broker-card .broker-stats {
+        flex: 1 1 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .filter-bar-inner {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .filter-tabs-group {
+        min-width: max-content;
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-surface-primary text-text-primary">
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">CP</span>
+        ChartPulse
+      </a>
+      <ul class="nav-links">
+        <li><a href="chart.html">Products</a></li>
+        <li><a href="ideas.html">Community</a></li>
+        <li><a href="markets.html">Markets</a></li>
+        <li><a href="brokers.html" class="active">Brokers</a></li>
+      </ul>
+      <div class="nav-right">
+        <button class="btn btn-ghost" style="padding:6px 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <a href="#" class="btn btn-primary">Get started</a>
+        <a href="#" class="btn btn-ghost">Sign in</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero-brokers relative py-20 md:py-28">
+    <div class="container relative z-10 text-center max-w-3xl mx-auto">
+      <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-5 leading-tight">
+        Find Your Perfect Broker
+      </h1>
+      <p class="text-text-secondary text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+        Compare verified brokers with real ratings and reviews from millions of traders
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#broker-listings" class="btn btn-primary px-8 py-3 text-base">Compare brokers</a>
+        <a href="#broker-listings" class="btn btn-outline px-8 py-3 text-base">View special offers</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Broker Filters (Sticky) -->
+  <div class="filter-bar" id="broker-filters">
+    <div class="max-w-[1400px] mx-auto px-6">
+      <div class="filter-bar-inner flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <!-- Category Tabs -->
+        <div class="filter-tabs-group flex gap-1 overflow-x-auto" data-tab-group="broker-category" style="-webkit-overflow-scrolling:touch;">
+          <button class="filter-tab active" data-tab="all" data-filter-category="all">All brokers</button>
+          <button class="filter-tab" data-tab="stocks" data-filter-category="Stocks">Stocks</button>
+          <button class="filter-tab" data-tab="crypto" data-filter-category="Crypto">Crypto</button>
+          <button class="filter-tab" data-tab="forex" data-filter-category="Forex">Forex</button>
+          <button class="filter-tab" data-tab="futures" data-filter-category="Futures">Futures</button>
+          <button class="filter-tab" data-tab="etfs" data-filter-category="ETFs">ETFs</button>
+          <button class="filter-tab" data-tab="options" data-filter-category="Options">Options</button>
+        </div>
+        <!-- Sort Tabs -->
+        <div class="filter-tabs-group flex gap-1 flex-shrink-0" data-tab-group="broker-sort">
+          <button class="filter-tab active" data-tab="all-brokers" data-sort="default">All brokers</button>
+          <button class="filter-tab" data-tab="best-rated" data-sort="rating">Best rated</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Broker Listings -->
+  <section class="section" id="broker-listings" style="padding-top:24px;">
+    <div class="container">
+      <div class="flex flex-col gap-4" id="broker-cards">
+
+        <!-- FOREX.com -->
+        <div class="broker-card" data-categories="Forex" data-rating="4.5" data-name="FOREX.com">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#2962FF,#1E4FCC);">FC</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">FOREX.com</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.5 out of 5">★★★★☆</span>
+              <span class="text-text-primary font-semibold text-sm">4.5</span>
+              <span class="text-text-secondary text-sm">Great</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">13.7K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">175.7K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="broker-actions flex-shrink-0">
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- OKX -->
+        <div class="broker-card" data-categories="Crypto" data-rating="4.9" data-name="OKX">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#22C55E,#16A34A);">OK</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">OKX</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.9 out of 5">★★★★★</span>
+              <span class="text-text-primary font-semibold text-sm">4.9</span>
+              <span class="text-text-secondary text-sm">Excellent</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">22.5K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">239.9K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+            <span class="promo-badge">Unlock ChartPulse Plus!</span>
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- AMP Futures -->
+        <div class="broker-card" data-categories="Futures" data-rating="4.6" data-name="AMP Futures">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#F97316,#EA580C);">AF</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">AMP Futures</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.6 out of 5">★★★★★</span>
+              <span class="text-text-primary font-semibold text-sm">4.6</span>
+              <span class="text-text-secondary text-sm">Excellent</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">8.5K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">33.9K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="broker-actions flex-shrink-0">
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- moomoo -->
+        <div class="broker-card" data-categories="Stocks" data-rating="4.6" data-name="moomoo">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#8B5CF6,#7C3AED);">MM</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">moomoo</span>
+              <span class="badge badge-gold">Gold</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.6 out of 5">★★★★★</span>
+              <span class="text-text-primary font-semibold text-sm">4.6</span>
+              <span class="text-text-secondary text-sm">Excellent</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">4K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">81.7K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+            <span class="promo-badge">8.1% APY + Free Premium</span>
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- OANDA -->
+        <div class="broker-card" data-categories="Forex" data-rating="4.5" data-name="OANDA">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#0EA5E9,#0284C7);">OA</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">OANDA</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.5 out of 5">★★★★☆</span>
+              <span class="text-text-primary font-semibold text-sm">4.5</span>
+              <span class="text-text-secondary text-sm">Great</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">31.3K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">296.7K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+            <span class="promo-badge">Free ChartPulse plan</span>
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- Interactive Brokers -->
+        <div class="broker-card" data-categories="Stocks,ETFs,Options,Forex,Futures" data-rating="4.2" data-name="Interactive Brokers">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#6366F1,#4F46E5);">IB</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">Interactive Brokers</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.2 out of 5">★★★★☆</span>
+              <span class="text-text-primary font-semibold text-sm">4.2</span>
+              <span class="text-text-secondary text-sm">Good</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">36.4K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">343.2K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="broker-actions flex-shrink-0">
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+        <!-- TradeStation -->
+        <div class="broker-card" data-categories="Stocks,Futures,Options" data-rating="4.3" data-name="TradeStation">
+          <div class="broker-logo" style="background:linear-gradient(135deg,#EF4444,#DC2626);">TS</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-1 flex-wrap">
+              <span class="text-base font-bold text-text-primary">TradeStation</span>
+              <span class="badge badge-platinum">Platinum</span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="stars" title="4.3 out of 5">★★★★☆</span>
+              <span class="text-text-primary font-semibold text-sm">4.3</span>
+              <span class="text-text-secondary text-sm">Good</span>
+            </div>
+          </div>
+          <div class="broker-stats hidden sm:flex items-center gap-6 text-sm flex-shrink-0">
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">16.6K</div>
+              <div class="text-text-muted text-xs">Reviews</div>
+            </div>
+            <div class="text-center">
+              <div class="text-text-primary font-semibold">131.4K</div>
+              <div class="text-text-muted text-xs">Accounts</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+            <span class="promo-badge">$150 + $0 Options Fees</span>
+            <a href="#" class="btn btn-primary btn-sm">Visit broker</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Banner -->
+  <section class="stats-banner py-20 md:py-28">
+    <div class="container relative z-10 text-center">
+      <div class="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-20 mb-10">
+        <div>
+          <div class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight">100M+</div>
+          <div class="text-text-secondary text-sm md:text-base mt-2">Traders connected through us</div>
+        </div>
+        <div class="hidden md:block w-px h-16 bg-border"></div>
+        <div>
+          <div class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-text-primary tracking-tight">Millions daily</div>
+          <div class="text-text-secondary text-sm md:text-base mt-2">Successfully executed live orders</div>
+        </div>
+      </div>
+      <div class="mt-8">
+        <span class="text-lg md:text-xl font-semibold" style="background:linear-gradient(90deg,#2962FF,#5B8DEF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Every trade a #ChartPulse trade</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="#">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="#">Social Network</a>
+        <a href="#">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="#">Stocks</a>
+        <a href="#">ETFs</a>
+        <a href="#">Crypto</a>
+        <a href="#">Forex</a>
+        <a href="#">Futures</a>
+        <a href="#">Bonds</a>
+        <a href="#">Economy</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="#">Top Brokers</a>
+        <a href="#">Broker Comparison</a>
+        <a href="#">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 ChartPulse. All rights reserved.
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    (function() {
+      const categoryTabs = document.querySelectorAll('[data-tab-group="broker-category"] .filter-tab');
+      const sortTabs = document.querySelectorAll('[data-tab-group="broker-sort"] .filter-tab');
+      const brokerCards = document.querySelectorAll('#broker-cards .broker-card');
+      const cardsContainer = document.getElementById('broker-cards');
+
+      let activeCategory = 'all';
+      let activeSort = 'default';
+
+      // Store original order
+      const originalOrder = Array.from(brokerCards);
+
+      function filterAndSort() {
+        // Filter by category
+        brokerCards.forEach(card => {
+          const categories = card.dataset.categories.split(',');
+          if (activeCategory === 'all' || categories.includes(activeCategory)) {
+            card.classList.remove('hidden-card');
+          } else {
+            card.classList.add('hidden-card');
+          }
+        });
+
+        // Sort
+        let visibleCards = Array.from(brokerCards).filter(c => !c.classList.contains('hidden-card'));
+
+        if (activeSort === 'rating') {
+          visibleCards.sort((a, b) => parseFloat(b.dataset.rating) - parseFloat(a.dataset.rating));
+        } else {
+          // Default order: use original order
+          visibleCards.sort((a, b) => originalOrder.indexOf(a) - originalOrder.indexOf(b));
+        }
+
+        // Re-append in sorted order
+        visibleCards.forEach(card => cardsContainer.appendChild(card));
+
+        // Re-append hidden cards too (to keep DOM consistent)
+        Array.from(brokerCards).filter(c => c.classList.contains('hidden-card')).forEach(card => {
+          cardsContainer.appendChild(card);
+        });
+      }
+
+      // Category tab clicks
+      categoryTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          categoryTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          activeCategory = tab.dataset.filterCategory;
+          filterAndSort();
+        });
+      });
+
+      // Sort tab clicks
+      sortTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          sortTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          activeSort = tab.dataset.sort;
+          filterAndSort();
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

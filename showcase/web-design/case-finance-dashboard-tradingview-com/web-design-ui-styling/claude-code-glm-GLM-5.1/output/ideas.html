@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Ideas - ChartPulse</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .idea-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color 0.15s, transform 0.15s;
+      cursor: pointer;
+    }
+    .idea-card:hover {
+      border-color: var(--border-light);
+      transform: translateY(-2px);
+    }
+    .idea-chart-thumb {
+      width: 100%;
+      height: 140px;
+      position: relative;
+      overflow: hidden;
+    }
+    .idea-chart-thumb canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .video-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 32px;
+      height: 32px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .video-indicator svg {
+      width: 14px;
+      height: 14px;
+      fill: #fff;
+      margin-left: 2px;
+    }
+    .idea-card-body {
+      padding: 14px 16px;
+    }
+    .idea-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .idea-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .idea-author-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .idea-timestamp {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+      font-variant-numeric: tabular-nums;
+    }
+    .idea-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .idea-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .ticker-badge {
+      background: var(--accent-muted);
+      color: var(--accent);
+      border: 1px solid rgba(41, 98, 255, 0.25);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .idea-engagement {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .idea-engagement-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .idea-engagement-item svg {
+      width: 14px;
+      height: 14px;
+    }
+    .ideas-header-section {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 32px 0 0;
+    }
+    .ideas-header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .ideas-filters-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .ideas-search {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 14px 8px 36px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 240px;
+      font-family: inherit;
+    }
+    .ideas-search:focus {
+      border-color: var(--accent);
+    }
+    .ideas-search::placeholder {
+      color: var(--text-muted);
+    }
+    .search-wrapper {
+      position: relative;
+    }
+    .search-wrapper svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+    }
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 32px 0 48px;
+    }
+    .pagination-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .pagination-btn:hover:not(:disabled) {
+      background: var(--bg-hover);
+      border-color: var(--border-light);
+      color: var(--text-primary);
+    }
+    .pagination-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .pagination-dots {
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 0 4px;
+    }
+    @media (max-width: 768px) {
+      .ideas-grid {
+        grid-template-columns: 1fr;
+      }
+      .ideas-search {
+        width: 100%;
+      }
+      .ideas-filters-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="index.html" class="nav-logo">
+        <span class="logo-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 14L6 6L10 10L14 2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        ChartPulse
+      </a>
+      <ul class="nav-links">
+        <li><a href="chart.html">Products</a></li>
+        <li><a href="ideas.html" class="active">Community</a></li>
+        <li><a href="markets.html">Markets</a></li>
+        <li><a href="brokers.html">Brokers</a></li>
+      </ul>
+      <div class="nav-right">
+        <button class="btn btn-ghost btn-sm" style="display:flex;align-items:center;gap:4px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Search
+        </button>
+        <a href="#" class="btn btn-primary btn-sm">Get started</a>
+        <a href="#" class="btn btn-ghost btn-sm">Sign in</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Header Filters Section -->
+  <section class="ideas-header-section">
+    <div class="ideas-header-inner">
+      <h1 style="font-size:28px;font-weight:800;margin-bottom:4px;color:var(--text-primary);">Trading Ideas</h1>
+      <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;">Discover trading ideas from millions of traders worldwide</p>
+
+      <div class="ideas-filters-row" data-tab-group="ideas-filter">
+        <!-- Tabs -->
+        <div class="tabs" style="margin-bottom:0;border-bottom:none;">
+          <button class="tab active" data-tab="popular">Popular</button>
+          <button class="tab" data-tab="editors-picks">Editors' picks</button>
+        </div>
+
+        <!-- Videos toggle -->
+        <div class="toggle-wrapper" id="videoToggleWrapper">
+          <div class="toggle" id="videoToggle"></div>
+          <span>Videos only</span>
+        </div>
+
+        <!-- Search -->
+        <div class="search-wrapper" style="margin-left:auto;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" class="ideas-search" placeholder="Search ideas..." id="ideasSearch">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Idea Feed -->
+  <section class="section" style="padding-top:24px;">
+    <div class="container">
+
+      <!-- Popular tab content -->
+      <div data-tab-content="popular">
+        <div class="ideas-grid" id="popularGrid">
+
+          <!-- Card 1: AAPL Long -->
+          <div class="idea-card" data-video="false" data-ticker="AAPL" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.7"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#2962FF;">AT</div>
+                <span class="idea-author-name">Alex T.</span>
+                <span class="idea-timestamp">2h ago</span>
+              </div>
+              <div class="idea-title">AAPL breaking above 200 SMA - Bullish continuation</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">AAPL</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  247
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  38
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: BTCUSD Short -->
+          <div class="idea-card" data-video="false" data-ticker="BTCUSD" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.3"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#F7525F;">CM</div>
+                <span class="idea-author-name">CryptoMike</span>
+                <span class="idea-timestamp">4h ago</span>
+              </div>
+              <div class="idea-title">BTCUSD forming bearish divergence on 4H</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">BTCUSD</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  189
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  52
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: TSLA Short -->
+          <div class="idea-card" data-video="false" data-ticker="TSLA" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.25"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#EAB308;">SK</div>
+                <span class="idea-author-name">Sarah K.</span>
+                <span class="idea-timestamp">5h ago</span>
+              </div>
+              <div class="idea-title">TSLA gap fill target at $380</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">TSLA</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  312
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  67
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 4: EURUSD Long -->
+          <div class="idea-card" data-video="false" data-ticker="EURUSD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.65"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#22C55E;">FP</div>
+                <span class="idea-author-name">ForexPro</span>
+                <span class="idea-timestamp">6h ago</span>
+              </div>
+              <div class="idea-title">EURUSD double bottom pattern</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">EURUSD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  156
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  29
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: NVDA Long (video) -->
+          <div class="idea-card" data-video="true" data-ticker="NVDA" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.75"></canvas>
+              <div class="video-indicator">
+                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+              </div>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#8B5CF6;">TT</div>
+                <span class="idea-author-name">TechTrader</span>
+                <span class="idea-timestamp">8h ago</span>
+              </div>
+              <div class="idea-title">NVDA earnings play - Why I'm bullish</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">NVDA</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  421
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  93
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 6: XAUUSD Long -->
+          <div class="idea-card" data-video="false" data-ticker="XAUUSD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.6"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#F97316;">CK</div>
+                <span class="idea-author-name">CommoditiesKing</span>
+                <span class="idea-timestamp">10h ago</span>
+              </div>
+              <div class="idea-title">Gold pulling back to support - Buy zone</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">XAUUSD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  198
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  41
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 7: SPX Short -->
+          <div class="idea-card" data-video="false" data-ticker="SPX" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.35"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#2962FF;">MW</div>
+                <span class="idea-author-name">MarketWatch</span>
+                <span class="idea-timestamp">12h ago</span>
+              </div>
+              <div class="idea-title">SPX overbought on RSI - Time to hedge?</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">SPX</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  276
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  84
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 8: AMD Long (video) -->
+          <div class="idea-card" data-video="true" data-ticker="AMD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.72"></canvas>
+              <div class="video-indicator">
+                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+              </div>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#22C55E;">ST</div>
+                <span class="idea-author-name">SwingTrader</span>
+                <span class="idea-timestamp">14h ago</span>
+              </div>
+              <div class="idea-title">AMD breakout confirmed above $280</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">AMD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  334
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  58
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 9: ETHUSD Short -->
+          <div class="idea-card" data-video="false" data-ticker="ETHUSD" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.3"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#8B5CF6;">DA</div>
+                <span class="idea-author-name">DefiAnalyst</span>
+                <span class="idea-timestamp">16h ago</span>
+              </div>
+              <div class="idea-title">ETHUSD approaching key resistance</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">ETHUSD</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  145
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  33
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Editors' picks tab content -->
+      <div data-tab-content="editors-picks" style="display:none;">
+        <div class="ideas-grid" id="editorsGrid">
+
+          <!-- Editors' Card 1 -->
+          <div class="idea-card" data-video="true" data-ticker="NVDA" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.75"></canvas>
+              <div class="video-indicator">
+                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+              </div>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#8B5CF6;">TT</div>
+                <span class="idea-author-name">TechTrader</span>
+                <span class="idea-timestamp">8h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">NVDA earnings play - Why I'm bullish</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">NVDA</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  421
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  93
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editors' Card 2 -->
+          <div class="idea-card" data-video="false" data-ticker="SPX" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.35"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#2962FF;">MW</div>
+                <span class="idea-author-name">MarketWatch</span>
+                <span class="idea-timestamp">12h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">SPX overbought on RSI - Time to hedge?</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">SPX</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  276
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  84
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editors' Card 3 -->
+          <div class="idea-card" data-video="true" data-ticker="AMD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.72"></canvas>
+              <div class="video-indicator">
+                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+              </div>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#22C55E;">ST</div>
+                <span class="idea-author-name">SwingTrader</span>
+                <span class="idea-timestamp">14h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">AMD breakout confirmed above $280</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">AMD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  334
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  58
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editors' Card 4 -->
+          <div class="idea-card" data-video="false" data-ticker="XAUUSD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.6"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#F97316;">CK</div>
+                <span class="idea-author-name">CommoditiesKing</span>
+                <span class="idea-timestamp">10h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">Gold pulling back to support - Buy zone</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">XAUUSD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  198
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  41
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editors' Card 5 -->
+          <div class="idea-card" data-video="false" data-ticker="TSLA" data-type="short">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(247,82,95,0.08) 0%, rgba(247,82,95,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.25"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#EAB308;">SK</div>
+                <span class="idea-author-name">Sarah K.</span>
+                <span class="idea-timestamp">5h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">TSLA gap fill target at $380</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">TSLA</span>
+                <span class="badge badge-red">Short</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  312
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  67
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editors' Card 6 -->
+          <div class="idea-card" data-video="false" data-ticker="EURUSD" data-type="long">
+            <div class="idea-chart-thumb" style="background:linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.02) 100%);">
+              <canvas data-sparkline data-trend="0.65"></canvas>
+            </div>
+            <div class="idea-card-body">
+              <div class="idea-author-row">
+                <div class="idea-avatar" style="background:#22C55E;">FP</div>
+                <span class="idea-author-name">ForexPro</span>
+                <span class="idea-timestamp">6h ago</span>
+                <span class="badge badge-gold" style="font-size:10px;margin-left:4px;">Editor's Pick</span>
+              </div>
+              <div class="idea-title">EURUSD double bottom pattern</div>
+              <div class="idea-badges">
+                <span class="ticker-badge">EURUSD</span>
+                <span class="badge badge-green">Long</span>
+              </div>
+              <div class="idea-engagement">
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+                  156
+                </span>
+                <span class="idea-engagement-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                  29
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <button class="pagination-btn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Previous
+    </button>
+    <button class="pagination-btn active">1</button>
+    <button class="pagination-btn">2</button>
+    <button class="pagination-btn">3</button>
+    <span class="pagination-dots">...</span>
+    <button class="pagination-btn">12</button>
+    <button class="pagination-btn">
+      Next
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Products</h4>
+        <a href="#">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <a href="#">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer-col">
+        <h4>Markets</h4>
+        <a href="#">Stocks</a>
+        <a href="#">ETFs</a>
+        <a href="#">Crypto</a>
+        <a href="#">Forex</a>
+        <a href="#">Futures</a>
+        <a href="#">Bonds</a>
+        <a href="#">Economy</a>
+      </div>
+      <div class="footer-col">
+        <h4>Brokers</h4>
+        <a href="#">Top Brokers</a>
+        <a href="#">Broker Comparison</a>
+        <a href="#">Special Offers</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; 2026 ChartPulse. All rights reserved.
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    // Videos only toggle functionality
+    (function() {
+      const videoToggleWrapper = document.getElementById('videoToggleWrapper');
+      if (videoToggleWrapper) {
+        videoToggleWrapper.addEventListener('toggle', function(e) {
+          const isVideoOnly = e.detail;
+          const activeTabContent = document.querySelector('[data-tab-content]:not([style*="display: none"])') ||
+                                   document.querySelector('[data-tab-content="popular"]');
+          const grid = activeTabContent.querySelector('.ideas-grid');
+          if (!grid) return;
+
+          const cards = grid.querySelectorAll('.idea-card');
+          cards.forEach(card => {
+            const isVideo = card.getAttribute('data-video') === 'true';
+            if (isVideoOnly) {
+              card.style.display = isVideo ? '' : 'none';
+            } else {
+              card.style.display = '';
+            }
+          });
+        });
+      }
+
+      // Re-apply video filter when tabs switch
+      const tabGroup = document.querySelector('[data-tab-group="ideas-filter"]');
+      if (tabGroup) {
+        const tabs = tabGroup.querySelectorAll('[data-tab]');
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            // Small delay to let tab content switch happen
+            setTimeout(() => {
+              const toggle = document.getElementById('videoToggle');
+              if (toggle && toggle.classList.contains('active')) {
+                const activeTabContent = document.querySelector('[data-tab-content]:not([style*="display: none"])');
+                if (!activeTabContent) return;
+                const grid = activeTabContent.querySelector('.ideas-grid');
+                if (!grid) return;
+                const cards = grid.querySelectorAll('.idea-card');
+                cards.forEach(card => {
+                  const isVideo = card.getAttribute('data-video') === 'true';
+                  card.style.display = isVideo ? '' : 'none';
+                });
+              }
+            }, 50);
+          });
+        });
+      }
+
+      // Search filtering
+      const searchInput = document.getElementById('ideasSearch');
+      if (searchInput) {
+        searchInput.addEventListener('input', function() {
+          const query = this.value.toLowerCase().trim();
+          const activeTabContent = document.querySelector('[data-tab-content]:not([style*="display: none"])') ||
+                                   document.querySelector('[data-tab-content="popular"]');
+          const grid = activeTabContent.querySelector('.ideas-grid');
+          if (!grid) return;
+
+          const cards = grid.querySelectorAll('.idea-card');
+          cards.forEach(card => {
+            if (!query) {
+              // Respect video toggle state
+              const toggle = document.getElementById('videoToggle');
+              const isVideoOnly = toggle && toggle.classList.contains('active');
+              const isVideo = card.getAttribute('data-video') === 'true';
+              card.style.display = (isVideoOnly && !isVideo) ? 'none' : '';
+              return;
+            }
+            const title = card.querySelector('.idea-title').textContent.toLowerCase();
+            const ticker = card.getAttribute('data-ticker').toLowerCase();
+            const author = card.querySelector('.idea-author-name').textContent.toLowerCase();
+            const matches = title.includes(query) || ticker.includes(query) || author.includes(query);
+
+            // Also respect video toggle
+            const toggle = document.getElementById('videoToggle');
+            const isVideoOnly = toggle && toggle.classList.contains('active');
+            const isVideo = card.getAttribute('data-video') === 'true';
+
+            if (isVideoOnly && !isVideo) {
+              card.style.display = 'none';
+            } else {
+              card.style.display = matches ? '' : 'none';
+            }
+          });
+        });
+      }
+    })();
+  </script>
+
+</body>
+</html>

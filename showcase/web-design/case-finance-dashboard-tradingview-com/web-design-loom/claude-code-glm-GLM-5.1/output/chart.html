@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChartPulse — Trading Terminal</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    html, body { height:100%; overflow:hidden; }
+    .terminal-wrap {
+      display:flex; height:calc(100vh - 56px);
+    }
+    .chart-area {
+      flex:1; display:flex; flex-direction:column; min-width:0;
+    }
+    .chart-toolbar .separator {
+      width:1px; height:20px; background:var(--border); margin:0 8px;
+    }
+    .chart-toolbar .chart-type-btn {
+      padding:4px 8px; font-size:0.85rem; border:none;
+      background:transparent; color:var(--text-muted); cursor:pointer;
+      border-radius:3px; font-family:var(--font); transition:all var(--transition);
+    }
+    .chart-toolbar .chart-type-btn:hover { color:var(--white); }
+    .chart-toolbar .chart-type-btn.active { color:var(--accent); }
+    .chart-toolbar .toolbar-right {
+      margin-left:auto; display:flex; align-items:center; gap:4px;
+    }
+    .detail-panel .headline {
+      font-size:0.82rem; color:var(--text-primary); line-height:1.5;
+      margin-top:4px;
+    }
+    .detail-panel .headline-source {
+      font-size:0.72rem; color:var(--text-muted); margin-top:6px;
+    }
+    .detail-tabs {
+      display:flex; gap:2px; background:var(--bg-primary);
+      border-radius:var(--radius-sm); padding:3px; margin-bottom:12px;
+    }
+    .detail-tab {
+      flex:1; padding:6px 12px; border-radius:var(--radius-sm);
+      font-size:0.75rem; font-weight:600; color:var(--text-secondary);
+      cursor:pointer; white-space:nowrap; transition:all var(--transition);
+      border:none; background:transparent; font-family:var(--font); text-align:center;
+    }
+    .detail-tab:hover { color:var(--text-primary); }
+    .detail-tab.active { background:var(--accent); color:var(--white); }
+    .rating-badge {
+      display:inline-flex; align-items:center; padding:2px 8px;
+      border-radius:4px; font-size:0.75rem; font-weight:600;
+    }
+    .rating-badge.neutral { background:rgba(255,193,7,0.12); color:#FFC107; }
+    .rating-badge.buy { background:var(--positive-bg); color:var(--positive); }
+    .search-btn {
+      background:transparent; border:none; color:var(--text-muted);
+      cursor:pointer; padding:4px; border-radius:3px; font-size:0.9rem;
+      display:flex; align-items:center; justify-content:center;
+      transition:all var(--transition);
+    }
+    .search-btn:hover { color:var(--white); background:rgba(255,255,255,0.05); }
+    .fullscreen-btn {
+      padding:4px 8px; font-size:0.85rem; border:none;
+      background:transparent; color:var(--text-muted); cursor:pointer;
+      border-radius:3px; font-family:var(--font); transition:all var(--transition);
+    }
+    .fullscreen-btn:hover { color:var(--white); }
+    /* Crosshair tooltip */
+    .chart-tooltip {
+      position:absolute; pointer-events:none; background:var(--bg-card);
+      border:1px solid var(--border); border-radius:4px; padding:6px 10px;
+      font-size:0.75rem; color:var(--text-primary); z-index:10;
+      display:none; white-space:nowrap;
+    }
+    @media (max-width:992px) {
+      .terminal-wrap { flex-direction:column; overflow-y:auto; }
+      .watchlist { display:none; }
+      .detail-panel { width:100%; min-width:100%; border-left:none; border-top:1px solid var(--border); }
+      .chart-canvas-wrap { min-height:350px; }
+    }
+    @media (max-width:768px) {
+      .chart-toolbar { flex-wrap:wrap; }
+      .chart-toolbar .symbol-info { margin-right:8px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav__logo">Chart<span>Pulse</span></div>
+  <div class="nav__links">
+    <a href="chart.html" class="active">Products</a>
+    <a href="ideas.html">Community</a>
+    <a href="markets.html">Markets</a>
+    <a href="brokers.html">Brokers</a>
+  </div>
+  <div class="nav__actions">
+    <button class="btn btn--outline btn--sm">Sign in</button>
+    <button class="btn btn--primary btn--sm">Get started</button>
+  </div>
+</nav>
+
+<!-- TERMINAL LAYOUT -->
+<div class="terminal-wrap">
+
+  <!-- LEFT: Watchlist -->
+  <aside class="watchlist" id="watchlist">
+    <div class="watchlist__header">
+      Watchlist
+      <button class="search-btn" aria-label="Search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+    </div>
+
+    <!-- Indices -->
+    <div class="watchlist__category">
+      <div class="watchlist__category-header" data-category="indices">
+        Indices
+        <span class="arrow">&#9660;</span>
+      </div>
+      <div class="watchlist__category-body" id="cat-indices">
+        <div class="watchlist__row"><span class="symbol">SPX</span><span class="last">7,041.29</span><span class="chg-pct text-positive">+0.26%</span></div>
+        <div class="watchlist__row"><span class="symbol">NDQ</span><span class="last">26,333.00</span><span class="chg-pct text-positive">+0.49%</span></div>
+        <div class="watchlist__row"><span class="symbol">DJI</span><span class="last">48,578.72</span><span class="chg-pct text-positive">+0.24%</span></div>
+        <div class="watchlist__row"><span class="symbol">VIX</span><span class="last">17.86</span><span class="chg-pct text-negative">&minus;0.45%</span></div>
+      </div>
+    </div>
+
+    <!-- Stocks -->
+    <div class="watchlist__category">
+      <div class="watchlist__category-header" data-category="stocks">
+        Stocks
+        <span class="arrow">&#9660;</span>
+      </div>
+      <div class="watchlist__category-body" id="cat-stocks">
+        <div class="watchlist__row"><span class="symbol">AAPL</span><span class="last">263.40</span><span class="chg-pct text-negative">&minus;1.14%</span></div>
+        <div class="watchlist__row"><span class="symbol">TSLA</span><span class="last">388.90</span><span class="chg-pct text-negative">&minus;0.78%</span></div>
+        <div class="watchlist__row"><span class="symbol">NFLX</span><span class="last">107.79</span><span class="chg-pct text-positive">+0.07%</span></div>
+      </div>
+    </div>
+
+    <!-- Futures -->
+    <div class="watchlist__category">
+      <div class="watchlist__category-header collapsed" data-category="futures">
+        Futures
+        <span class="arrow">&#9660;</span>
+      </div>
+      <div class="watchlist__category-body" id="cat-futures" style="display:none;">
+        <div class="watchlist__row"><span class="symbol">USOIL</span><span class="last">87.53</span><span class="chg-pct text-negative">&minus;6.06%</span></div>
+        <div class="watchlist__row"><span class="symbol">GOLD</span><span class="last">4,801.92</span><span class="chg-pct text-positive">+0.30%</span></div>
+      </div>
+    </div>
+
+    <!-- Forex -->
+    <div class="watchlist__category">
+      <div class="watchlist__category-header collapsed" data-category="forex">
+        Forex
+        <span class="arrow">&#9660;</span>
+      </div>
+      <div class="watchlist__category-body" id="cat-forex" style="display:none;">
+        <div class="watchlist__row"><span class="symbol">EURUSD</span><span class="last">1.17949</span><span class="chg-pct text-positive">+0.12%</span></div>
+        <div class="watchlist__row"><span class="symbol">GBPUSD</span><span class="last">1.35335</span><span class="chg-pct text-positive">+0.06%</span></div>
+      </div>
+    </div>
+
+    <!-- Crypto -->
+    <div class="watchlist__category">
+      <div class="watchlist__category-header collapsed" data-category="crypto">
+        Crypto
+        <span class="arrow">&#9660;</span>
+      </div>
+      <div class="watchlist__category-body" id="cat-crypto" style="display:none;">
+        <div class="watchlist__row"><span class="symbol">BTCUSD</span><span class="last">75,585</span><span class="chg-pct text-positive">+0.54%</span></div>
+        <div class="watchlist__row"><span class="symbol">ETHUSD</span><span class="last">2,355.1</span><span class="chg-pct text-positive">+0.25%</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER: Chart Area -->
+  <div class="chart-area">
+    <div class="chart-toolbar">
+      <div class="symbol-info">
+        <span class="ticker">AAPL</span>
+        <span class="price text-negative">263.40</span>
+        <span class="text-negative text-sm">&minus;3.03 (&minus;1.14%)</span>
+      </div>
+      <div class="separator"></div>
+      <button class="tf-btn active" data-tf="1D">1D</button>
+      <button class="tf-btn" data-tf="5D">5D</button>
+      <button class="tf-btn" data-tf="1M">1M</button>
+      <button class="tf-btn" data-tf="3M">3M</button>
+      <button class="tf-btn" data-tf="6M">6M</button>
+      <button class="tf-btn" data-tf="YTD">YTD</button>
+      <button class="tf-btn" data-tf="1Y">1Y</button>
+      <button class="tf-btn" data-tf="5Y">5Y</button>
+      <button class="tf-btn" data-tf="All">All</button>
+      <div class="toolbar-right">
+        <button class="chart-type-btn active" data-type="candle" title="Candlestick">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="12" rx="1"/><rect x="7" y="2" width="2" height="4"/><rect x="7" y="16" width="2" height="4"/><rect x="14" y="8" width="4" height="10" rx="1"/><rect x="15" y="4" width="2" height="6"/><rect x="15" y="18" width="2" height="4"/></svg>
+        </button>
+        <button class="chart-type-btn" data-type="line" title="Line">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,18 6,12 10,14 14,6 18,10 22,4"/></svg>
+        </button>
+        <div class="separator"></div>
+        <button class="fullscreen-btn" id="fullscreenBtn" title="Fullscreen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="chart-canvas-wrap" id="chartWrap">
+      <canvas id="chartCanvas"></canvas>
+      <div class="chart-tooltip" id="chartTooltip"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Detail Panel -->
+  <aside class="detail-panel" id="detailPanel">
+    <div class="detail-panel__header">
+      <div style="font-size:1.1rem;font-weight:700;color:var(--white);">AAPL <span style="font-weight:400;color:var(--text-secondary);">— Apple Inc</span></div>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">NASDAQ</div>
+      <div style="margin-top:8px;">
+        <span style="font-size:1.6rem;font-weight:700;color:var(--negative);">263.40</span>
+        <span style="font-size:0.85rem;color:var(--text-secondary);margin-left:4px;">USD</span>
+      </div>
+      <div style="font-size:0.85rem;color:var(--negative);font-weight:600;margin-top:2px;">&minus;3.03 (&minus;1.14%)</div>
+    </div>
+
+    <div class="detail-panel__section">
+      <h3>Key Stats</h3>
+      <div class="detail-panel__row"><span class="label">Volume</span><span class="value">43.32 M</span></div>
+      <div class="detail-panel__row"><span class="label">Avg Volume (30D)</span><span class="value">40.70 M</span></div>
+      <div class="detail-panel__row"><span class="label">Market capitalization</span><span class="value">3.87 T</span></div>
+      <div class="detail-panel__row"><span class="label">Next earnings report</span><span class="value">In 14 days</span></div>
+      <div class="detail-panel__row">
+        <span class="label">Pre-market</span>
+        <span class="value">267.14 USD <span class="text-positive">(+1.42%)</span></span>
+      </div>
+    </div>
+
+    <div class="detail-panel__section">
+      <h3>Headline</h3>
+      <div class="headline">Apple's iPhone shipments in China rose 20% in Q1, the strongest growth among major smartphone vendors.</div>
+      <div class="headline-source">Reuters — 2h ago</div>
+    </div>
+
+    <div class="detail-panel__section">
+      <h3>Financials</h3>
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-fin-tab="annual">Annual</button>
+        <button class="detail-tab" data-fin-tab="quarterly">Quarterly</button>
+      </div>
+      <div id="fin-annual">
+        <div class="detail-panel__row"><span class="label">Dividend yield TTM</span><span class="value">0.39%</span></div>
+        <div class="detail-panel__row"><span class="label">Payout ratio (TTM)</span><span class="value">13.03%</span></div>
+        <div class="detail-panel__row"><span class="label">Last dividend payment</span><span class="value">0.26</span></div>
+        <div class="detail-panel__row"><span class="label">Last ex-dividend date</span><span class="value">Feb 9, 2026</span></div>
+        <div class="detail-panel__row"><span class="label">Analyst rating</span><span class="value"><span class="rating-badge neutral">Neutral</span></span></div>
+        <div class="detail-panel__row"><span class="label">1 year price target</span><span class="value">300.40 <span class="text-positive">(+14.05%)</span></span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1W</span><span class="value text-positive">+1.70%</span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1M</span><span class="value text-positive">+4.13%</span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1Y</span><span class="value text-positive">+32.79%</span></div>
+        <div class="detail-panel__row"><span class="label">Technicals</span><span class="value"><span class="rating-badge neutral">Neutral</span></span></div>
+      </div>
+      <div id="fin-quarterly" style="display:none;">
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">Q4 2025</div>
+        <div class="detail-panel__row"><span class="label">Dividend yield TTM</span><span class="value">0.38%</span></div>
+        <div class="detail-panel__row"><span class="label">Payout ratio</span><span class="value">12.80%</span></div>
+        <div class="detail-panel__row"><span class="label">Last dividend payment</span><span class="value">0.25</span></div>
+        <div class="detail-panel__row"><span class="label">Last ex-dividend date</span><span class="value">Nov 10, 2025</span></div>
+        <div class="detail-panel__row"><span class="label">Analyst rating</span><span class="value"><span class="rating-badge buy">Buy</span></span></div>
+        <div class="detail-panel__row"><span class="label">1 year price target</span><span class="value">310.50 <span class="text-positive">(+17.88%)</span></span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1W</span><span class="value text-positive">+2.10%</span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1M</span><span class="value text-positive">+5.20%</span></div>
+        <div class="detail-panel__row"><span class="label">Performance 1Y</span><span class="value text-positive">+35.40%</span></div>
+        <div class="detail-panel__row"><span class="label">Technicals</span><span class="value"><span class="rating-badge buy">Buy</span></span></div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+(function() {
+  // =============================================
+  // WATCHLIST ACCORDION
+  // =============================================
+  const catHeaders = document.querySelectorAll('.watchlist__category-header');
+  catHeaders.forEach(function(header) {
+    header.addEventListener('click', function() {
+      const cat = this.getAttribute('data-category');
+      const body = document.getElementById('cat-' + cat);
+      const isCollapsed = this.classList.contains('collapsed');
+      if (isCollapsed) {
+        this.classList.remove('collapsed');
+        body.style.display = '';
+      } else {
+        this.classList.add('collapsed');
+        body.style.display = 'none';
+      }
+    });
+  });
+
+  // =============================================
+  // TIMEFRAME TOGGLE
+  // =============================================
+  const tfBtns = document.querySelectorAll('.tf-btn');
+  tfBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      tfBtns.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      drawChart();
+    });
+  });
+
+  // =============================================
+  // CHART TYPE TOGGLE
+  // =============================================
+  const chartTypeBtns = document.querySelectorAll('.chart-type-btn');
+  let chartType = 'candle';
+  chartTypeBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      chartTypeBtns.forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      chartType = this.getAttribute('data-type');
+      drawChart();
+    });
+  });
+
+  // =============================================
+  // DETAIL PANEL TABS
+  // =============================================
+  const finTabs = document.querySelectorAll('.detail-tab');
+  finTabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      finTabs.forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      const target = this.getAttribute('data-fin-tab');
+      document.getElementById('fin-annual').style.display = target === 'annual' ? '' : 'none';
+      document.getElementById('fin-quarterly').style.display = target === 'quarterly' ? '' : 'none';
+    });
+  });
+
+  // =============================================
+  // FULLSCREEN
+  // =============================================
+  document.getElementById('fullscreenBtn').addEventListener('click', function() {
+    const wrap = document.getElementById('chartWrap');
+    if (!document.fullscreenElement) {
+      wrap.requestFullscreen().catch(function(){});
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  // =============================================
+  // CANDLESTICK CHART
+  // =============================================
+  const canvas = document.getElementById('chartCanvas');
+  const ctx = canvas.getContext('2d');
+  const tooltip = document.getElementById('chartTooltip');
+  let candles = [];
+  let dpr = window.devicePixelRatio || 1;
+
+  function generateCandles(count, basePrice, volatility) {
+    const data = [];
+    let price = basePrice;
+    // Seeded random based on active timeframe
+    const tf = document.querySelector('.tf-btn.active');
+    const tfName = tf ? tf.getAttribute('data-tf') : '1D';
+    let seed = 0;
+    for (let i = 0; i < tfName.length; i++) seed += tfName.charCodeAt(i);
+
+    function seededRandom() {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    }
+
+    // Create trend segments for more realistic look
+    const trendLen = Math.floor(count / 4);
+    let trendDir = seededRandom() > 0.5 ? 1 : -1;
+
+    for (let i = 0; i < count; i++) {
+      if (i > 0 && i % trendLen === 0) {
+        trendDir = seededRandom() > 0.4 ? trendDir : -trendDir;
+      }
+      const trendBias = trendDir * volatility * 0.3;
+      const change = (seededRandom() - 0.48) * volatility + trendBias;
+      const open = price;
+      const close = open + change;
+      const highExtra = Math.abs(seededRandom() * volatility * 0.6);
+      const lowExtra = Math.abs(seededRandom() * volatility * 0.6);
+      const high = Math.max(open, close) + highExtra;
+      const low = Math.min(open, close) - lowExtra;
+      const vol = Math.floor((seededRandom() * 0.7 + 0.3) * 50000000);
+      data.push({ open: open, high: high, low: low, close: close, volume: vol });
+      price = close;
+    }
+    return data;
+  }
+
+  function getCandleCount() {
+    const tf = document.querySelector('.tf-btn.active');
+    const tfName = tf ? tf.getAttribute('data-tf') : '1D';
+    switch(tfName) {
+      case '1D': return 78;
+      case '5D': return 60;
+      case '1M': return 22;
+      case '3M': return 65;
+      case '6M': return 52;
+      case 'YTD': return 55;
+      case '1Y': return 52;
+      case '5Y': return 60;
+      case 'All': return 72;
+      default: return 60;
+    }
+  }
+
+  function drawChart() {
+    const wrap = document.getElementById('chartWrap');
+    const rect = wrap.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const count = getCandleCount();
+    candles = generateCandles(count, 263.40, 2.8);
+
+    const padRight = 70;
+    const padLeft = 10;
+    const padTop = 20;
+    const padBottom = 50;
+    const volHeight = h * 0.15;
+    const chartTop = padTop;
+    const chartBottom = h - padBottom - volHeight;
+    const chartHeight = chartBottom - chartTop;
+    const chartLeft = padLeft;
+    const chartRight = w - padRight;
+    const chartWidth = chartRight - chartLeft;
+
+    // Find price range
+    let minPrice = Infinity, maxPrice = -Infinity, maxVol = 0;
+    candles.forEach(function(c) {
+      if (c.low < minPrice) minPrice = c.low;
+      if (c.high > maxPrice) maxPrice = c.high;
+      if (c.volume > maxVol) maxVol = c.volume;
+    });
+    const priceRange = maxPrice - minPrice;
+    const pricePad = priceRange * 0.08;
+    minPrice -= pricePad;
+    maxPrice += pricePad;
+    const totalRange = maxPrice - minPrice;
+
+    function priceY(p) {
+      return chartTop + (1 - (p - minPrice) / totalRange) * chartHeight;
+    }
+
+    // Clear
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 1;
+    const gridLines = 8;
+    for (let i = 0; i <= gridLines; i++) {
+      const y = chartTop + (chartHeight / gridLines) * i;
+      ctx.beginPath();
+      ctx.moveTo(chartLeft, y);
+      ctx.lineTo(chartRight, y);
+      ctx.stroke();
+    }
+
+    // Price scale
+    ctx.fillStyle = '#6B6B80';
+    ctx.font = '11px Inter, -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    for (let i = 0; i <= gridLines; i++) {
+      const y = chartTop + (chartHeight / gridLines) * i;
+      const price = maxPrice - (totalRange / gridLines) * i;
+      ctx.fillText(price.toFixed(2), chartRight + 8, y + 4);
+    }
+
+    // Current price dashed line
+    const lastClose = candles[candles.length - 1].close;
+    const cpY = priceY(lastClose);
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = lastClose >= candles[0].open ? '#26A69A' : '#F7525F';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(chartLeft, cpY);
+    ctx.lineTo(chartRight, cpY);
+    ctx.stroke();
+    ctx.restore();
+
+    // Current price label
+    const cpColor = lastClose >= candles[0].open ? '#26A69A' : '#F7525F';
+    ctx.fillStyle = cpColor;
+    ctx.fillRect(chartRight, cpY - 9, padRight, 18);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px Inter, -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(lastClose.toFixed(2), chartRight + 5, cpY + 4);
+
+    // Candle width
+    const candleSpacing = chartWidth / candles.length;
+    const candleWidth = Math.max(1, candleSpacing * 0.65);
+    const wickWidth = Math.max(1, candleWidth * 0.12);
+
+    if (chartType === 'candle') {
+      // Draw candles
+      candles.forEach(function(c, i) {
+        const x = chartLeft + candleSpacing * i + candleSpacing / 2;
+        const isUp = c.close >= c.open;
+        const color = isUp ? '#26A69A' : '#F7525F';
+        const bodyTop = priceY(Math.max(c.open, c.close));
+        const bodyBottom = priceY(Math.min(c.open, c.close));
+        const bodyH = Math.max(1, bodyBottom - bodyTop);
+
+        // Wick
+        ctx.strokeStyle = color;
+        ctx.lineWidth = wickWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, priceY(c.high));
+        ctx.lineTo(x, priceY(c.low));
+        ctx.stroke();
+
+        // Body
+        ctx.fillStyle = color;
+        ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyH);
+      });
+    } else {
+      // Line chart
+      ctx.strokeStyle = '#2962FF';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      candles.forEach(function(c, i) {
+        const x = chartLeft + candleSpacing * i + candleSpacing / 2;
+        const y = priceY(c.close);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Gradient fill
+      const gradient = ctx.createLinearGradient(0, chartTop, 0, chartBottom);
+      gradient.addColorStop(0, 'rgba(41, 98, 255, 0.15)');
+      gradient.addColorStop(1, 'rgba(41, 98, 255, 0.0)');
+      ctx.lineTo(chartLeft + candleSpacing * (candles.length - 1) + candleSpacing / 2, chartBottom);
+      ctx.lineTo(chartLeft + candleSpacing / 2, chartBottom);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+
+    // Volume bars
+    const volTop = chartBottom + 8;
+    const volBottom = h - padBottom;
+    const volH = volBottom - volTop;
+    candles.forEach(function(c, i) {
+      const x = chartLeft + candleSpacing * i + candleSpacing / 2;
+      const isUp = c.close >= c.open;
+      const barH = (c.volume / maxVol) * volH;
+      ctx.fillStyle = isUp ? 'rgba(38,166,154,0.25)' : 'rgba(247,82,95,0.25)';
+      ctx.fillRect(x - candleWidth / 2, volBottom - barH, candleWidth, barH);
+    });
+
+    // Time scale
+    ctx.fillStyle = '#6B6B80';
+    ctx.font = '10px Inter, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    const tf = document.querySelector('.tf-btn.active');
+    const tfName = tf ? tf.getAttribute('data-tf') : '1D';
+    const labelCount = Math.min(candles.length, Math.floor(chartWidth / 80));
+    const step = Math.max(1, Math.floor(candles.length / labelCount));
+
+    for (let i = 0; i < candles.length; i += step) {
+      const x = chartLeft + candleSpacing * i + candleSpacing / 2;
+      let label = '';
+      const d = new Date();
+      d.setDate(d.getDate() - (candles.length - i));
+      switch(tfName) {
+        case '1D':
+        case '5D':
+          label = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+          break;
+        case '1M':
+        case '3M':
+          label = d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+          break;
+        default:
+          label = d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
+          break;
+      }
+      ctx.fillText(label, x, h - padBottom + 18);
+    }
+
+    // Store layout for hover
+    canvas._chartLayout = {
+      chartLeft: chartLeft,
+      chartRight: chartRight,
+      chartTop: chartTop,
+      chartBottom: chartBottom,
+      candleSpacing: candleSpacing,
+      candles: candles,
+      priceY: priceY,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      totalRange: totalRange,
+      volTop: volTop,
+      volBottom: volBottom
+    };
+  }
+
+  // =============================================
+  // CHART HOVER / TOOLTIP
+  // =============================================
+  canvas.addEventListener('mousemove', function(e) {
+    const layout = canvas._chartLayout;
+    if (!layout) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const idx = Math.floor((mx - layout.chartLeft) / layout.candleSpacing);
+    if (idx >= 0 && idx < layout.candles.length) {
+      const c = layout.candles[idx];
+      const isUp = c.close >= c.open;
+      tooltip.style.display = 'block';
+      tooltip.innerHTML =
+        '<div style="margin-bottom:3px;font-weight:600;">' +
+        'O: ' + c.open.toFixed(2) + '&nbsp;&nbsp;H: ' + c.high.toFixed(2) + '</div>' +
+        '<div>C: ' + c.close.toFixed(2) + '&nbsp;&nbsp;L: ' + c.low.toFixed(2) + '</div>' +
+        '<div style="margin-top:3px;color:' + (isUp ? '#26A69A' : '#F7525F') + ';">Vol: ' + (c.volume / 1e6).toFixed(2) + 'M</div>';
+      let tx = mx + 14;
+      let ty = my - 10;
+      if (tx + 170 > rect.width) tx = mx - 170;
+      if (ty < 0) ty = 10;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+
+      // Crosshair
+      drawChart();
+      ctx.save();
+      ctx.setLineDash([2, 3]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      // Vertical
+      const cx = layout.chartLeft + layout.candleSpacing * idx + layout.candleSpacing / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, layout.chartTop);
+      ctx.lineTo(cx, layout.volBottom);
+      ctx.stroke();
+      // Horizontal
+      ctx.beginPath();
+      ctx.moveTo(layout.chartLeft, my);
+      ctx.lineTo(layout.chartRight, my);
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('mouseleave', function() {
+    tooltip.style.display = 'none';
+    drawChart();
+  });
+
+  // =============================================
+  // INIT & RESIZE
+  // =============================================
+  drawChart();
+  let resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawChart, 80);
+  });
+
+  // Redraw on fullscreen change
+  document.addEventListener('fullscreenchange', function() {
+    setTimeout(drawChart, 100);
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedBook — Find and Book Top Doctors Instantly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 50: '#EDEBF7', 100: '#D5D0ED', 200: '#A99EDC', 300: '#7D6CCB', 400: '#513ABA', 500: '#2D2A8C', 600: '#1B1464', 700: '#15104F', 800: '#0F0C3A', 900: '#090725' },
+            accent: { 50: '#FFFBE6', 100: '#FFF5B8', 200: '#FFED80', 300: '#FFE548', 400: '#FFD930', 500: '#FFC800', 600: '#E6B400', 700: '#B38D00', 800: '#806600', 900: '#4D3F00' },
+            mint: { 50: '#ECFDF5', 100: '#D1FAE5', 400: '#34D399', 500: '#10B981', 600: '#059669' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Smooth scrolling */
+    html { scroll-behavior: smooth; }
+
+    /* Search autocomplete dropdown */
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-top: none;
+      border-radius: 0 0 0.75rem 0.75rem;
+      box-shadow: 0 10px 25px -5px rgba(27,20,100,0.12);
+      z-index: 50;
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+    }
+    .autocomplete-dropdown.active { display: block; }
+    .autocomplete-item {
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+      transition: background 120ms ease;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+      color: #374151;
+    }
+    .autocomplete-item:hover, .autocomplete-item.highlighted {
+      background: #F3F0FF;
+      color: #1B1464;
+    }
+    .autocomplete-item:first-child { padding-top: 0.75rem; }
+    .autocomplete-item:last-child { padding-bottom: 0.75rem; border-radius: 0 0 0.75rem 0.75rem; }
+
+    /* Mobile menu slide-out */
+    .mobile-menu-overlay {
+      position: fixed; inset: 0;
+      background: rgba(27,20,100,0.3);
+      backdrop-filter: blur(4px);
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 250ms ease;
+    }
+    .mobile-menu-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .mobile-menu-drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 280px; max-width: 85vw;
+      background: white;
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 300ms ease-out;
+      box-shadow: -8px 0 30px rgba(27,20,100,0.15);
+    }
+    .mobile-menu-drawer.active { transform: translateX(0); }
+
+    /* Fade-in animation */
+    .fade-in-up {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 500ms ease-out, transform 500ms ease-out;
+    }
+    .fade-in-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Staggered children */
+    .stagger-children .fade-in-up:nth-child(1) { transition-delay: 0ms; }
+    .stagger-children .fade-in-up:nth-child(2) { transition-delay: 80ms; }
+    .stagger-children .fade-in-up:nth-child(3) { transition-delay: 160ms; }
+    .stagger-children .fade-in-up:nth-child(4) { transition-delay: 240ms; }
+    .stagger-children .fade-in-up:nth-child(5) { transition-delay: 320ms; }
+    .stagger-children .fade-in-up:nth-child(6) { transition-delay: 400ms; }
+
+    /* Card hover lift */
+    .card-lift {
+      transition: transform 200ms ease, box-shadow 200ms ease;
+    }
+    .card-lift:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px -8px rgba(27,20,100,0.16);
+    }
+
+    /* Button press */
+    .btn-press { transition: transform 100ms ease, box-shadow 150ms ease; }
+    .btn-press:active { transform: scale(0.97); }
+
+    /* Specialty card icon pulse on hover */
+    .specialty-icon { transition: transform 200ms ease, background 200ms ease; }
+    .specialty-card:hover .specialty-icon {
+      transform: scale(1.1);
+      background: #1B1464;
+      color: #FFD930;
+    }
+    .specialty-card:hover .specialty-icon svg { stroke: #FFD930; }
+
+    /* Step connector line */
+    .step-connector {
+      position: absolute;
+      top: 2rem;
+      left: calc(50% + 2rem);
+      width: calc(100% - 4rem);
+      height: 2px;
+      background: repeating-linear-gradient(90deg, #D5D0ED 0, #D5D0ED 8px, transparent 8px, transparent 16px);
+    }
+
+    /* Stats counter animation */
+    @keyframes countUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .stat-item { animation: countUp 600ms ease-out both; }
+    .stat-item:nth-child(1) { animation-delay: 0ms; }
+    .stat-item:nth-child(2) { animation-delay: 120ms; }
+    .stat-item:nth-child(3) { animation-delay: 240ms; }
+    .stat-item:nth-child(4) { animation-delay: 360ms; }
+
+    /* Search field focus ring */
+    .search-field:focus-within {
+      border-color: #FFD930;
+      box-shadow: 0 0 0 3px rgba(255,217,48,0.25);
+    }
+
+    /* Testimonial quote mark */
+    .quote-mark {
+      font-size: 4rem;
+      line-height: 1;
+      color: #FFD930;
+      font-family: Georgia, serif;
+      position: absolute;
+      top: -0.25rem;
+      left: 0.5rem;
+      opacity: 0.6;
+    }
+
+    /* Custom scrollbar for autocomplete */
+    .autocomplete-dropdown::-webkit-scrollbar { width: 6px; }
+    .autocomplete-dropdown::-webkit-scrollbar-track { background: transparent; }
+    .autocomplete-dropdown::-webkit-scrollbar-thumb { background: #D5D0ED; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-white text-gray-800 antialiased">
+
+  <!-- ============ HEADER ============ -->
+  <header id="header" class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 transition-shadow duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a href="#" class="flex items-center gap-2 group">
+          <div class="w-9 h-9 bg-navy-600 rounded-lg flex items-center justify-center group-hover:bg-navy-500 transition-colors">
+            <i data-lucide="heart-pulse" class="w-5 h-5 text-accent-400"></i>
+          </div>
+          <span class="text-xl font-bold text-navy-600">Med<span class="text-accent-400">Book</span></span>
+        </a>
+
+        <!-- Desktop nav -->
+        <nav class="hidden md:flex items-center gap-1">
+          <a href="#specialties" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors">Browse</a>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-navy-600 rounded-lg hover:bg-navy-50 transition-colors">Help</a>
+          <div class="w-px h-5 bg-gray-200 mx-2"></div>
+          <a href="#" class="px-4 py-2 text-sm font-medium text-navy-600 hover:bg-navy-50 rounded-lg transition-colors">Log In</a>
+          <a href="#" class="px-5 py-2.5 text-sm font-semibold text-navy-600 bg-accent-400 hover:bg-accent-500 rounded-lg transition-colors btn-press shadow-sm">Sign Up</a>
+        </nav>
+
+        <!-- Mobile hamburger -->
+        <button id="menu-toggle" class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Open menu">
+          <i data-lucide="menu" class="w-6 h-6 text-navy-600"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile menu overlay -->
+  <div id="mobile-overlay" class="mobile-menu-overlay"></div>
+  <!-- Mobile menu drawer -->
+  <div id="mobile-drawer" class="mobile-menu-drawer">
+    <div class="p-5">
+      <div class="flex items-center justify-between mb-8">
+        <span class="text-lg font-bold text-navy-600">Med<span class="text-accent-400">Book</span></span>
+        <button id="menu-close" class="p-2 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Close menu">
+          <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+        </button>
+      </div>
+      <nav class="flex flex-col gap-1">
+        <a href="#specialties" class="mobile-nav-link px-4 py-3 text-base font-medium text-gray-700 hover:text-navy-600 hover:bg-navy-50 rounded-lg transition-colors">Browse</a>
+        <a href="#" class="mobile-nav-link px-4 py-3 text-base font-medium text-gray-700 hover:text-navy-600 hover:bg-navy-50 rounded-lg transition-colors">Help</a>
+        <a href="#" class="mobile-nav-link px-4 py-3 text-base font-medium text-gray-700 hover:text-navy-600 hover:bg-navy-50 rounded-lg transition-colors">Log In</a>
+        <a href="#" class="mt-3 px-4 py-3 text-base font-semibold text-center text-navy-600 bg-accent-400 hover:bg-accent-500 rounded-lg transition-colors btn-press">Sign Up</a>
+      </nav>
+    </div>
+  </div>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="relative overflow-hidden bg-gradient-to-b from-navy-50/60 via-white to-white">
+      <!-- Decorative blobs -->
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-accent-100/30 rounded-full blur-3xl -translate-y-1/2 pointer-events-none"></div>
+      <div class="absolute bottom-0 right-0 w-[400px] h-[400px] bg-navy-100/20 rounded-full blur-3xl translate-y-1/2 pointer-events-none"></div>
+
+      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-10 md:pt-24 md:pb-16 text-center">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 bg-navy-600/5 border border-navy-600/10 rounded-full mb-6 fade-in-up">
+          <span class="w-2 h-2 bg-mint-500 rounded-full animate-pulse"></span>
+          <span class="text-xs font-semibold text-navy-600 tracking-wide uppercase">Same-day appointments available</span>
+        </div>
+
+        <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-navy-600 tracking-tight leading-[1.1] mb-5 fade-in-up">
+          Find and book<br class="hidden sm:block"> the care you need
+        </h1>
+        <p class="max-w-2xl mx-auto text-lg md:text-xl text-gray-500 leading-relaxed mb-10 fade-in-up">
+          Search thousands of doctors, dentists, and specialists. Read verified patient reviews. Book appointments instantly — even same-day. It's that easy, and always free.
+        </p>
+
+        <!-- ============ SEARCH BAR ============ -->
+        <div class="max-w-4xl mx-auto fade-in-up">
+          <form id="search-form" class="bg-white rounded-2xl shadow-xl shadow-navy-600/8 border border-gray-100 p-2 sm:p-3" autocomplete="off">
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <!-- Specialty / Condition / Doctor -->
+              <div class="relative flex-1 search-field rounded-xl border border-gray-200 transition-all">
+                <div class="flex items-center px-3 py-2.5">
+                  <i data-lucide="search" class="w-5 h-5 text-gray-400 shrink-0 mr-2"></i>
+                  <input
+                    id="search-input"
+                    type="text"
+                    placeholder="Condition, specialty, or doctor name"
+                    class="w-full text-sm text-gray-800 placeholder-gray-400 bg-transparent outline-none"
+                    aria-label="Search by condition, specialty, or doctor name"
+                  >
+                </div>
+                <!-- Autocomplete dropdown -->
+                <div id="autocomplete-dropdown" class="autocomplete-dropdown" role="listbox">
+                  <!-- Items injected by JS -->
+                </div>
+              </div>
+
+              <!-- Location -->
+              <div class="relative sm:w-48 search-field rounded-xl border border-gray-200 transition-all">
+                <div class="flex items-center px-3 py-2.5">
+                  <i data-lucide="map-pin" class="w-5 h-5 text-gray-400 shrink-0 mr-2"></i>
+                  <input
+                    id="location-input"
+                    type="text"
+                    placeholder="City, state, or zip"
+                    class="w-full text-sm text-gray-800 placeholder-gray-400 bg-transparent outline-none"
+                    aria-label="Location"
+                  >
+                  <button type="button" id="geolocate-btn" class="shrink-0 ml-1 p-1 rounded-md hover:bg-navy-50 transition-colors" aria-label="Use my location" title="Use my location">
+                    <i data-lucide="crosshair" class="w-4 h-4 text-navy-400"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Insurance -->
+              <div class="relative sm:w-44 search-field rounded-xl border border-gray-200 transition-all">
+                <div class="flex items-center px-3 py-2.5">
+                  <i data-lucide="shield-check" class="w-5 h-5 text-gray-400 shrink-0 mr-2"></i>
+                  <select
+                    id="insurance-select"
+                    class="w-full text-sm text-gray-800 bg-transparent outline-none appearance-none cursor-pointer"
+                    aria-label="Insurance plan"
+                  >
+                    <option value="">Insurance plan</option>
+                    <option value="aetna">Aetna</option>
+                    <option value="bluecross">Blue Cross Blue Shield</option>
+                    <option value="cigna">Cigna</option>
+                    <option value="united">UnitedHealthcare</option>
+                    <option value="kaiser">Kaiser Permanente</option>
+                    <option value="humana">Humana</option>
+                    <option value="anthem">Anthem</option>
+                    <option value="other">Other</option>
+                    <option value="none">No Insurance</option>
+                  </select>
+                  <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 shrink-0 ml-1 pointer-events-none"></i>
+                </div>
+              </div>
+
+              <!-- Search button -->
+              <button type="submit" class="bg-navy-600 hover:bg-navy-500 text-white font-semibold px-8 py-3 rounded-xl transition-colors btn-press shadow-lg shadow-navy-600/20 flex items-center justify-center gap-2">
+                <i data-lucide="search" class="w-4 h-4"></i>
+                <span>Search</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STATS BAR ============ -->
+    <section class="bg-navy-600 py-8 md:py-10">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 text-center">
+          <div class="stat-item">
+            <div class="text-3xl md:text-4xl font-extrabold text-accent-400 mb-1">4.8M+</div>
+            <div class="text-sm text-navy-200 font-medium">Verified patient reviews</div>
+          </div>
+          <div class="stat-item">
+            <div class="text-3xl md:text-4xl font-extrabold text-accent-400 mb-1">12,000+</div>
+            <div class="text-sm text-navy-200 font-medium">Healthcare providers</div>
+          </div>
+          <div class="stat-item">
+            <div class="text-3xl md:text-4xl font-extrabold text-mint-400 mb-1">Same-day</div>
+            <div class="text-sm text-navy-200 font-medium">Appointments available</div>
+          </div>
+          <div class="stat-item">
+            <div class="text-3xl md:text-4xl font-extrabold text-mint-400 mb-1">100% free</div>
+            <div class="text-sm text-navy-200 font-medium">For patients — always</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SPECIALTIES ============ -->
+    <section id="specialties" class="py-16 md:py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 fade-in-up">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-navy-600 mb-3">Popular specialties</h2>
+          <p class="text-gray-500 text-lg max-w-xl mx-auto">Find the right provider for your needs. Browse by specialty to see top-rated doctors near you.</p>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-5 stagger-children">
+          <!-- Primary Care -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="primary-care">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="stethoscope" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Primary Care</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Checkups & preventive care</p>
+          </a>
+          <!-- Dentist -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="dentist">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="smile" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Dentist</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Cleanings & oral health</p>
+          </a>
+          <!-- Dermatologist -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="dermatologist">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="scan-face" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Dermatologist</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Skin, acne & cosmetics</p>
+          </a>
+          <!-- Psychiatrist -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="psychiatrist">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="brain" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Psychiatrist</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Mental health & medication</p>
+          </a>
+          <!-- Eye Doctor -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="eye-doctor">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="eye" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Eye Doctor</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Vision & eye health</p>
+          </a>
+          <!-- Orthopedic Surgeon -->
+          <a href="#" class="specialty-card card-lift bg-white border border-gray-100 rounded-2xl p-5 text-center hover:border-navy-200 transition-all fade-in-up group" data-specialty="orthopedic">
+            <div class="specialty-icon w-14 h-14 mx-auto mb-3 bg-navy-50 rounded-xl flex items-center justify-center text-navy-600 transition-all">
+              <i data-lucide="bone" class="w-7 h-7"></i>
+            </div>
+            <h3 class="font-semibold text-navy-600 text-sm mb-1">Orthopedic</h3>
+            <p class="text-xs text-gray-400 leading-relaxed">Joint pain & sports injuries</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="py-16 md:py-24 bg-gray-50/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-14 fade-in-up">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-navy-600 mb-3">How it works</h2>
+          <p class="text-gray-500 text-lg max-w-xl mx-auto">Booking an appointment has never been easier. Three simple steps and you're done.</p>
+        </div>
+        <div class="grid md:grid-cols-3 gap-8 md:gap-6 lg:gap-12 relative stagger-children">
+          <!-- Connector lines (desktop only) -->
+          <div class="hidden md:block absolute top-16 left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] h-0.5">
+            <div class="w-full h-full bg-gradient-to-r from-navy-200 via-accent-300 to-mint-400 rounded-full" style="background: repeating-linear-gradient(90deg, #D5D0ED 0, #D5D0ED 8px, transparent 8px, transparent 16px);"></div>
+          </div>
+
+          <!-- Step 1 -->
+          <div class="fade-in-up text-center relative">
+            <div class="relative inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-navy-200 rounded-2xl shadow-sm mb-5 z-10">
+              <i data-lucide="search" class="w-7 h-7 text-navy-600"></i>
+              <span class="absolute -top-2 -right-2 w-6 h-6 bg-accent-400 rounded-full flex items-center justify-center text-xs font-bold text-navy-700">1</span>
+            </div>
+            <h3 class="text-lg font-bold text-navy-600 mb-2">Search for a provider</h3>
+            <p class="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">Enter your specialty, condition, or doctor name along with your location and insurance. Browse detailed provider profiles with photos, credentials, and office hours.</p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="fade-in-up text-center relative">
+            <div class="relative inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-navy-200 rounded-2xl shadow-sm mb-5 z-10">
+              <i data-lucide="calendar-check" class="w-7 h-7 text-navy-600"></i>
+              <span class="absolute -top-2 -right-2 w-6 h-6 bg-accent-400 rounded-full flex items-center justify-center text-xs font-bold text-navy-700">2</span>
+            </div>
+            <h3 class="text-lg font-bold text-navy-600 mb-2">Choose a time that works</h3>
+            <p class="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">View real-time availability and pick an appointment slot that fits your schedule — including same-day and next-day options.</p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="fade-in-up text-center relative">
+            <div class="relative inline-flex items-center justify-center w-16 h-16 bg-white border-2 border-mint-400 rounded-2xl shadow-sm mb-5 z-10">
+              <i data-lucide="check-circle-2" class="w-7 h-7 text-mint-500"></i>
+              <span class="absolute -top-2 -right-2 w-6 h-6 bg-accent-400 rounded-full flex items-center justify-center text-xs font-bold text-navy-700">3</span>
+            </div>
+            <h3 class="text-lg font-bold text-navy-600 mb-2">Book your appointment</h3>
+            <p class="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">Confirm your visit in just a few clicks. Receive instant confirmation and reminders so you never miss an appointment.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TESTIMONIALS ============ -->
+    <section class="py-16 md:py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 fade-in-up">
+          <h2 class="text-3xl md:text-4xl font-extrabold text-navy-600 mb-3">What patients are saying</h2>
+          <p class="text-gray-500 text-lg">Real reviews from real patients who found care through MedBook.</p>
+        </div>
+        <div class="grid md:grid-cols-3 gap-6 lg:gap-8 stagger-children">
+          <!-- Testimonial 1 -->
+          <div class="fade-in-up card-lift bg-white border border-gray-100 rounded-2xl p-6 relative">
+            <div class="quote-mark">&ldquo;</div>
+            <div class="relative z-10">
+              <p class="text-gray-600 text-sm leading-relaxed mb-5 pt-6">I found a great dermatologist near my office and booked a same-day appointment during my lunch break. MedBook made it incredibly easy.</p>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-navy-100 flex items-center justify-center text-navy-600 font-bold text-sm">PM</div>
+                <div>
+                  <div class="font-semibold text-navy-600 text-sm">Priya M.</div>
+                  <div class="text-xs text-gray-400">New York, NY</div>
+                </div>
+                <div class="ml-auto flex gap-0.5">
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonial 2 -->
+          <div class="fade-in-up card-lift bg-white border border-gray-100 rounded-2xl p-6 relative">
+            <div class="quote-mark">&ldquo;</div>
+            <div class="relative z-10">
+              <p class="text-gray-600 text-sm leading-relaxed mb-5 pt-6">As someone new to the city, MedBook helped me find a primary care doctor who accepts my insurance in under five minutes. Highly recommend!</p>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-accent-100 flex items-center justify-center text-navy-600 font-bold text-sm">JT</div>
+                <div>
+                  <div class="font-semibold text-navy-600 text-sm">James T.</div>
+                  <div class="text-xs text-gray-400">Chicago, IL</div>
+                </div>
+                <div class="ml-auto flex gap-0.5">
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Testimonial 3 -->
+          <div class="fade-in-up card-lift bg-white border border-gray-100 rounded-2xl p-6 relative">
+            <div class="quote-mark">&ldquo;</div>
+            <div class="relative z-10">
+              <p class="text-gray-600 text-sm leading-relaxed mb-5 pt-6">I was dreading finding a new dentist, but the verified reviews on MedBook gave me confidence. My appointment was exactly what I needed.</p>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-mint-100 flex items-center justify-center text-navy-600 font-bold text-sm">LK</div>
+                <div>
+                  <div class="font-semibold text-navy-600 text-sm">Laura K.</div>
+                  <div class="text-xs text-gray-400">Austin, TX</div>
+                </div>
+                <div class="ml-auto flex gap-0.5">
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-accent-400 fill-accent-400"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MOBILE APP PROMO ============ -->
+    <section class="py-16 md:py-24 bg-gradient-to-br from-navy-600 via-navy-500 to-navy-700 relative overflow-hidden">
+      <!-- Decorative elements -->
+      <div class="absolute top-0 right-0 w-96 h-96 bg-accent-400/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute bottom-0 left-0 w-72 h-72 bg-mint-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+          <!-- Text content -->
+          <div class="fade-in-up">
+            <h2 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">Your health,<br>in your pocket</h2>
+            <p class="text-navy-200 text-lg leading-relaxed mb-8 max-w-lg">Download the MedBook app to search for doctors, manage appointments, and get reminders — all on the go. Available on iOS and Android.</p>
+
+            <!-- App features -->
+            <ul class="space-y-3 mb-8">
+              <li class="flex items-start gap-3">
+                <div class="mt-0.5 w-5 h-5 bg-accent-400/20 rounded-full flex items-center justify-center shrink-0">
+                  <i data-lucide="check" class="w-3 h-3 text-accent-400"></i>
+                </div>
+                <span class="text-navy-100 text-sm">Book and manage appointments anywhere</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <div class="mt-0.5 w-5 h-5 bg-accent-400/20 rounded-full flex items-center justify-center shrink-0">
+                  <i data-lucide="check" class="w-3 h-3 text-accent-400"></i>
+                </div>
+                <span class="text-navy-100 text-sm">Get real-time appointment reminders</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <div class="mt-0.5 w-5 h-5 bg-accent-400/20 rounded-full flex items-center justify-center shrink-0">
+                  <i data-lucide="check" class="w-3 h-3 text-accent-400"></i>
+                </div>
+                <span class="text-navy-100 text-sm">Access your visit history and provider details</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <div class="mt-0.5 w-5 h-5 bg-accent-400/20 rounded-full flex items-center justify-center shrink-0">
+                  <i data-lucide="check" class="w-3 h-3 text-accent-400"></i>
+                </div>
+                <span class="text-navy-100 text-sm">Read and leave verified reviews</span>
+              </li>
+            </ul>
+
+            <!-- Download buttons -->
+            <div class="flex flex-wrap gap-3">
+              <a href="#" class="inline-flex items-center gap-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-5 py-3 rounded-xl transition-colors btn-press">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                <div class="text-left">
+                  <div class="text-[10px] leading-none opacity-70">Download on the</div>
+                  <div class="text-sm font-semibold leading-tight">App Store</div>
+                </div>
+              </a>
+              <a href="#" class="inline-flex items-center gap-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-5 py-3 rounded-xl transition-colors btn-press">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.302 2.302a1 1 0 0 1 0 1.38l-2.302 2.302L15.2 12l2.498-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302L5.864 2.658z"/></svg>
+                <div class="text-left">
+                  <div class="text-[10px] leading-none opacity-70">Get it on</div>
+                  <div class="text-sm font-semibold leading-tight">Google Play</div>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Phone mockup -->
+          <div class="fade-in-up flex justify-center">
+            <div class="relative">
+              <div class="w-[260px] sm:w-[280px] h-[540px] sm:h-[580px] bg-navy-800 rounded-[2.5rem] border-4 border-navy-400/30 shadow-2xl shadow-black/30 overflow-hidden relative">
+                <!-- Phone notch -->
+                <div class="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-navy-800 rounded-b-2xl z-10"></div>
+                <!-- Phone screen -->
+                <div class="absolute inset-3 bg-white rounded-[2rem] overflow-hidden">
+                  <div class="p-4 pt-8">
+                    <!-- Mini app header -->
+                    <div class="flex items-center gap-2 mb-4">
+                      <div class="w-6 h-6 bg-navy-600 rounded-md flex items-center justify-center">
+                        <i data-lucide="heart-pulse" class="w-3.5 h-3.5 text-accent-400"></i>
+                      </div>
+                      <span class="text-xs font-bold text-navy-600">MedBook</span>
+                    </div>
+                    <!-- Mini search bar -->
+                    <div class="bg-gray-50 rounded-lg px-3 py-2 flex items-center gap-2 mb-4">
+                      <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400"></i>
+                      <span class="text-[10px] text-gray-400">Search doctors...</span>
+                    </div>
+                    <!-- Mini appointment cards -->
+                    <div class="space-y-2">
+                      <div class="bg-navy-50 rounded-lg p-2.5">
+                        <div class="flex items-center gap-2 mb-1.5">
+                          <div class="w-6 h-6 bg-navy-200 rounded-full flex items-center justify-center text-[8px] font-bold text-navy-600">SC</div>
+                          <div>
+                            <div class="text-[9px] font-semibold text-navy-600">Dr. Sarah Chen</div>
+                            <div class="text-[8px] text-gray-400">Dermatologist</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1 text-[8px] text-mint-600">
+                          <i data-lucide="clock" class="w-2.5 h-2.5"></i>
+                          <span>Today, 2:30 PM</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 rounded-lg p-2.5">
+                        <div class="flex items-center gap-2 mb-1.5">
+                          <div class="w-6 h-6 bg-accent-200 rounded-full flex items-center justify-center text-[8px] font-bold text-navy-600">MR</div>
+                          <div>
+                            <div class="text-[9px] font-semibold text-navy-600">Dr. Mike Rodriguez</div>
+                            <div class="text-[8px] text-gray-400">Primary Care</div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-1 text-[8px] text-gray-400">
+                          <i data-lucide="clock" class="w-2.5 h-2.5"></i>
+                          <span>Tomorrow, 10:00 AM</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 rounded-lg p-2.5">
+                        <div class="flex items-center gap-2">
+                          <i data-lucide="bell" class="w-4 h-4 text-accent-400"></i>
+                          <div class="text-[9px] text-gray-500">Appointment reminder</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Floating notification -->
+              <div class="absolute -right-4 top-20 bg-white rounded-xl shadow-lg shadow-navy-600/10 border border-gray-100 px-3 py-2 flex items-center gap-2 animate-bounce" style="animation-duration: 3s;">
+                <div class="w-7 h-7 bg-mint-100 rounded-lg flex items-center justify-center">
+                  <i data-lucide="bell-ring" class="w-4 h-4 text-mint-600"></i>
+                </div>
+                <div>
+                  <div class="text-[10px] font-semibold text-navy-600">Upcoming</div>
+                  <div class="text-[8px] text-gray-400">Today 2:30 PM</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="bg-navy-800 pt-14 pb-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+        <!-- Brand -->
+        <div class="col-span-2 md:col-span-1">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 bg-navy-600 rounded-lg flex items-center justify-center">
+              <i data-lucide="heart-pulse" class="w-4 h-4 text-accent-400"></i>
+            </div>
+            <span class="text-lg font-bold text-white">Med<span class="text-accent-400">Book</span></span>
+          </div>
+          <p class="text-navy-300 text-sm leading-relaxed">Connecting patients with top-rated doctors, dentists, and specialists. Free, easy, and always available.</p>
+        </div>
+
+        <!-- For Patients -->
+        <div>
+          <h4 class="text-xs font-semibold text-navy-200 uppercase tracking-wider mb-4">For Patients</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Find a Doctor</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Browse Specialties</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Read Reviews</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Insurance Guide</a></li>
+          </ul>
+        </div>
+
+        <!-- For Providers -->
+        <div>
+          <h4 class="text-xs font-semibold text-navy-200 uppercase tracking-wider mb-4">For Providers</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">List Your Practice</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Provider Resources</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Advertise with Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Company -->
+        <div>
+          <h4 class="text-xs font-semibold text-navy-200 uppercase tracking-wider mb-4">Company</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">About MedBook</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Careers</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Press</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Blog</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Legal -->
+        <div>
+          <h4 class="text-xs font-semibold text-navy-200 uppercase tracking-wider mb-4">Legal</h4>
+          <ul class="space-y-2.5">
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Terms of Service</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Privacy Policy</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Accessibility</a></li>
+            <li><a href="#" class="text-sm text-navy-300 hover:text-white transition-colors">Do Not Sell My Info</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="border-t border-navy-700 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="text-navy-400 text-xs">&copy; 2024 MedBook, Inc. All rights reserved. MedBook is free for patients. Always.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="text-navy-400 hover:text-white transition-colors" aria-label="Twitter">
+            <i data-lucide="twitter" class="w-4 h-4"></i>
+          </a>
+          <a href="#" class="text-navy-400 hover:text-white transition-colors" aria-label="Facebook">
+            <i data-lucide="facebook" class="w-4 h-4"></i>
+          </a>
+          <a href="#" class="text-navy-400 hover:text-white transition-colors" aria-label="Instagram">
+            <i data-lucide="instagram" class="w-4 h-4"></i>
+          </a>
+          <a href="#" class="text-navy-400 hover:text-white transition-colors" aria-label="LinkedIn">
+            <i data-lucide="linkedin" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ JAVASCRIPT ============ -->
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // ---- Mobile Menu ----
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuClose = document.getElementById('menu-close');
+    const overlay = document.getElementById('mobile-overlay');
+    const drawer = document.getElementById('mobile-drawer');
+
+    function openMenu() {
+      overlay.classList.add('active');
+      drawer.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeMenu() {
+      overlay.classList.remove('active');
+      drawer.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    menuToggle.addEventListener('click', openMenu);
+    menuClose.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', closeMenu);
+    document.querySelectorAll('.mobile-nav-link').forEach(link => {
+      link.addEventListener('click', closeMenu);
+    });
+
+    // ---- Search Autocomplete ----
+    const searchInput = document.getElementById('search-input');
+    const dropdown = document.getElementById('autocomplete-dropdown');
+    let highlightedIndex = -1;
+
+    const suggestions = [
+      { icon: 'stethoscope', label: 'Primary Care', type: 'Specialty' },
+      { icon: 'smile', label: 'Dentist', type: 'Specialty' },
+      { icon: 'scan-face', label: 'Dermatologist', type: 'Specialty' },
+      { icon: 'brain', label: 'Psychiatrist', type: 'Specialty' },
+      { icon: 'eye', label: 'Eye Doctor', type: 'Specialty' },
+      { icon: 'bone', label: 'Orthopedic Surgeon', type: 'Specialty' },
+      { icon: 'heart-pulse', label: 'Cardiologist', type: 'Specialty' },
+      { icon: 'baby', label: 'Pediatrician', type: 'Specialty' },
+      { icon: 'activity', label: 'Back Pain', type: 'Condition' },
+      { icon: 'thermometer', label: 'Cold & Flu', type: 'Condition' },
+      { icon: 'zap', label: 'Migraine', type: 'Condition' },
+      { icon: 'moon', label: 'Insomnia', type: 'Condition' },
+      { icon: 'user', label: 'Dr. Sarah Chen', type: 'Doctor' },
+      { icon: 'user', label: 'Dr. James Williams', type: 'Doctor' },
+      { icon: 'user', label: 'Dr. Maria Garcia', type: 'Doctor' },
+    ];
+
+    function renderSuggestions(filtered) {
+      if (filtered.length === 0) {
+        dropdown.classList.remove('active');
+        return;
+      }
+      dropdown.innerHTML = filtered.map((s, i) => `
+        <div class="autocomplete-item ${i === highlightedIndex ? 'highlighted' : ''}" data-index="${i}" role="option">
+          <i data-lucide="${s.icon}" style="width:16px;height:16px;color:#9CA3AF;flex-shrink:0"></i>
+          <span class="flex-1">${s.label}</span>
+          <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">${s.type}</span>
+        </div>
+      `).join('');
+      dropdown.classList.add('active');
+      lucide.createIcons();
+
+      // Click handlers on items
+      dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+        item.addEventListener('click', () => {
+          searchInput.value = filtered[parseInt(item.dataset.index)].label;
+          dropdown.classList.remove('active');
+        });
+      });
+    }
+
+    searchInput.addEventListener('input', () => {
+      const val = searchInput.value.trim().toLowerCase();
+      highlightedIndex = -1;
+      if (!val) { dropdown.classList.remove('active'); return; }
+      const filtered = suggestions.filter(s =>
+        s.label.toLowerCase().includes(val) || s.type.toLowerCase().includes(val)
+      );
+      renderSuggestions(filtered);
+    });
+
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.trim()) {
+        searchInput.dispatchEvent(new Event('input'));
+      }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+        updateHighlight(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightedIndex = Math.max(highlightedIndex - 1, 0);
+        updateHighlight(items);
+      } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+        e.preventDefault();
+        items[highlightedIndex].click();
+      } else if (e.key === 'Escape') {
+        dropdown.classList.remove('active');
+      }
+    });
+
+    function updateHighlight(items) {
+      items.forEach((item, i) => {
+        item.classList.toggle('highlighted', i === highlightedIndex);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#search-input') && !e.target.closest('#autocomplete-dropdown')) {
+        dropdown.classList.remove('active');
+      }
+    });
+
+    // ---- Geolocation button ----
+    const geolocateBtn = document.getElementById('geolocate-btn');
+    const locationInput = document.getElementById('location-input');
+    geolocateBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) return;
+      locationInput.value = 'Detecting location...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          locationInput.value = `${pos.coords.latitude.toFixed(2)}, ${pos.coords.longitude.toFixed(2)}`;
+        },
+        () => {
+          locationInput.value = '';
+        }
+      );
+    });
+
+    // ---- Search Form Submit ----
+    document.getElementById('search-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = searchInput.value.trim();
+      const location = locationInput.value.trim();
+      const insurance = document.getElementById('insurance-select').value;
+      // In production, this would navigate to search results
+      console.log('Search submitted:', { query, location, insurance });
+    });
+
+    // ---- Specialty Card Click ----
+    document.querySelectorAll('.specialty-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        const specialty = card.dataset.specialty;
+        searchInput.value = card.querySelector('h3').textContent;
+        searchInput.focus();
+        // Scroll to search area
+        document.getElementById('search-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+
+    // ---- Scroll-triggered fade-in ----
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+    // ---- Header shadow on scroll ----
+    const header = document.getElementById('header');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 10) {
+        header.classList.add('shadow-sm');
+      } else {
+        header.classList.remove('shadow-sm');
+      }
+    }, { passive: true });
+  </script>
+</body>
+</html>

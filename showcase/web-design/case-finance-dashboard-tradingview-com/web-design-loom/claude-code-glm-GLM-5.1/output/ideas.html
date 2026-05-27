@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Ideas — ChartPulse</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Ideas page specific ── */
+    .ideas-header {
+      padding: 40px 24px 0;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .ideas-header__title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: var(--white);
+      margin-bottom: 20px;
+    }
+    .ideas-header__search {
+      position: relative;
+      max-width: 480px;
+      margin-bottom: 16px;
+    }
+    .ideas-header__search .input {
+      padding-left: 40px;
+    }
+    .ideas-header__search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .filter-row .tabs {
+      flex-shrink: 0;
+    }
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .toggle-switch input { display: none; }
+    .toggle-switch__track {
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      position: relative;
+      transition: background var(--transition);
+    }
+    .toggle-switch__track::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: var(--text-secondary);
+      border-radius: 50%;
+      transition: all var(--transition);
+    }
+    .toggle-switch input:checked + .toggle-switch__track {
+      background: var(--accent);
+    }
+    .toggle-switch input:checked + .toggle-switch__track::after {
+      left: 18px;
+      background: var(--white);
+    }
+    .asset-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .asset-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: var(--font);
+    }
+    .asset-pill:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .asset-pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--white);
+    }
+
+    /* Idea card enhancements */
+    .idea-card__chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 160px;
+      background: var(--bg-surface);
+      overflow: hidden;
+    }
+    .idea-card__chart-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .idea-card__direction {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .idea-card__direction--bullish {
+      background: var(--positive-bg);
+      color: var(--positive);
+    }
+    .idea-card__direction--bearish {
+      background: var(--negative-bg);
+      color: var(--negative);
+    }
+    .idea-card__direction--neutral {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+    .idea-card__video-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.35);
+      opacity: 0;
+      transition: opacity var(--transition);
+      pointer-events: none;
+    }
+    .idea-card:hover .idea-card__video-overlay {
+      opacity: 1;
+    }
+    .idea-card__play-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .idea-card__play-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--bg-primary);
+      margin-left: 3px;
+    }
+    .idea-card__video-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.6);
+      color: var(--white);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 7px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .idea-card__video-badge svg {
+      width: 10px;
+      height: 10px;
+      fill: var(--white);
+    }
+    .idea-card__desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .idea-card__tag--bullish {
+      background: var(--positive-bg);
+      color: var(--positive);
+    }
+    .idea-card__tag--bearish {
+      background: var(--negative-bg);
+      color: var(--negative);
+    }
+    .idea-card__tag--neutral {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+    .idea-card__author .badge--staff {
+      background: linear-gradient(135deg, #D4A017, #FFD700);
+      color: #333;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .idea-card__author .badge--rep {
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 40px 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .pagination__btn {
+      min-width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: var(--font);
+      padding: 0 10px;
+    }
+    .pagination__btn:hover:not(:disabled):not(.active) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .pagination__btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--white);
+    }
+    .pagination__btn:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .pagination__dots {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding: 0 4px;
+    }
+
+    /* Ideas feed section */
+    .ideas-feed {
+      padding: 0 24px 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 768px) {
+      .ideas-header__title { font-size: 1.6rem; }
+      .filter-row { gap: 10px; }
+      .idea-card__chart-wrap { height: 130px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav__logo">Chart<span>Pulse</span></div>
+    <div class="nav__links">
+      <a href="chart.html">Products</a>
+      <a href="ideas.html" class="active">Community</a>
+      <a href="markets.html">Markets</a>
+      <a href="brokers.html">Brokers</a>
+    </div>
+    <div class="nav__actions">
+      <button class="btn btn--ghost">Sign in</button>
+      <button class="btn btn--primary">Get started</button>
+    </div>
+  </nav>
+
+  <!-- Header Filters Section -->
+  <div class="ideas-header">
+    <h1 class="ideas-header__title">Trading Ideas</h1>
+
+    <div class="ideas-header__search">
+      <span class="ideas-header__search-icon">&#x1F50D;</span>
+      <input type="text" class="input" placeholder="Search ideas, symbols, authors..." id="ideasSearch">
+    </div>
+
+    <div class="filter-row">
+      <div class="tabs" id="mainTabs">
+        <button class="tab active" data-tab="popular">Popular</button>
+        <button class="tab" data-tab="editors">Editors' picks</button>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="videosOnly">
+        <span class="toggle-switch__track"></span>
+        Videos only
+      </label>
+    </div>
+
+    <div class="asset-pills" id="assetPills">
+      <button class="asset-pill active" data-asset="all">All</button>
+      <button class="asset-pill" data-asset="stocks">Stocks</button>
+      <button class="asset-pill" data-asset="crypto">Crypto</button>
+      <button class="asset-pill" data-asset="forex">Forex</button>
+      <button class="asset-pill" data-asset="commodities">Commodities</button>
+      <button class="asset-pill" data-asset="indices">Indices</button>
+    </div>
+  </div>
+
+  <!-- Idea Feed -->
+  <div class="ideas-feed">
+    <div class="grid grid--4" id="ideasGrid">
+      <!-- Cards injected by JS -->
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    <button class="pagination__btn" disabled>Previous</button>
+    <button class="pagination__btn active">1</button>
+    <button class="pagination__btn">2</button>
+    <button class="pagination__btn">3</button>
+    <span class="pagination__dots">...</span>
+    <button class="pagination__btn">12</button>
+    <button class="pagination__btn">Next</button>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer__grid">
+      <div class="footer__col">
+        <h4>Products</h4>
+        <a href="#">Supercharts</a>
+        <a href="#">Screeners</a>
+        <a href="#">Pine Script</a>
+        <a href="#">Heatmaps</a>
+        <a href="#">Calendars</a>
+      </div>
+      <div class="footer__col">
+        <h4>Community</h4>
+        <a href="#">Social Network</a>
+        <a href="ideas.html">Ideas</a>
+        <a href="#">Indicators &amp; Strategies</a>
+        <a href="#">Editors' Picks</a>
+      </div>
+      <div class="footer__col">
+        <h4>Markets</h4>
+        <a href="markets.html">Stocks</a>
+        <a href="#">ETFs</a>
+        <a href="#">Crypto</a>
+        <a href="#">Forex</a>
+        <a href="#">Futures</a>
+        <a href="#">Bonds</a>
+        <a href="#">Economy</a>
+      </div>
+      <div class="footer__col">
+        <h4>Brokers</h4>
+        <a href="brokers.html">Top Brokers</a>
+        <a href="#">Broker Comparison</a>
+        <a href="#">Special Offers</a>
+      </div>
+      <div class="footer__col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Blog</a>
+        <a href="#">Careers</a>
+        <a href="#">Media Kit</a>
+      </div>
+      <div class="footer__col">
+        <h4>Legal</h4>
+        <a href="#">Terms of Use</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies Policy</a>
+        <a href="#">Disclaimer</a>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>&copy; 2026 ChartPulse</span>
+      <span>Every trade a #ChartPulse trade</span>
+    </div>
+  </footer>
+
+<script>
+(function() {
+  // ── Data ──
+  var popularIdeas = [
+    {
+      title: "SPX Heading to 7,200 — Cup and Handle Pattern",
+      author: "ChartMaster99",
+      avatar: "#2962FF",
+      direction: "bullish",
+      asset: "stocks",
+      time: "2h ago",
+      comments: 47,
+      likes: 312,
+      desc: "A classic cup and handle is forming on the daily chart. Breakout above 6,900 targets 7,200.",
+      timeframe: "Daily",
+      hasVideo: true
+    },
+    {
+      title: "BTC Breaking Out of 6-Month Range",
+      author: "CryptoWhale",
+      avatar: "#F7525F",
+      direction: "bullish",
+      asset: "crypto",
+      time: "3h ago",
+      comments: 89,
+      likes: 567,
+      desc: "Bitcoin has finally broken above the 6-month consolidation range. Targets 95k and beyond.",
+      timeframe: "Weekly",
+      hasVideo: true
+    },
+    {
+      title: "AAPL Death Cross Forming on Weekly",
+      author: "BearTracker",
+      avatar: "#26A69A",
+      direction: "bearish",
+      asset: "stocks",
+      time: "4h ago",
+      comments: 31,
+      likes: 198,
+      desc: "The 50-week MA is about to cross below the 200-week MA. Historically bearish for AAPL.",
+      timeframe: "Weekly",
+      hasVideo: false
+    },
+    {
+      title: "EUR/USD Triple Top at Resistance",
+      author: "ForexSignals",
+      avatar: "#FF9800",
+      direction: "bearish",
+      asset: "forex",
+      time: "5h ago",
+      comments: 52,
+      likes: 289,
+      desc: "Triple top pattern at 1.1250 resistance. A break below 1.1050 confirms the reversal.",
+      timeframe: "4H",
+      hasVideo: false
+    },
+    {
+      title: "Gold Pulling Back to 4,700 Support",
+      author: "CommodityKing",
+      avatar: "#FFD700",
+      direction: "bullish",
+      asset: "commodities",
+      time: "6h ago",
+      comments: 23,
+      likes: 145,
+      desc: "Healthy pullback to the 4,700 support zone. Buying opportunity before the next leg up.",
+      timeframe: "Daily",
+      hasVideo: false
+    },
+    {
+      title: "TSLA Flag Pattern — Breakout Incoming",
+      author: "EVTrader",
+      avatar: "#E040FB",
+      direction: "bullish",
+      asset: "stocks",
+      time: "7h ago",
+      comments: 67,
+      likes: 423,
+      desc: "Bull flag forming after the strong rally. Watch for a breakout above 290 for a move to 320.",
+      timeframe: "4H",
+      hasVideo: false
+    },
+    {
+      title: "ETH/BTC Ratio at Historic Support",
+      author: "DeFiAnalyst",
+      avatar: "#00BCD4",
+      direction: "bullish",
+      asset: "crypto",
+      time: "8h ago",
+      comments: 41,
+      likes: 234,
+      desc: "The ETH/BTC ratio is at a multi-year support level. Relative value play with strong upside potential.",
+      timeframe: "Weekly",
+      hasVideo: false
+    },
+    {
+      title: "NDX Bearish Divergence on RSI",
+      author: "QuantBear",
+      avatar: "#9C27B0",
+      direction: "bearish",
+      asset: "indices",
+      time: "9h ago",
+      comments: 38,
+      likes: 176,
+      desc: "RSI showing clear bearish divergence while price makes new highs. Caution advised.",
+      timeframe: "Daily",
+      hasVideo: false
+    }
+  ];
+
+  var editorsIdeas = [
+    {
+      title: "The Case for 7,500 on S&P 500",
+      author: "ProTrader",
+      avatar: "#2962FF",
+      direction: "bullish",
+      asset: "stocks",
+      time: "1d ago",
+      comments: 156,
+      likes: 1200,
+      desc: "Multiple technical and fundamental factors align for a push to 7,500 by year end.",
+      timeframe: "Monthly",
+      staffPick: true,
+      hasVideo: true
+    },
+    {
+      title: "2026 Crypto Bull Market Thesis",
+      author: "BlockchainInsider",
+      avatar: "#F7525F",
+      direction: "bullish",
+      asset: "crypto",
+      time: "2d ago",
+      comments: 234,
+      likes: 2100,
+      desc: "On-chain metrics, halving cycle, and institutional flows all point to a major bull market in 2026.",
+      timeframe: "Monthly",
+      hasVideo: false
+    },
+    {
+      title: "Why Gold Could Hit 5,000",
+      author: "MacroMaven",
+      avatar: "#FFD700",
+      direction: "bullish",
+      asset: "commodities",
+      time: "3d ago",
+      comments: 89,
+      likes: 890,
+      desc: "Central bank buying, de-dollarization trends, and geopolitical risks support a parabolic move in gold.",
+      timeframe: "Monthly",
+      hasVideo: false
+    },
+    {
+      title: "Dollar Weakness: Pairs to Watch",
+      author: "FXExpert",
+      avatar: "#FF9800",
+      direction: "bearish",
+      asset: "forex",
+      time: "4d ago",
+      comments: 112,
+      likes: 756,
+      desc: "The DXY is breaking down from a multi-year wedge. Here are the best pairs to trade the weak dollar.",
+      timeframe: "Weekly",
+      hasVideo: false
+    },
+    {
+      title: "NVDA Post-Earnings Technical Outlook",
+      author: "TechAnalyst",
+      avatar: "#26A69A",
+      direction: "neutral",
+      asset: "stocks",
+      time: "1d ago",
+      comments: 78,
+      likes: 534,
+      desc: "After the earnings gap, NVDA is consolidating. Key levels to watch for the next directional move.",
+      timeframe: "Daily",
+      hasVideo: false
+    },
+    {
+      title: "Soybean Seasonal Play",
+      author: "AgTrader",
+      avatar: "#8BC34A",
+      direction: "bullish",
+      asset: "commodities",
+      time: "2d ago",
+      comments: 45,
+      likes: 321,
+      desc: "Seasonal patterns and supply fundamentals suggest a strong rally in soybeans over the next 3 months.",
+      timeframe: "Weekly",
+      hasVideo: false
+    },
+    {
+      title: "Yen Carry Trade Unwind Risk",
+      author: "MacroRisk",
+      avatar: "#E040FB",
+      direction: "bearish",
+      asset: "forex",
+      time: "5d ago",
+      comments: 67,
+      likes: 445,
+      desc: "BOJ policy normalization could trigger a carry trade unwind. Positioning for JPY strength.",
+      timeframe: "Monthly",
+      hasVideo: false
+    },
+    {
+      title: "Small Cap Rotation Signal",
+      author: "RotationPro",
+      avatar: "#00BCD4",
+      direction: "bullish",
+      asset: "indices",
+      time: "3d ago",
+      comments: 92,
+      likes: 678,
+      desc: "The Russell 2000 is breaking out relative to the S&P 500. Small cap rotation is underway.",
+      timeframe: "Weekly",
+      hasVideo: false
+    }
+  ];
+
+  var videoIdeas = [
+    {
+      title: "Live SPX Analysis: Key Levels to Watch",
+      author: "ChartMaster99",
+      avatar: "#2962FF",
+      direction: "bullish",
+      asset: "stocks",
+      time: "1h ago",
+      comments: 124,
+      likes: 890,
+      desc: "Live technical analysis of the S&P 500 with key support and resistance levels.",
+      timeframe: "Daily",
+      hasVideo: true
+    },
+    {
+      title: "BTC Weekly Chart Deep Dive",
+      author: "CryptoWhale",
+      avatar: "#F7525F",
+      direction: "bullish",
+      asset: "crypto",
+      time: "5h ago",
+      comments: 76,
+      likes: 543,
+      desc: "In-depth weekly chart analysis of Bitcoin covering on-chain data and technicals.",
+      timeframe: "Weekly",
+      hasVideo: true
+    },
+    {
+      title: "How to Trade the Fed Decision",
+      author: "ProTrader",
+      avatar: "#26A69A",
+      direction: "neutral",
+      asset: "stocks",
+      time: "12h ago",
+      comments: 203,
+      likes: 1100,
+      desc: "Strategies for trading around the FOMC rate decision including entry and exit levels.",
+      timeframe: "4H",
+      staffPick: true,
+      hasVideo: true
+    }
+  ];
+
+  // ── State ──
+  var currentTab = 'popular';
+  var currentAsset = 'all';
+  var videosOnly = false;
+
+  // ── Helpers ──
+  function formatLikes(n) {
+    if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K';
+    return n.toString();
+  }
+
+  function getInitials(name) {
+    return name.charAt(0).toUpperCase();
+  }
+
+  function getDirectionArrow(dir) {
+    if (dir === 'bullish') return '&#9650;';   // up triangle
+    if (dir === 'bearish') return '&#9660;';   // down triangle
+    return '&#9644;'; // dash for neutral
+  }
+
+  function getDirectionLabel(dir) {
+    if (dir === 'bullish') return 'Bullish';
+    if (dir === 'bearish') return 'Bearish';
+    return 'Neutral';
+  }
+
+  // ── Chart drawing ──
+  function drawMiniChart(canvas, direction) {
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    var w = rect.width;
+    var h = rect.height;
+
+    // Generate points
+    var points = [];
+    var numPoints = 30 + Math.floor(Math.random() * 20);
+    var startVal = 40 + Math.random() * 20;
+    var val = startVal;
+    for (var i = 0; i < numPoints; i++) {
+      if (direction === 'bullish') {
+        val += (Math.random() - 0.38) * 3;
+      } else if (direction === 'bearish') {
+        val += (Math.random() - 0.62) * 3;
+      } else {
+        val += (Math.random() - 0.5) * 3;
+      }
+      val = Math.max(5, Math.min(h - 5, val));
+      points.push(val);
+    }
+
+    // Normalize
+    var min = Math.min.apply(null, points);
+    var max = Math.max.apply(null, points);
+    var range = max - min || 1;
+    var padding = 10;
+    var chartH = h - padding * 2;
+
+    // Color
+    var lineColor, fillColorTop, fillColorBottom;
+    if (direction === 'bullish') {
+      lineColor = '#26A69A';
+      fillColorTop = 'rgba(38,166,154,0.25)';
+      fillColorBottom = 'rgba(38,166,154,0)';
+    } else if (direction === 'bearish') {
+      lineColor = '#F7525F';
+      fillColorTop = 'rgba(247,82,95,0.25)';
+      fillColorBottom = 'rgba(247,82,95,0)';
+    } else {
+      lineColor = '#2962FF';
+      fillColorTop = 'rgba(41,98,255,0.2)';
+      fillColorBottom = 'rgba(41,98,255,0)';
+    }
+
+    // Draw fill
+    ctx.beginPath();
+    for (var j = 0; j < points.length; j++) {
+      var x = (j / (points.length - 1)) * w;
+      var y = padding + chartH - ((points[j] - min) / range) * chartH;
+      if (j === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, fillColorTop);
+    grad.addColorStop(1, fillColorBottom);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Draw line
+    ctx.beginPath();
+    for (var k = 0; k < points.length; k++) {
+      var lx = (k / (points.length - 1)) * w;
+      var ly = padding + chartH - ((points[k] - min) / range) * chartH;
+      if (k === 0) ctx.moveTo(lx, ly);
+      else ctx.lineTo(lx, ly);
+    }
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // End dot
+    var lastX = w;
+    var lastY = padding + chartH - ((points[points.length - 1] - min) / range) * chartH;
+    ctx.beginPath();
+    ctx.arc(lastX - 1, lastY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(lastX - 1, lastY, 5, 0, Math.PI * 2);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Render ──
+  function getFilteredIdeas() {
+    var source;
+    if (videosOnly) {
+      source = videoIdeas;
+    } else if (currentTab === 'popular') {
+      source = popularIdeas;
+    } else {
+      source = editorsIdeas;
+    }
+
+    if (currentAsset !== 'all') {
+      source = source.filter(function(idea) {
+        return idea.asset === currentAsset;
+      });
+    }
+
+    return source;
+  }
+
+  function renderIdeas() {
+    var ideas = getFilteredIdeas();
+    var grid = document.getElementById('ideasGrid');
+
+    if (ideas.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);font-size:1rem;">No ideas found matching your filters.</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < ideas.length; i++) {
+      var idea = ideas[i];
+      var dirClass = 'idea-card__direction--' + idea.direction;
+      var tagDirClass = 'idea-card__tag--' + idea.direction;
+      var avatarStyle = 'background:' + idea.avatar;
+      var staffBadge = idea.staffPick ? '<span class="badge--staff">Staff Pick</span>' : '';
+      var videoBadge = idea.hasVideo
+        ? '<div class="idea-card__video-badge"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>VIDEO</div>'
+        : '';
+      var videoOverlay = idea.hasVideo
+        ? '<div class="idea-card__video-overlay"><div class="idea-card__play-btn"><svg viewBox="0 0 24 24"><polygon points="6,3 20,12 6,21"/></svg></div></div>'
+        : '';
+
+      html += '<div class="idea-card" data-asset="' + idea.asset + '" data-direction="' + idea.direction + '">' +
+        '<div class="idea-card__chart-wrap">' +
+          '<canvas class="idea-canvas" data-direction="' + idea.direction + '"></canvas>' +
+          '<div class="idea-card__direction ' + dirClass + '">' + getDirectionArrow(idea.direction) + '</div>' +
+          videoBadge +
+          videoOverlay +
+        '</div>' +
+        '<div class="idea-card__body">' +
+          '<div class="idea-card__author">' +
+            '<div class="avatar" style="' + avatarStyle + '">' + getInitials(idea.author) + '</div>' +
+            '<span style="color:var(--white);font-weight:500;">' + idea.author + '</span>' +
+            staffBadge +
+          '</div>' +
+          '<div class="idea-card__title">' + idea.title + '</div>' +
+          '<div class="idea-card__desc">' + idea.desc + '</div>' +
+          '<div class="idea-card__meta">' +
+            '<span>' + idea.time + '</span>' +
+            '<span>&#128172; ' + idea.comments + '</span>' +
+            '<span>&#9829; ' + formatLikes(idea.likes) + '</span>' +
+          '</div>' +
+          '<div class="idea-card__tags">' +
+            '<span class="idea-card__tag">' + idea.asset.charAt(0).toUpperCase() + idea.asset.slice(1) + '</span>' +
+            '<span class="idea-card__tag ' + tagDirClass + '">' + getDirectionLabel(idea.direction) + '</span>' +
+            '<span class="idea-card__tag">' + idea.timeframe + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    grid.innerHTML = html;
+
+    // Draw canvases
+    var canvases = grid.querySelectorAll('.idea-canvas');
+    for (var c = 0; c < canvases.length; c++) {
+      drawMiniChart(canvases[c], canvases[c].getAttribute('data-direction'));
+    }
+  }
+
+  // ── Event listeners ──
+
+  // Tab switching
+  var tabs = document.querySelectorAll('#mainTabs .tab');
+  for (var t = 0; t < tabs.length; t++) {
+    tabs[t].addEventListener('click', function() {
+      for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+      this.classList.add('active');
+      currentTab = this.getAttribute('data-tab');
+      // Reset videos only when switching tabs
+      videosOnly = false;
+      document.getElementById('videosOnly').checked = false;
+      renderIdeas();
+    });
+  }
+
+  // Videos only toggle
+  document.getElementById('videosOnly').addEventListener('change', function() {
+    videosOnly = this.checked;
+    renderIdeas();
+  });
+
+  // Asset pills
+  var pills = document.querySelectorAll('#assetPills .asset-pill');
+  for (var p = 0; p < pills.length; p++) {
+    pills[p].addEventListener('click', function() {
+      for (var j = 0; j < pills.length; j++) pills[j].classList.remove('active');
+      this.classList.add('active');
+      currentAsset = this.getAttribute('data-asset');
+      renderIdeas();
+    });
+  }
+
+  // Pagination buttons (cosmetic interaction)
+  var pageBtns = document.querySelectorAll('.pagination__btn');
+  for (var b = 0; b < pageBtns.length; b++) {
+    pageBtns[b].addEventListener('click', function() {
+      if (this.disabled) return;
+      for (var j = 0; j < pageBtns.length; j++) {
+        if (!pageBtns[j].disabled && pageBtns[j].textContent !== 'Previous' && pageBtns[j].textContent !== 'Next' && pageBtns[j].textContent !== '...') {
+          pageBtns[j].classList.remove('active');
+        }
+      }
+      if (this.textContent !== 'Previous' && this.textContent !== 'Next') {
+        this.classList.add('active');
+      }
+    });
+  }
+
+  // Search filtering
+  document.getElementById('ideasSearch').addEventListener('input', function() {
+    var query = this.value.toLowerCase().trim();
+    var cards = document.querySelectorAll('#ideasGrid .idea-card');
+    if (!query) {
+      for (var i = 0; i < cards.length; i++) cards[i].style.display = '';
+      return;
+    }
+    for (var i = 0; i < cards.length; i++) {
+      var title = cards[i].querySelector('.idea-card__title').textContent.toLowerCase();
+      var author = cards[i].querySelector('.idea-card__author span').textContent.toLowerCase();
+      var tags = cards[i].querySelector('.idea-card__tags').textContent.toLowerCase();
+      if (title.indexOf(query) !== -1 || author.indexOf(query) !== -1 || tags.indexOf(query) !== -1) {
+        cards[i].style.display = '';
+      } else {
+        cards[i].style.display = 'none';
+      }
+    }
+  });
+
+  // Resize handler for canvases
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+      var canvases = document.querySelectorAll('.idea-canvas');
+      for (var c = 0; c < canvases.length; c++) {
+        drawMiniChart(canvases[c], canvases[c].getAttribute('data-direction'));
+      }
+    }, 200);
+  });
+
+  // Initial render
+  renderIdeas();
+})();
+</script>
+
+</body>
+</html>
