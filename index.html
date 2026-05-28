@@ -540,26 +540,60 @@
     renderRadar();
     window.addEventListener("resize", () => { radarChart.resize(); renderRadar(); });
 
-    // Smart hover: snap to nearest data point and highlight that model.
-    // Uses zrender mousemove so any point along/near a line works, not just exact vertex hits.
+    // Axis-aware hover: project the cursor onto the nearest task axis and
+    // highlight the model whose value on that axis is closest to the cursor's
+    // radial position. As the cursor slides along an axis (toward / away from
+    // the centre) the highlighted model switches in score order — which is
+    // the "move along an axis to scan through models" behaviour we want.
+    //
+    // A floating dot follows the projected cursor position and the active
+    // axis is dashed, so it's always visible where the input is being read.
+    const chartEl = document.getElementById('overall-chart');
+    chartEl.style.position = 'relative';
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const overlaySvg = document.createElementNS(svgNS, 'svg');
+    overlaySvg.setAttribute('class', 'radar-overlay');
+    const axisLineEl = document.createElementNS(svgNS, 'line');
+    axisLineEl.setAttribute('class', 'radar-overlay-axis');
+    overlaySvg.appendChild(axisLineEl);
+    chartEl.appendChild(overlaySvg);
+
+    const cursorDot = document.createElement('div');
+    cursorDot.className = 'radar-overlay-dot';
+    chartEl.appendChild(cursorDot);
+
+    const valueChip = document.createElement('div');
+    valueChip.className = 'radar-overlay-chip';
+    chartEl.appendChild(valueChip);
+
+    const showOverlay = (state) => {
+      if (!state) {
+        overlaySvg.classList.remove('is-active');
+        cursorDot.classList.remove('is-active');
+        valueChip.classList.remove('is-active');
+        return;
+      }
+      overlaySvg.classList.add('is-active');
+      axisLineEl.setAttribute('x1', state.cx);
+      axisLineEl.setAttribute('y1', state.cy);
+      axisLineEl.setAttribute('x2', state.endX);
+      axisLineEl.setAttribute('y2', state.endY);
+      axisLineEl.setAttribute('stroke', state.color || 'rgba(255,255,255,0.45)');
+
+      cursorDot.classList.add('is-active');
+      cursorDot.style.left = state.projX + 'px';
+      cursorDot.style.top = state.projY + 'px';
+      cursorDot.style.borderColor = state.color || '#fff';
+
+      valueChip.classList.add('is-active');
+      valueChip.style.left = state.projX + 'px';
+      valueChip.style.top = state.projY + 'px';
+      valueChip.textContent = state.axisLabel + ' · ' + state.projValue.toFixed(2);
+    };
+
     const visibleNames = () => new Set(radarSeries.map(s => s.name));
     let hovered = null;
-    const collectVertices = () => {
-      const radar = radarChart.getModel().getComponent('radar').coordinateSystem;
-      if (!radar) return [];
-      const visible = visibleNames();
-      const out = [];
-      lb.models.forEach(m => {
-        if (!visible.has(m.display.name)) return;
-        radarTasks.forEach((t, i) => {
-          const v = m.scores[t];
-          if (v == null) return;
-          const pt = radar.dataToPoint(v, i);
-          if (pt) out.push({ name: m.display.name, x: pt[0], y: pt[1] });
-        });
-      });
-      return out;
-    };
     const setHover = (name) => {
       if (name === hovered) return;
       if (hovered) {
@@ -573,21 +607,75 @@
       }
       hovered = name;
     };
+
     const zr = radarChart.getZr();
     zr.on('mousemove', (e) => {
-      const verts = collectVertices();
-      if (!verts.length) return;
+      const radarModel = radarChart.getModel().getComponent('radar');
+      const radar = radarModel && radarModel.coordinateSystem;
+      if (!radar) return;
+      const visible = visibleNames();
+      if (!visible.size) { setHover(null); showOverlay(null); return; }
+
+      const cx = radar.cx, cy = radar.cy;
       const mx = e.offsetX, my = e.offsetY;
-      let best = null, bestDist = Infinity;
-      for (const v of verts) {
-        const d = Math.hypot(v.x - mx, v.y - my);
-        if (d < bestDist) { bestDist = d; best = v; }
+      const dxC = mx - cx, dyC = my - cy;
+      const cursorR = Math.hypot(dxC, dyC);
+
+      // Find the axis the cursor is most aligned with (largest dot product
+      // with a unit direction vector from the centre).
+      let bestI = -1, bestProj = -Infinity, bestDir = null;
+      for (let i = 0; i < radarTasks.length; i++) {
+        const ep = radar.dataToPoint(radarIndicator[i].max, i);
+        if (!ep) continue;
+        const dx = ep[0] - cx, dy = ep[1] - cy;
+        const len = Math.hypot(dx, dy);
+        if (!len) continue;
+        const ux = dx / len, uy = dy / len;
+        const proj = dxC * ux + dyC * uy;   // signed length along axis i
+        if (proj > bestProj) {
+          bestProj = proj;
+          bestI = i;
+          bestDir = { ux, uy, len, endX: ep[0], endY: ep[1] };
+        }
       }
-      // Snap radius: ~14% of chart width — generous so cursor moves along a line still snap
-      const snap = Math.max(80, radarChart.getWidth() * 0.12);
-      setHover(best && bestDist < snap ? best.name : null);
+
+      // Bail when cursor is behind the centre, well outside the chart, or
+      // when the angle to the active axis is too oblique (avoids latching
+      // onto an axis the user clearly isn't pointing at).
+      if (bestI < 0 || bestProj < 0 || cursorR > bestDir.len * 1.15
+          || (cursorR > 0 && bestProj / cursorR < Math.cos(Math.PI / radarTasks.length))) {
+        setHover(null); showOverlay(null); return;
+      }
+
+      const projLen = Math.min(bestProj, bestDir.len);
+      const projX = cx + projLen * bestDir.ux;
+      const projY = cy + projLen * bestDir.uy;
+
+      // Closest model by value on the active axis.
+      const taskKey = radarTasks[bestI];
+      let bestName = null, bestDist = Infinity, bestColor = null;
+      for (const m of lb.models) {
+        if (!visible.has(m.display.name)) continue;
+        const v = m.scores[taskKey];
+        if (v == null) continue;
+        const pt = radar.dataToPoint(v, bestI);
+        if (!pt) continue;
+        const mr = Math.hypot(pt[0] - cx, pt[1] - cy);
+        const d = Math.abs(mr - projLen);
+        if (d < bestDist) { bestDist = d; bestName = m.display.name; bestColor = m.display.color; }
+      }
+
+      setHover(bestName);
+      // Map projected pixel length back to a score for the value chip.
+      const ind = radarIndicator[bestI];
+      const projValue = ind.min + (projLen / bestDir.len) * (ind.max - ind.min);
+      showOverlay({
+        cx, cy, endX: bestDir.endX, endY: bestDir.endY,
+        projX, projY, color: bestColor,
+        axisLabel: ind.name, projValue,
+      });
     });
-    zr.on('globalout', () => setHover(null));
+    zr.on('globalout', () => { setHover(null); showOverlay(null); });
 
     // Custom HTML legend with hover-to-highlight + click-to-toggle
     const legendEl = document.getElementById("overall-legend");

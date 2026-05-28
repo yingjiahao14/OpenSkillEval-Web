@@ -172,9 +172,24 @@
       if (!entries.length) return;
       const label = (ts[t] || {}).label || t;
       const wrapper = document.createElement("div");
-      const chartH = Math.max(240, entries.length * 40 + 80);
+      // .chart-container has `zoom: 1.25` to cancel body's `zoom: 0.8`, so the
+      // ECharts canvas renders at native pixels (required for correct hover
+      // hit-testing). Everything below — height, fontSize, padding, gridding —
+      // is pre-scaled by 0.8 so the chart's *visual* size matches the rest of
+      // the page (which still inherits body's zoom: 0.8).
+      const chartH = Math.max(192, entries.length * 32 + 64);
+      const seriesNames = TOKEN_COMPONENTS.map(c =>
+        mode === "cost" ? c.name.replace(" (uncached input)", " cost").replace(" (output)", " cost").replace(" (cached input)", " cost") : c.name
+      );
+      // Show the legend as a flex-wrap HTML element above the first chart.
+      // Keeping it out of the ECharts canvas means a wrapped legend (mobile
+      // widths) doesn't bleed into the bar area below it.
+      const legendHTML = taskIdx === 0 ? `
+        <div class="resource-legend">
+          ${TOKEN_COMPONENTS.map((c, ci) => `<span class="resource-legend-item"><i style="background:${c.color}"></i>${seriesNames[ci]}</span>`).join("")}
+        </div>` : "";
       wrapper.style.cssText = "margin-bottom:36px";
-      wrapper.innerHTML = `<h3 style="font-size:0.9375rem;font-weight:600;margin-bottom:8px;color:var(--warm-dark)">${label}</h3><div class="chart-container" style="height:${chartH}px"></div>`;
+      wrapper.innerHTML = `<h3 style="font-size:0.9375rem;font-weight:600;margin-bottom:8px;color:var(--warm-dark)">${label}</h3>${legendHTML}<div class="chart-container" style="height:${chartH}px"></div>`;
       tokenContainer.appendChild(wrapper);
       const chartEl = wrapper.querySelector(".chart-container");
       const chart = echarts.init(chartEl);
@@ -184,22 +199,20 @@
       const axisMax = mode === "cost" ? globalMax * 1.05 : localMax * 1.18;
       // Per-row rich text spec for icon-after-name labels.
       // DeepSeek's whale glyph reads small at the same nominal size — bump 10%.
-      const richSpec = { name: { color: "#4A3F37", fontSize: 14, padding: [0, 6, 0, 0] } };
+      const richSpec = { name: { color: "#4A3F37", fontSize: 11, padding: [0, 5, 0, 0] } };
       reversed.forEach((e, i) => {
         if (!e.icon) return;
         const isDeepSeek = e.id === "claude-code-deepseek-DeepSeek-V4";
-        const dim = isDeepSeek ? 20 : 18;
+        const dim = isDeepSeek ? 16 : 14;
         richSpec["i" + i] = { backgroundColor: { image: e.icon }, width: dim, height: dim, align: "center" };
       });
-
-      const seriesNames = TOKEN_COMPONENTS.map(c =>
-        mode === "cost" ? c.name.replace(" (uncached input)", " cost").replace(" (output)", " cost").replace(" (cached input)", " cost") : c.name
-      );
 
       chart.setOption({
         tooltip: {
           trigger: "axis",
           axisPointer: { type: "shadow" },
+          appendToBody: true,
+          extraCssText: "pointer-events: none; max-width: 260px;",
           formatter: p => {
             const total = p.reduce((s, x) => s + (x.value || 0), 0);
             if (mode === "cost") {
@@ -214,14 +227,14 @@
             return `<strong>${p[0].name}</strong><br>${lines}<br><strong>Total: ${formatTokens(total)}</strong>`;
           }
         },
-        legend: taskIdx === 0 ? { data: seriesNames, top: -4, textStyle: { color: "#4A3F37", fontSize: 13 }, itemGap: 28 } : { show: false },
-        grid: { left: 220, right: mode === "cost" ? 24 : 100, top: taskIdx === 0 ? 36 : 10, bottom: 10 },
+        legend: { show: false },
+        grid: { left: 176, right: mode === "cost" ? 19 : 80, top: 8, bottom: 8 },
         xAxis: { type: "value", min: 0, max: axisMax, show: false },
         yAxis: {
           type: "category",
           data: names,
           axisLabel: {
-            fontSize: 14,
+            fontSize: 11,
             color: "#4A3F37",
             formatter: (val, idx) => reversed[idx] && reversed[idx].icon ? `{name|${val}}{i${idx}|}` : val,
             rich: richSpec,
@@ -234,14 +247,14 @@
           type: "bar",
           stack: "res",
           data: reversed.map(e => e[comp.key] || 0),
-          itemStyle: { color: comp.color, borderRadius: ci === TOKEN_COMPONENTS.length - 1 ? [0, 3, 3, 0] : 0 },
-          barMaxWidth: 28,
+          itemStyle: { color: comp.color, borderRadius: ci === TOKEN_COMPONENTS.length - 1 ? [0, 2, 2, 0] : 0 },
+          barMaxWidth: 22,
           ...(ci === TOKEN_COMPONENTS.length - 1 && mode === "tokens" ? {
             label: {
               show: true,
               position: "right",
               formatter: p => formatTokens(reversed[p.dataIndex].total),
-              fontSize: 14, color: "#4A3F37", fontWeight: 500,
+              fontSize: 11, color: "#4A3F37", fontWeight: 500,
             }
           } : {})
         })),
