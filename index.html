@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=23">
+<link rel="stylesheet" href="css/style.css?v=31">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
@@ -111,6 +111,25 @@
   </div>
 </section>
 
+<!-- Cost vs Score scatter -->
+<section class="section section--cream" id="cost-score">
+  <div class="container">
+    <div class="reveal">
+      <p class="section-label" style="color:var(--taupe)">Cost–Performance Frontier</p>
+      <h2 class="section-title section-title--sm">How Much Quality per Token?</h2>
+      <p class="section-subtitle" style="max-width:960px">Average score plotted against tokens consumed per task — the upper-left is where you want to be.</p>
+    </div>
+    <div class="reveal cost-score-card">
+      <div id="cost-score-chart" style="width:100%;height:680px"></div>
+      <div class="cost-score-legend">
+        <span class="cost-score-legend-item"><span class="cost-score-legend-dot is-frontier"></span>Best in its cost range — no model is both cheaper <em>and</em> higher‑scoring</span>
+        <span class="cost-score-legend-item"><span class="cost-score-legend-dot"></span>Beaten by a cheaper model</span>
+        <span class="cost-score-legend-item"><span class="cost-score-legend-line"></span>Connects the best‑value models</span>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Open Skills catalog -->
 <section class="section section--light section--printed">
   <div class="container">
@@ -148,7 +167,7 @@
       <div class="footer-links">
         <a href="about.html">About</a>
         <a href="leaderboard.html">Leaderboard</a>
-        <a href="mailto:jhying.2022@phdcs.smu.edu.sg">Contact us</a>
+        <a href="mailto:jhying.2022@phdcs.smu.edu.sg">Contact Us</a>
       </div>
     </div>
   </div>
@@ -377,6 +396,245 @@
 
   stackEl.addEventListener("mouseenter", () => clearInterval(swapInterval));
   stackEl.addEventListener("mouseleave", () => { swapInterval = setInterval(swap, 4000); });
+
+  // Cost vs Score scatter — Pareto-style view of every model
+  const costScoreEl = document.getElementById("cost-score-chart");
+  const tokenUsageForChart = await fetchJSON("data/token-usage.json");
+  const modelPricing = await fetchJSON("data/model-pricing.json");
+  if (costScoreEl) {
+    // Per-model preferred label position to avoid overlap; falls back to 'right'.
+    const LABEL_POS = {
+      "claude-code-Claude-Opus-4.6":            "top",       // dot at top-right; label above
+      "claude-code-Claude-Sonnet-4.6":          "bottom",    // sits below Opus; label below avoids overlap
+      "claude-code-deepseek-DeepSeek-V4":       "top",
+      "claude-code-glm-GLM-5.1":                "right",
+      "claude-code-minimax-MiniMax-m2.7":       "bottom",
+      "codex-GPT-5.5":                          "left",      // hugs right edge; label to the left
+      "codex-GPT-5.3-codex":                    "right",
+      "codex-GPT-5.2":                          "bottom",
+      "gemini-cli-google-Gemini-3.1-Pro-Preview": "top",
+      "kimi-cli-moonshot-kimi-k2.6":            "right",
+    };
+
+    // For each model, compute avg cost per task using real input/output/cache splits × per-rate pricing
+    const points = lb.models.map(m => {
+      const price = modelPricing[m.model_id];
+      if (!price) return null;
+      let costs = [];
+      let totTokens = 0, nTasks = 0;
+      lb.tasks.forEach(t => {
+        const u = (tokenUsageForChart[t] || {})[m.model_id];
+        if (!u || !u.total) return;
+        const cost = (
+          (u.prompt     || 0) * price.input +
+          (u.completion || 0) * price.output +
+          (u.cache      || 0) * price.cache
+        ) / 1_000_000;
+        if (cost > 0) {
+          costs.push(cost);
+          totTokens += u.total;
+          nTasks += 1;
+        }
+      });
+      if (!costs.length) return null;
+      const avgCost = costs.reduce((s, v) => s + v, 0) / costs.length;
+      const avgTokens = totTokens / nTasks;
+      const d = modelDisplay(m.model_id);
+      return { name: d.name, color: d.color, modelId: m.model_id,
+               icon: d.model_icon_color || d.model_icon,
+               x: avgCost, y: m.overall, agent: d.agent,
+               tokens: avgTokens,
+               labelPos: LABEL_POS[m.model_id] || "right" };
+    }).filter(Boolean);
+
+    // Pareto frontier: not dominated if no other model has higher y AND lower x
+    const sortedByX = [...points].sort((a, b) => a.x - b.x);
+    const frontier = [];
+    let bestY = -Infinity;
+    for (const p of sortedByX) {
+      if (p.y > bestY) { frontier.push(p); bestY = p.y; }
+    }
+    const frontierSet = new Set(frontier.map(p => p.modelId));
+    const frontierPath = frontier.map(p => [p.x, p.y]);
+
+    const fmtCost = (v) => {
+      if (v >= 100) return '$' + Math.round(v);
+      if (v >= 10)  return '$' + v.toFixed(0);
+      if (v >= 1)   return '$' + v.toFixed(1);
+      if (v >= 0.1) return '$' + v.toFixed(2);
+      return '$' + v.toFixed(3);
+    };
+    const fmtTok = (v) => v >= 1_000_000 ? (v / 1_000_000).toFixed(1) + 'M'
+                       : v >= 1000      ? Math.round(v / 1000) + 'K'
+                       : String(v);
+
+    const costScoreChart = echarts.init(costScoreEl);
+    const renderCS = () => {
+      const w = costScoreEl.clientWidth;
+      const labelFs = w > 900 ? 12 : 10.5;      // data label pill (original)
+      const tickFs  = w > 900 ? 12 : 10.5;      // axis tick numbers (original)
+      const axisFs  = w > 900 ? 28 : 20;        // axis title — much bigger
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
+      // Tight axes — small padding only, no dead zones
+      const xMin = Math.min(...xs) * 0.78;
+      const xMax = Math.max(...xs) * 1.18;
+      const yMin = Math.max(0, Math.min(...ys) - 0.20);
+      const yMax = Math.min(5, Math.max(...ys) + 0.20);
+
+      costScoreChart.setOption({
+        backgroundColor: 'transparent',
+        animationDuration: 900,
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(255,253,247,0.97)',
+          borderColor: 'rgba(199, 82, 42, 0.25)',
+          borderWidth: 1,
+          padding: [10, 14],
+          textStyle: { color: '#4A3F37', fontSize: 13 },
+          formatter: (p) => {
+            const d = p.data;
+            if (!d.name) return '';
+            const tag = d.onFrontier ? `<span style="display:inline-block;background:rgba(58,45,35,0.12);color:#3a2d23;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:8px;margin-left:8px;letter-spacing:0.04em">BEST VALUE</span>` : '';
+            return `<div style="font-weight:700;font-size:14px;color:${d.color};margin-bottom:6px">${d.name}${tag}</div>` +
+                   `<div style="line-height:1.7"><span style="opacity:0.6">Agent</span> &nbsp; ${d.agent}<br>` +
+                   `<span style="opacity:0.6">Score</span> &nbsp; <strong>${d.y.toFixed(2)}</strong> / 5<br>` +
+                   `<span style="opacity:0.6">Cost</span> &nbsp; <strong>${fmtCost(d.x)}</strong> <span style="opacity:0.55">/ task · ${fmtTok(d.tokens)} tokens</span></div>`;
+          }
+        },
+        grid: { left: 96, right: 40, top: 36, bottom: 86 },
+        xAxis: {
+          type: 'log',
+          name: 'Cost per Task ($)',
+          nameLocation: 'middle',
+          nameGap: 52,
+          nameTextStyle: { color: '#3a2d23', fontSize: axisFs, fontWeight: 700, fontFamily: 'inherit' },
+          min: xMin, max: xMax,
+          axisLine: { lineStyle: { color: 'rgba(74,63,55,0.30)' } },
+          axisTick: { lineStyle: { color: 'rgba(74,63,55,0.22)' } },
+          splitLine: { lineStyle: { color: 'rgba(74,63,55,0.06)', type: 'dashed' } },
+          axisLabel: { color: '#5e4e3e', fontSize: tickFs, formatter: fmtCost }
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Overall Score',
+          nameLocation: 'middle',
+          nameGap: 68,
+          nameTextStyle: { color: '#3a2d23', fontSize: axisFs, fontWeight: 700, fontFamily: 'inherit' },
+          min: yMin, max: yMax,
+          interval: 0.2,
+          axisLine: { lineStyle: { color: 'rgba(74,63,55,0.30)' } },
+          axisTick: { lineStyle: { color: 'rgba(74,63,55,0.22)' } },
+          splitLine: { lineStyle: { color: 'rgba(74,63,55,0.06)', type: 'dashed' } },
+          axisLabel: { color: '#5e4e3e', fontSize: tickFs, formatter: v => v.toFixed(1) }
+        },
+        series: [
+          // Frontier line + soft fill under it
+          {
+            name: 'Frontier',
+            type: 'line',
+            data: frontierPath,
+            symbol: 'none',
+            smooth: 0.3,
+            silent: true,
+            z: 1,
+            lineStyle: { color: 'rgba(58, 45, 35, 0.5)', width: 1.5, type: [6, 5], cap: 'round' },
+            areaStyle: {
+              color: {
+                type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: 'rgba(58, 45, 35, 0.07)' },
+                  { offset: 1, color: 'rgba(58, 45, 35, 0)' }
+                ]
+              }
+            },
+            tooltip: { show: false }
+          },
+          // Dots with on-chart labels next to each point (no leader lines)
+          {
+            name: 'Models',
+            type: 'scatter',
+            z: 3,
+            data: points.map(p => {
+              const isFrontier = frontierSet.has(p.modelId);
+              return {
+                name: p.name, value: [p.x, p.y],
+                x: p.x, y: p.y, color: p.color, agent: p.agent, modelId: p.modelId,
+                tokens: p.tokens,
+                onFrontier: isFrontier,
+                itemStyle: {
+                  color: p.color,
+                  shadowBlur: isFrontier ? 26 : 14,
+                  shadowColor: p.color + (isFrontier ? 'b0' : '70'),
+                  borderColor: isFrontier ? '#ffffff' : 'rgba(255,255,255,0.85)',
+                  borderWidth: isFrontier ? 2.5 : 1.5
+                },
+                symbolSize: isFrontier ? 22 : 16,
+                label: {
+                  show: true,
+                  position: p.labelPos,
+                  distance: 10,
+                  color: '#3a2d23',
+                  fontSize: labelFs,
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(255,253,247,0.92)',
+                  borderColor: p.color + '55',
+                  borderWidth: 1,
+                  padding: [3, 8],
+                  borderRadius: 6,
+                  formatter: '{b}'
+                }
+              };
+            }),
+            labelLine: { show: false },
+            emphasis: {
+              scale: 1.35,
+              itemStyle: { shadowBlur: 36 },
+              label: {
+                shadowBlur: 12,
+                shadowColor: 'rgba(74,63,55,0.25)',
+                fontWeight: 700
+              }
+            }
+          }
+        ]
+      });
+    };
+    renderCS();
+    window.addEventListener('resize', () => { costScoreChart.resize(); renderCS(); });
+
+    // Smart hover: snap to nearest data point so the tooltip fires even when the
+    // cursor is on the label pill instead of the small dot itself.
+    let hoveredIdx = null;
+    const zr = costScoreChart.getZr();
+    zr.on('mousemove', (e) => {
+      const mx = e.offsetX, my = e.offsetY;
+      let bestIdx = -1, bestDist = Infinity;
+      points.forEach((p, i) => {
+        const px = costScoreChart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [p.x, p.y]);
+        if (!px) return;
+        const d = Math.hypot(px[0] - mx, px[1] - my);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      // Snap radius — generous so hovering anywhere near or on the label triggers
+      const snap = 90;
+      if (bestIdx >= 0 && bestDist < snap) {
+        if (hoveredIdx !== bestIdx) {
+          costScoreChart.dispatchAction({ type: 'showTip', seriesIndex: 1, dataIndex: bestIdx });
+          hoveredIdx = bestIdx;
+        }
+      } else if (hoveredIdx !== null) {
+        costScoreChart.dispatchAction({ type: 'hideTip' });
+        hoveredIdx = null;
+      }
+    });
+    zr.on('globalout', () => {
+      if (hoveredIdx !== null) {
+        costScoreChart.dispatchAction({ type: 'hideTip' });
+        hoveredIdx = null;
+      }
+    });
+  }
 
   // Open Skills catalog — grouped by task
   const taskColors = {
